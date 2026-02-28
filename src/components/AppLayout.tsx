@@ -33,6 +33,9 @@ interface AppLayoutProps {
 const AppLayout = ({ children }: AppLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const initials = user?.user_metadata?.first_name?.[0]?.toUpperCase() + (user?.user_metadata?.last_name?.[0]?.toUpperCase() || '') || user?.email?.[0]?.toUpperCase() || '?';
+  const displayName = user?.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim() : user?.email || 'User';
 
   return (
     <div className="flex min-h-screen">
