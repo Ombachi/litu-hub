@@ -12,7 +12,9 @@ import {
   Bell,
   Search,
   User,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const navItems = [
