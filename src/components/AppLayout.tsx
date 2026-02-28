@@ -148,7 +148,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent" />
             </button>
             <button className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
-              JK
+              {initials}
             </button>
           </div>
         </header>
