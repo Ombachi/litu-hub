@@ -12,7 +12,9 @@ import {
   Bell,
   Search,
   User,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -31,6 +33,9 @@ interface AppLayoutProps {
 const AppLayout = ({ children }: AppLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const initials = user?.user_metadata?.first_name?.[0]?.toUpperCase() + (user?.user_metadata?.last_name?.[0]?.toUpperCase() || '') || user?.email?.[0]?.toUpperCase() || '?';
+  const displayName = user?.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim() : user?.email || 'User';
 
   return (
     <div className="flex min-h-screen">
@@ -95,16 +100,23 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">
-              JK
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                Juma Kariuki
+                {displayName}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                Student
+                {user?.email}
               </p>
             </div>
+            <button
+              onClick={signOut}
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>
@@ -136,7 +148,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent" />
             </button>
             <button className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
-              JK
+              {initials}
             </button>
           </div>
         </header>

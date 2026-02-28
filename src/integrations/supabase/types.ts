@@ -1,0 +1,764 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      assignment_submissions: {
+        Row: {
+          assignment_id: string
+          content: string | null
+          feedback: string | null
+          file_url: string | null
+          id: string
+          score: number | null
+          status: string
+          student_id: string
+          submitted_at: string
+        }
+        Insert: {
+          assignment_id: string
+          content?: string | null
+          feedback?: string | null
+          file_url?: string | null
+          id?: string
+          score?: number | null
+          status?: string
+          student_id: string
+          submitted_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          content?: string | null
+          feedback?: string | null
+          file_url?: string | null
+          id?: string
+          score?: number | null
+          status?: string
+          student_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignments: {
+        Row: {
+          course_id: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          max_score: number
+          rubric_criteria: Json | null
+          title: string
+          type: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          max_score?: number
+          rubric_criteria?: Json | null
+          title: string
+          type?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          max_score?: number
+          rubric_criteria?: Json | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_tutors: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          tutor_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          tutor_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          tutor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_tutors_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          term_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          term_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          term_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discussion_posts: {
+        Row: {
+          author_id: string | null
+          content: string
+          created_at: string
+          discussion_id: string
+          id: string
+          likes: number | null
+          parent_post_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          content: string
+          created_at?: string
+          discussion_id: string
+          id?: string
+          likes?: number | null
+          parent_post_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          content?: string
+          created_at?: string
+          discussion_id?: string
+          id?: string
+          likes?: number | null
+          parent_post_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussion_posts_discussion_id_fkey"
+            columns: ["discussion_id"]
+            isOneToOne: false
+            referencedRelation: "discussions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_posts_parent_post_id_fkey"
+            columns: ["parent_post_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discussions: {
+        Row: {
+          author_id: string | null
+          course_id: string
+          created_at: string
+          id: string
+          pinned: boolean | null
+          title: string
+        }
+        Insert: {
+          author_id?: string | null
+          course_id: string
+          created_at?: string
+          id?: string
+          pinned?: boolean | null
+          title: string
+        }
+        Update: {
+          author_id?: string | null
+          course_id?: string
+          created_at?: string
+          id?: string
+          pinned?: boolean | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enrollments: {
+        Row: {
+          course_id: string
+          enrolled_at: string
+          id: string
+          student_id: string
+        }
+        Insert: {
+          course_id: string
+          enrolled_at?: string
+          id?: string
+          student_id: string
+        }
+        Update: {
+          course_id?: string
+          enrolled_at?: string
+          id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          completed: boolean | null
+          content: string | null
+          created_at: string
+          duration: string | null
+          id: string
+          module_id: string
+          order: number
+          title: string
+          type: string
+        }
+        Insert: {
+          completed?: boolean | null
+          content?: string | null
+          created_at?: string
+          duration?: string | null
+          id?: string
+          module_id: string
+          order?: number
+          title: string
+          type?: string
+        }
+        Update: {
+          completed?: boolean | null
+          content?: string | null
+          created_at?: string
+          duration?: string | null
+          id?: string
+          module_id?: string
+          order?: number
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modules: {
+        Row: {
+          course_id: string
+          created_at: string
+          description: string | null
+          id: string
+          order: number
+          title: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          order?: number
+          title: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modules_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quiz_attempts: {
+        Row: {
+          completed_at: string | null
+          id: string
+          quiz_id: string
+          score: number | null
+          started_at: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          quiz_id: string
+          score?: number | null
+          started_at?: string
+          status?: string
+          student_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          quiz_id?: string
+          score?: number | null
+          started_at?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_questions: {
+        Row: {
+          correct_answer: string
+          explanation: string | null
+          id: string
+          options: Json | null
+          order: number
+          points: number
+          question_text: string
+          question_type: string
+          quiz_id: string
+        }
+        Insert: {
+          correct_answer?: string
+          explanation?: string | null
+          id?: string
+          options?: Json | null
+          order?: number
+          points?: number
+          question_text: string
+          question_type?: string
+          quiz_id: string
+        }
+        Update: {
+          correct_answer?: string
+          explanation?: string | null
+          id?: string
+          options?: Json | null
+          order?: number
+          points?: number
+          question_text?: string
+          question_type?: string
+          quiz_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_responses: {
+        Row: {
+          attempt_id: string
+          id: string
+          is_correct: boolean | null
+          points_earned: number | null
+          question_id: string
+          response: string
+        }
+        Insert: {
+          attempt_id: string
+          id?: string
+          is_correct?: boolean | null
+          points_earned?: number | null
+          question_id: string
+          response?: string
+        }
+        Update: {
+          attempt_id?: string
+          id?: string
+          is_correct?: boolean | null
+          points_earned?: number | null
+          question_id?: string
+          response?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_responses_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quizzes: {
+        Row: {
+          course_id: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          max_attempts: number
+          time_limit: number
+          title: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          max_attempts?: number
+          time_limit?: number
+          title: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          max_attempts?: number
+          time_limit?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quizzes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terms: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      can_access_course: {
+        Args: { _course_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_course_tutor: {
+        Args: { _course_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_enrolled: {
+        Args: { _course_id: string; _user_id: string }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      app_role: "admin" | "tutor" | "student"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["admin", "tutor", "student"],
+    },
+  },
+} as const
