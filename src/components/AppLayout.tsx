@@ -100,16 +100,23 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">
-              JK
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                Juma Kariuki
+                {displayName}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                Student
+                {user?.email}
               </p>
             </div>
+            <button
+              onClick={signOut}
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>
