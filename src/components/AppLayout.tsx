@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/course/1", icon: BookOpen, label: "My Courses" },
   { to: "/assignments", icon: FileText, label: "Assignments" },
   { to: "/quizzes", icon: Brain, label: "Quizzes" },
   { to: "/discussions", icon: MessageSquare, label: "Discussions" },
