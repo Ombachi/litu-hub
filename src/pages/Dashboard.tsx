@@ -11,27 +11,56 @@ import {
   Users,
   TrendingUp,
   Calendar,
+  Loader2,
 } from "lucide-react";
-import {
-  mockCourses,
-  mockAssignments,
-  mockQuizzes,
-  badges,
-} from "@/lib/mockData";
+import { useCourses, useEnrollments, useAssignments, useEnroll } from "@/hooks/useData";
+import { useProfile } from "@/hooks/useData";
+import { toast } from "sonner";
+
+const badges = [
+  { name: "Quick Learner", icon: "⚡", earned: true },
+  { name: "Team Player", icon: "🤝", earned: true },
+  { name: "Perfect Score", icon: "🎯", earned: false },
+  { name: "Early Bird", icon: "🌅", earned: true },
+  { name: "Consistent", icon: "🔥", earned: true },
+];
 
 const Dashboard = () => {
-  const enrolledCourses = mockCourses.filter((c) => c.enrolled);
-  const upcomingAssignments = mockAssignments.filter(
-    (a) => a.status === "pending" || a.status === "overdue"
-  );
-  const availableCourses = mockCourses.filter((c) => !c.enrolled);
+  const { data: courses, isLoading: loadingCourses } = useCourses();
+  const { data: enrollments, isLoading: loadingEnrollments } = useEnrollments();
+  const { data: assignments } = useAssignments();
+  const { data: profile } = useProfile();
+  const enrollMutation = useEnroll();
+
+  const enrolledCourseIds = new Set(enrollments?.map((e) => e.course_id) || []);
+  const enrolledCourses = courses?.filter((c) => enrolledCourseIds.has(c.id)) || [];
+  const availableCourses = courses?.filter((c) => !enrolledCourseIds.has(c.id)) || [];
+  const upcomingAssignments = assignments?.filter(
+    (a) => a.due_date && new Date(a.due_date) > new Date()
+  )?.slice(0, 5) || [];
+
+  const firstName = profile?.first_name || "Student";
+
+  if (loadingCourses || loadingEnrollments) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const handleEnroll = (courseId: string) => {
+    enrollMutation.mutate(courseId, {
+      onSuccess: () => toast.success("Enrolled successfully!"),
+      onError: (e) => toast.error(e.message),
+    });
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Welcome */}
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight">
-          Habari, Juma! 👋
+          Habari, {firstName}! 👋
         </h1>
         <p className="mt-1 text-muted-foreground">
           Jan 2026 Semester — Here's what's happening today
@@ -43,8 +72,8 @@ const Dashboard = () => {
         {[
           { label: "Enrolled Courses", value: enrolledCourses.length, icon: BookOpen, color: "text-primary" },
           { label: "Pending Tasks", value: upcomingAssignments.length, icon: FileText, color: "text-accent" },
-          { label: "Quizzes Taken", value: mockQuizzes.filter((q) => q.status === "completed").length, icon: Brain, color: "text-info" },
-          { label: "Avg. Progress", value: `${Math.round(enrolledCourses.reduce((a, c) => a + c.progress, 0) / enrolledCourses.length)}%`, icon: TrendingUp, color: "text-success" },
+          { label: "Quizzes", value: "—", icon: Brain, color: "text-info" },
+          { label: "Courses Available", value: availableCourses.length, icon: TrendingUp, color: "text-success" },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -69,50 +98,40 @@ const Dashboard = () => {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl font-bold">My Courses</h2>
-            <span className="text-sm text-muted-foreground">
-              {enrolledCourses.length} enrolled
-            </span>
+            <span className="text-sm text-muted-foreground">{enrolledCourses.length} enrolled</span>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {enrolledCourses.map((course, i) => (
-              <Link
-                key={course.id}
-                to={`/course/${course.id}`}
-                className="group rounded-xl border bg-card overflow-hidden shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
-                style={{ animationDelay: `${i * 100}ms` }}
-              >
-                <div
-                  className="h-2"
-                  style={{ background: course.color }}
-                />
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <Badge variant="secondary" className="text-xs font-medium">
-                      {course.code}
-                    </Badge>
-                    <span className="text-sm font-bold text-primary">
-                      {course.progress}%
-                    </span>
+          {enrolledCourses.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
+              <BookOpen className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-muted-foreground">You haven't enrolled in any courses yet. Browse below!</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {enrolledCourses.map((course, i) => (
+                <Link
+                  key={course.id}
+                  to={`/course/${course.id}`}
+                  className="group rounded-xl border bg-card overflow-hidden shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
+                >
+                  <div className="h-2" style={{ background: course.color || "hsl(var(--primary))" }} />
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-2">
+                      <Badge variant="secondary" className="text-xs font-medium">{course.code}</Badge>
+                    </div>
+                    <h3 className="mt-3 font-display font-semibold leading-tight group-hover:text-primary transition-colors">
+                      {course.title}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" /> {course.terms?.name || "—"}
+                      </span>
+                    </div>
                   </div>
-                  <h3 className="mt-3 font-display font-semibold leading-tight group-hover:text-primary transition-colors">
-                    {course.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {course.instructor}
-                  </p>
-                  <Progress value={course.progress} className="mt-4 h-1.5" />
-                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3" /> {course.studentsCount}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" /> {course.term}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar */}
@@ -124,32 +143,24 @@ const Dashboard = () => {
               Upcoming Due
             </h3>
             <div className="mt-4 space-y-3">
-              {upcomingAssignments.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-start gap-3 rounded-lg bg-secondary/50 p-3"
-                >
-                  <FileText className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{a.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {a.courseName} •{" "}
-                      <span
-                        className={
-                          a.status === "overdue"
-                            ? "text-destructive font-medium"
-                            : "text-accent font-medium"
-                        }
-                      >
-                        {new Date(a.dueDate).toLocaleDateString("en-KE", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </p>
+              {upcomingAssignments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No upcoming assignments</p>
+              ) : (
+                upcomingAssignments.map((a) => (
+                  <div key={a.id} className="flex items-start gap-3 rounded-lg bg-secondary/50 p-3">
+                    <FileText className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{a.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {a.courses?.code} •{" "}
+                        <span className="text-accent font-medium">
+                          {a.due_date ? new Date(a.due_date).toLocaleDateString("en-KE", { month: "short", day: "numeric" }) : "No date"}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -164,9 +175,7 @@ const Dashboard = () => {
                 <div
                   key={badge.name}
                   className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${
-                    badge.earned
-                      ? "bg-primary/10 text-primary"
-                      : "bg-muted text-muted-foreground opacity-50"
+                    badge.earned ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground opacity-50"
                   }`}
                 >
                   <span>{badge.icon}</span>
@@ -188,22 +197,18 @@ const Dashboard = () => {
                 key={course.id}
                 className="group rounded-xl border bg-card overflow-hidden shadow-card transition-all hover:shadow-elevated"
               >
-                <div className="h-2" style={{ background: course.color }} />
+                <div className="h-2" style={{ background: course.color || "hsl(var(--primary))" }} />
                 <div className="p-5">
-                  <Badge variant="secondary" className="text-xs">
-                    {course.code}
-                  </Badge>
-                  <h3 className="mt-3 font-display font-semibold leading-tight">
-                    {course.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                    {course.description}
-                  </p>
+                  <Badge variant="secondary" className="text-xs">{course.code}</Badge>
+                  <h3 className="mt-3 font-display font-semibold leading-tight">{course.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{course.description}</p>
                   <div className="mt-4 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Users className="h-3 w-3" /> {course.studentsCount} students
-                    </span>
-                    <button className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+                    <span className="text-xs text-muted-foreground">{course.terms?.name}</span>
+                    <button
+                      onClick={() => handleEnroll(course.id)}
+                      disabled={enrollMutation.isPending}
+                      className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
                       Enroll <ArrowRight className="h-3 w-3" />
                     </button>
                   </div>
