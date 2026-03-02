@@ -12,6 +12,7 @@ import AssignmentsPage from "./pages/AssignmentsPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import DiscussionsPage from "./pages/DiscussionsPage";
 import CoachStudio from "./pages/CoachStudio";
+import GradesPage from "./pages/GradesPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => (
                       <Route path="/assignments" element={<AssignmentsPage />} />
                       <Route path="/quizzes" element={<QuizzesPage />} />
                       <Route path="/discussions" element={<DiscussionsPage />} />
+                      <Route path="/grades" element={<GradesPage />} />
                       <Route path="/coach-studio" element={<CoachStudio />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>

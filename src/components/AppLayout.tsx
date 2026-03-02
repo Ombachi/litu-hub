@@ -7,6 +7,7 @@ import {
   Brain,
   MessageSquare,
   GraduationCap,
+  TrendingUp,
   Menu,
   X,
   Bell,
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/assignments", icon: FileText, label: "Assignments" },
   { to: "/quizzes", icon: Brain, label: "Quizzes" },
+  { to: "/grades", icon: TrendingUp, label: "Grades" },
   { to: "/discussions", icon: MessageSquare, label: "Discussions" },
   { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio" },
 ];
