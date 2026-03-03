@@ -1,1 +1,7 @@
 project_id = "kysumebakyvzsbuszsja"
+
+[functions.me-roles]
+verify_jwt = false
+
+[functions.seed-dev-data]
+verify_jwt = false
