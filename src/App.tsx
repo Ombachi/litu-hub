@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleGuard from "./components/RoleGuard";
 import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import CoursePage from "./pages/CoursePage";
@@ -13,6 +14,7 @@ import QuizzesPage from "./pages/QuizzesPage";
 import DiscussionsPage from "./pages/DiscussionsPage";
 import CoachStudio from "./pages/CoachStudio";
 import GradesPage from "./pages/GradesPage";
+import CalendarPage from "./pages/CalendarPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -39,7 +41,15 @@ const App = () => (
                       <Route path="/quizzes" element={<QuizzesPage />} />
                       <Route path="/discussions" element={<DiscussionsPage />} />
                       <Route path="/grades" element={<GradesPage />} />
-                      <Route path="/coach-studio" element={<CoachStudio />} />
+                      <Route path="/calendar" element={<CalendarPage />} />
+                      <Route
+                        path="/coach-studio"
+                        element={
+                          <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
+                            <CoachStudio />
+                          </RoleGuard>
+                        }
+                      />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppLayout>

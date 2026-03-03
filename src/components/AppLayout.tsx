@@ -8,23 +8,25 @@ import {
   MessageSquare,
   GraduationCap,
   TrendingUp,
+  Calendar,
   Menu,
   X,
-  Bell,
   Search,
-  User,
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useRole } from "@/hooks/useRole";
 import { cn } from "@/lib/utils";
+import NotificationBell from "@/components/NotificationBell";
 
-const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/assignments", icon: FileText, label: "Assignments" },
-  { to: "/quizzes", icon: Brain, label: "Quizzes" },
-  { to: "/grades", icon: TrendingUp, label: "Grades" },
-  { to: "/discussions", icon: MessageSquare, label: "Discussions" },
-  { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio" },
+const allNavItems = [
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: null },
+  { to: "/assignments", icon: FileText, label: "Assignments", roles: null },
+  { to: "/quizzes", icon: Brain, label: "Quizzes", roles: null },
+  { to: "/grades", icon: TrendingUp, label: "Grades", roles: null },
+  { to: "/calendar", icon: Calendar, label: "Calendar", roles: null },
+  { to: "/discussions", icon: MessageSquare, label: "Discussions", roles: null },
+  { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta"] as string[] },
 ];
 
 interface AppLayoutProps {
@@ -35,8 +37,11 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { role } = useRole();
   const initials = user?.user_metadata?.first_name?.[0]?.toUpperCase() + (user?.user_metadata?.last_name?.[0]?.toUpperCase() || '') || user?.email?.[0]?.toUpperCase() || '?';
   const displayName = user?.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim() : user?.email || 'User';
+
+  const navItems = allNavItems.filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <div className="flex min-h-screen">
@@ -108,7 +113,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                 {displayName}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                {user?.email}
+                {role}
               </p>
             </div>
             <button
@@ -144,10 +149,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="relative rounded-lg p-2 text-muted-foreground hover:bg-secondary transition-colors">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent" />
-            </button>
+            <NotificationBell />
             <button className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
               {initials}
             </button>
