@@ -496,34 +496,43 @@ export type Database = {
       }
       quiz_questions: {
         Row: {
+          competency_tag: string
           correct_answer: string
+          difficulty: string
           explanation: string | null
           id: string
           options: Json | null
           order: number
           points: number
+          pool_name: string
           question_text: string
           question_type: string
           quiz_id: string
         }
         Insert: {
+          competency_tag?: string
           correct_answer?: string
+          difficulty?: string
           explanation?: string | null
           id?: string
           options?: Json | null
           order?: number
           points?: number
+          pool_name?: string
           question_text: string
           question_type?: string
           quiz_id: string
         }
         Update: {
+          competency_tag?: string
           correct_answer?: string
+          difficulty?: string
           explanation?: string | null
           id?: string
           options?: Json | null
           order?: number
           points?: number
+          pool_name?: string
           question_text?: string
           question_type?: string
           quiz_id?: string
