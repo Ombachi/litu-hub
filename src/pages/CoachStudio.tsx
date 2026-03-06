@@ -3,19 +3,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2,
+  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle,
 } from "lucide-react";
-import { useCourses, useModules, useAssignments, useQuizzes } from "@/hooks/useData";
+import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions } from "@/hooks/useData";
 import {
   useCreateModule, useUpdateModule, useDeleteModule,
   useCreateLesson, useUpdateLesson, useDeleteLesson,
   useCreateAssignment, useUpdateAssignment, useDeleteAssignment,
   useCreateQuiz, useUpdateQuiz, useDeleteQuiz,
+  useCreateQuizQuestion, useUpdateQuizQuestion, useDeleteQuizQuestion,
 } from "@/hooks/useMutations";
 import ModuleDialog from "@/components/coach/ModuleDialog";
 import LessonDialog from "@/components/coach/LessonDialog";
 import AssignmentDialog from "@/components/coach/AssignmentDialog";
 import QuizDialog from "@/components/coach/QuizDialog";
+import QuestionBankDialog from "@/components/coach/QuestionBankDialog";
 import DeleteConfirmDialog from "@/components/coach/DeleteConfirmDialog";
 
 const CoachStudio = () => {
@@ -27,6 +29,11 @@ const CoachStudio = () => {
   const { data: modules } = useModules(courseId);
   const { data: assignments } = useAssignments(courseId);
   const { data: quizzes } = useQuizzes(courseId);
+
+  // Question bank: select quiz to manage questions
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+  const activeQuizId = selectedQuizId || quizzes?.[0]?.id;
+  const { data: questions } = useQuizQuestions(activeQuizId);
 
   // Mutations
   const createModule = useCreateModule();
@@ -41,12 +48,16 @@ const CoachStudio = () => {
   const createQuiz = useCreateQuiz();
   const updateQuiz = useUpdateQuiz();
   const deleteQuiz = useDeleteQuiz();
+  const createQuestion = useCreateQuizQuestion();
+  const updateQuestion = useUpdateQuizQuestion();
+  const deleteQuestion = useDeleteQuizQuestion();
 
   // Dialog states
   const [moduleDialog, setModuleDialog] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
   const [lessonDialog, setLessonDialog] = useState<{ open: boolean; editing: any | null; moduleId: string | null }>({ open: false, editing: null, moduleId: null });
   const [assignmentDialog, setAssignmentDialog] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
   const [quizDialog, setQuizDialog] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
+  const [questionDialog, setQuestionDialog] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; type: string; id: string; name: string }>({ open: false, type: "", id: "", name: "" });
 
   // Handlers
@@ -61,9 +72,7 @@ const CoachStudio = () => {
         toast.success("Module created");
       }
       setModuleDialog({ open: false, editing: null });
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleLessonSubmit = async (data: { title: string; type: string; duration: string; content: string }) => {
@@ -78,9 +87,7 @@ const CoachStudio = () => {
         toast.success("Lesson created");
       }
       setLessonDialog({ open: false, editing: null, moduleId: null });
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleAssignmentSubmit = async (data: { title: string; description: string; type: string; due_date: string; max_score: number }) => {
@@ -93,9 +100,7 @@ const CoachStudio = () => {
         toast.success("Assignment created");
       }
       setAssignmentDialog({ open: false, editing: null });
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleQuizSubmit = async (data: { title: string; description: string; time_limit: number; max_attempts: number; due_date: string }) => {
@@ -108,9 +113,21 @@ const CoachStudio = () => {
         toast.success("Quiz created");
       }
       setQuizDialog({ open: false, editing: null });
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleQuestionSubmit = async (data: any) => {
+    try {
+      if (questionDialog.editing) {
+        await updateQuestion.mutateAsync({ id: questionDialog.editing.id, question_text: data.question_text, options: data.options, correct_answer: data.correct_answer, explanation: data.explanation, points: data.points });
+        toast.success("Question updated");
+      } else {
+        const order = (questions?.length || 0) + 1;
+        await createQuestion.mutateAsync({ quiz_id: activeQuizId!, question_text: data.question_text, question_type: data.question_type, options: data.options, correct_answer: data.correct_answer, explanation: data.explanation, points: data.points, order });
+        toast.success("Question added");
+      }
+      setQuestionDialog({ open: false, editing: null });
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleDelete = async () => {
@@ -120,14 +137,13 @@ const CoachStudio = () => {
       else if (type === "lesson") await deleteLesson.mutateAsync(id);
       else if (type === "assignment") await deleteAssignment.mutateAsync(id);
       else if (type === "quiz") await deleteQuiz.mutateAsync(id);
+      else if (type === "question") await deleteQuestion.mutateAsync(id);
       toast.success(`${deleteDialog.type.charAt(0).toUpperCase() + deleteDialog.type.slice(1)} deleted`);
       setDeleteDialog({ open: false, type: "", id: "", name: "" });
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   };
 
-  const isDeletePending = deleteModule.isPending || deleteLesson.isPending || deleteAssignment.isPending || deleteQuiz.isPending;
+  const isDeletePending = deleteModule.isPending || deleteLesson.isPending || deleteAssignment.isPending || deleteQuiz.isPending || deleteQuestion.isPending;
 
   if (isLoading) {
     return (
@@ -157,11 +173,9 @@ const CoachStudio = () => {
         {courses.map((course) => (
           <button
             key={course.id}
-            onClick={() => setSelectedCourseId(course.id)}
+            onClick={() => { setSelectedCourseId(course.id); setSelectedQuizId(null); }}
             className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all ${
-              courseId === course.id
-                ? "border-primary bg-primary/5 text-primary"
-                : "bg-card hover:bg-secondary/50"
+              courseId === course.id ? "border-primary bg-primary/5 text-primary" : "bg-card hover:bg-secondary/50"
             }`}
           >
             <div className="h-2 w-2 rounded-full" style={{ background: course.color || "hsl(var(--primary))" }} />
@@ -190,6 +204,7 @@ const CoachStudio = () => {
                 { value: "modules", icon: Layers, label: "Modules & Lessons" },
                 { value: "assignments", icon: FileText, label: `Assignments (${assignments?.length || 0})` },
                 { value: "quizzes", icon: Brain, label: `Quizzes (${quizzes?.length || 0})` },
+                { value: "questions", icon: HelpCircle, label: "Question Bank" },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
@@ -227,16 +242,10 @@ const CoachStudio = () => {
                         <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                         <h4 className="font-display font-semibold flex-1">{mod.title}</h4>
                         <span className="text-xs text-muted-foreground">{lessons.length} lessons</span>
-                        <button
-                          onClick={() => setModuleDialog({ open: true, editing: mod })}
-                          className="p-1 hover:bg-secondary rounded transition-colors"
-                        >
+                        <button onClick={() => setModuleDialog({ open: true, editing: mod })} className="p-1 hover:bg-secondary rounded transition-colors">
                           <Edit className="h-3.5 w-3.5" />
                         </button>
-                        <button
-                          onClick={() => setDeleteDialog({ open: true, type: "module", id: mod.id, name: mod.title })}
-                          className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors"
-                        >
+                        <button onClick={() => setDeleteDialog({ open: true, type: "module", id: mod.id, name: mod.title })} className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -247,16 +256,10 @@ const CoachStudio = () => {
                             <Badge variant="secondary" className="text-[10px] uppercase">{lesson.type}</Badge>
                             <span className="flex-1 text-sm">{lesson.title}</span>
                             <span className="text-xs text-muted-foreground">{lesson.duration}</span>
-                            <button
-                              onClick={() => setLessonDialog({ open: true, editing: lesson, moduleId: mod.id })}
-                              className="p-1 hover:bg-secondary rounded"
-                            >
+                            <button onClick={() => setLessonDialog({ open: true, editing: lesson, moduleId: mod.id })} className="p-1 hover:bg-secondary rounded">
                               <Edit className="h-3 w-3" />
                             </button>
-                            <button
-                              onClick={() => setDeleteDialog({ open: true, type: "lesson", id: lesson.id, name: lesson.title })}
-                              className="p-1 hover:bg-destructive/10 text-destructive rounded"
-                            >
+                            <button onClick={() => setDeleteDialog({ open: true, type: "lesson", id: lesson.id, name: lesson.title })} className="p-1 hover:bg-destructive/10 text-destructive rounded">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           </div>
@@ -278,10 +281,7 @@ const CoachStudio = () => {
             <TabsContent value="assignments" className="mt-6 space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-display font-semibold">Course Assignments</h3>
-                <button
-                  onClick={() => setAssignmentDialog({ open: true, editing: null })}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
+                <button onClick={() => setAssignmentDialog({ open: true, editing: null })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                   <Plus className="h-4 w-4" /> Create Assignment
                 </button>
               </div>
@@ -298,18 +298,8 @@ const CoachStudio = () => {
                       <p className="text-sm text-muted-foreground">Due: {a.due_date ? new Date(a.due_date).toLocaleDateString("en-KE") : "—"} • {a.max_score} pts • {a.type}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setAssignmentDialog({ open: true, editing: a })}
-                        className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteDialog({ open: true, type: "assignment", id: a.id, name: a.title })}
-                        className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <button onClick={() => setAssignmentDialog({ open: true, editing: a })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors"><Edit className="h-4 w-4" /></button>
+                      <button onClick={() => setDeleteDialog({ open: true, type: "assignment", id: a.id, name: a.title })} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </div>
                 ))
@@ -320,10 +310,7 @@ const CoachStudio = () => {
             <TabsContent value="quizzes" className="mt-6 space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-display font-semibold">Course Quizzes</h3>
-                <button
-                  onClick={() => setQuizDialog({ open: true, editing: null })}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
+                <button onClick={() => setQuizDialog({ open: true, editing: null })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                   <Plus className="h-4 w-4" /> Create Quiz
                 </button>
               </div>
@@ -340,21 +327,87 @@ const CoachStudio = () => {
                       <p className="text-sm text-muted-foreground">{q.time_limit} min • {q.max_attempts} attempts max</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setQuizDialog({ open: true, editing: q })}
-                        className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteDialog({ open: true, type: "quiz", id: q.id, name: q.title })}
-                        className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <button onClick={() => setQuizDialog({ open: true, editing: q })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors"><Edit className="h-4 w-4" /></button>
+                      <button onClick={() => setDeleteDialog({ open: true, type: "quiz", id: q.id, name: q.title })} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </div>
                 ))
+              )}
+            </TabsContent>
+
+            {/* Question Bank Tab */}
+            <TabsContent value="questions" className="mt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-semibold">Question Bank</h3>
+                <button
+                  onClick={() => setQuestionDialog({ open: true, editing: null })}
+                  disabled={!activeQuizId}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  <Plus className="h-4 w-4" /> Add Question
+                </button>
+              </div>
+
+              {/* Quiz selector */}
+              {quizzes && quizzes.length > 0 ? (
+                <div className="flex gap-2 flex-wrap">
+                  {quizzes.map((q) => (
+                    <button
+                      key={q.id}
+                      onClick={() => setSelectedQuizId(q.id)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                        activeQuizId === q.id ? "border-primary bg-primary/5 text-primary" : "hover:bg-secondary/50"
+                      }`}
+                    >
+                      {q.title}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Create a quiz first to manage questions.</p>
+              )}
+
+              {/* Questions list */}
+              {activeQuizId && (
+                <div className="space-y-3">
+                  {!questions?.length ? (
+                    <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
+                      <HelpCircle className="mx-auto h-10 w-10 text-muted-foreground" />
+                      <p className="mt-3 text-muted-foreground">No questions yet. Add your first question!</p>
+                    </div>
+                  ) : (
+                    questions.map((q: any, i: number) => (
+                      <div key={q.id} className="rounded-xl border bg-card p-4 shadow-card">
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-xs font-bold shrink-0">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{q.question_text}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Badge variant="secondary" className="text-[10px] capitalize">{q.question_type?.replace("_", " ")}</Badge>
+                              <Badge variant="outline" className="text-[10px]">{q.points} pts</Badge>
+                              {q.difficulty && <Badge variant="outline" className="text-[10px] capitalize">{q.difficulty}</Badge>}
+                              {q.competency_tag && <Badge className="text-[10px]">{q.competency_tag}</Badge>}
+                              {q.pool_name && <Badge variant="secondary" className="text-[10px]">🏷 {q.pool_name}</Badge>}
+                            </div>
+                            {Array.isArray(q.options) && q.options.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {(q.options as string[]).map((opt: string) => (
+                                  <div key={opt} className={`text-xs px-2 py-1 rounded ${opt === q.correct_answer ? "bg-success/10 text-success font-medium" : "text-muted-foreground"}`}>
+                                    {opt === q.correct_answer ? "✓ " : "  "}{opt}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setQuestionDialog({ open: true, editing: q })} className="p-1 hover:bg-secondary rounded"><Edit className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setDeleteDialog({ open: true, type: "question", id: q.id, name: q.question_text.slice(0, 30) })} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </TabsContent>
           </Tabs>
@@ -362,41 +415,12 @@ const CoachStudio = () => {
       )}
 
       {/* Dialogs */}
-      <ModuleDialog
-        open={moduleDialog.open}
-        onOpenChange={(open) => !open && setModuleDialog({ open: false, editing: null })}
-        onSubmit={handleModuleSubmit}
-        isPending={createModule.isPending || updateModule.isPending}
-        initial={moduleDialog.editing ? { title: moduleDialog.editing.title, description: moduleDialog.editing.description || "" } : null}
-      />
-      <LessonDialog
-        open={lessonDialog.open}
-        onOpenChange={(open) => !open && setLessonDialog({ open: false, editing: null, moduleId: null })}
-        onSubmit={handleLessonSubmit}
-        isPending={createLesson.isPending || updateLesson.isPending}
-        initial={lessonDialog.editing ? { title: lessonDialog.editing.title, type: lessonDialog.editing.type, duration: lessonDialog.editing.duration || "", content: lessonDialog.editing.content || "" } : null}
-      />
-      <AssignmentDialog
-        open={assignmentDialog.open}
-        onOpenChange={(open) => !open && setAssignmentDialog({ open: false, editing: null })}
-        onSubmit={handleAssignmentSubmit}
-        isPending={createAssignment.isPending || updateAssignment.isPending}
-        initial={assignmentDialog.editing ? { title: assignmentDialog.editing.title, description: assignmentDialog.editing.description || "", type: assignmentDialog.editing.type, due_date: assignmentDialog.editing.due_date || "", max_score: assignmentDialog.editing.max_score } : null}
-      />
-      <QuizDialog
-        open={quizDialog.open}
-        onOpenChange={(open) => !open && setQuizDialog({ open: false, editing: null })}
-        onSubmit={handleQuizSubmit}
-        isPending={createQuiz.isPending || updateQuiz.isPending}
-        initial={quizDialog.editing ? { title: quizDialog.editing.title, description: quizDialog.editing.description || "", time_limit: quizDialog.editing.time_limit, max_attempts: quizDialog.editing.max_attempts, due_date: quizDialog.editing.due_date || "" } : null}
-      />
-      <DeleteConfirmDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => !open && setDeleteDialog({ open: false, type: "", id: "", name: "" })}
-        onConfirm={handleDelete}
-        isPending={isDeletePending}
-        itemName={deleteDialog.name}
-      />
+      <ModuleDialog open={moduleDialog.open} onOpenChange={(open) => !open && setModuleDialog({ open: false, editing: null })} onSubmit={handleModuleSubmit} isPending={createModule.isPending || updateModule.isPending} initial={moduleDialog.editing ? { title: moduleDialog.editing.title, description: moduleDialog.editing.description || "" } : null} />
+      <LessonDialog open={lessonDialog.open} onOpenChange={(open) => !open && setLessonDialog({ open: false, editing: null, moduleId: null })} onSubmit={handleLessonSubmit} isPending={createLesson.isPending || updateLesson.isPending} initial={lessonDialog.editing ? { title: lessonDialog.editing.title, type: lessonDialog.editing.type, duration: lessonDialog.editing.duration || "", content: lessonDialog.editing.content || "" } : null} />
+      <AssignmentDialog open={assignmentDialog.open} onOpenChange={(open) => !open && setAssignmentDialog({ open: false, editing: null })} onSubmit={handleAssignmentSubmit} isPending={createAssignment.isPending || updateAssignment.isPending} initial={assignmentDialog.editing ? { title: assignmentDialog.editing.title, description: assignmentDialog.editing.description || "", type: assignmentDialog.editing.type, due_date: assignmentDialog.editing.due_date || "", max_score: assignmentDialog.editing.max_score } : null} />
+      <QuizDialog open={quizDialog.open} onOpenChange={(open) => !open && setQuizDialog({ open: false, editing: null })} onSubmit={handleQuizSubmit} isPending={createQuiz.isPending || updateQuiz.isPending} initial={quizDialog.editing ? { title: quizDialog.editing.title, description: quizDialog.editing.description || "", time_limit: quizDialog.editing.time_limit, max_attempts: quizDialog.editing.max_attempts, due_date: quizDialog.editing.due_date || "" } : null} />
+      <QuestionBankDialog open={questionDialog.open} onOpenChange={(open) => !open && setQuestionDialog({ open: false, editing: null })} onSubmit={handleQuestionSubmit} isPending={createQuestion.isPending || updateQuestion.isPending} initial={questionDialog.editing} />
+      <DeleteConfirmDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, type: "", id: "", name: "" })} onConfirm={handleDelete} isPending={isDeletePending} itemName={deleteDialog.name} />
     </div>
   );
 };
