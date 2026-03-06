@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAssignments, useQuizzes } from "@/hooks/useData";
 import { ChevronLeft, ChevronRight, FileText, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ interface CalendarEvent {
   date: Date;
   type: "assignment" | "quiz";
   courseCode?: string;
+  courseId?: string;
 }
 
 const CalendarPage = () => {
@@ -19,6 +21,7 @@ const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { data: assignments } = useAssignments();
   const { data: quizzes } = useQuizzes();
+  const navigate = useNavigate();
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -26,10 +29,10 @@ const CalendarPage = () => {
   const events = useMemo<CalendarEvent[]>(() => {
     const items: CalendarEvent[] = [];
     assignments?.forEach((a: any) => {
-      if (a.due_date) items.push({ id: a.id, title: a.title, date: new Date(a.due_date), type: "assignment", courseCode: a.courses?.code });
+      if (a.due_date) items.push({ id: a.id, title: a.title, date: new Date(a.due_date), type: "assignment", courseCode: a.courses?.code, courseId: a.course_id });
     });
     quizzes?.forEach((q: any) => {
-      if (q.due_date) items.push({ id: q.id, title: q.title, date: new Date(q.due_date), type: "quiz", courseCode: q.courses?.code });
+      if (q.due_date) items.push({ id: q.id, title: q.title, date: new Date(q.due_date), type: "quiz", courseCode: q.courses?.code, courseId: q.course_id });
     });
     return items;
   }, [assignments, quizzes]);
@@ -49,6 +52,14 @@ const CalendarPage = () => {
     ? events.filter((e) => e.date.toDateString() === selectedDate.toDateString())
     : [];
 
+  const handleEventClick = (event: CalendarEvent) => {
+    if (event.type === "assignment") {
+      navigate(`/assignment/${event.id}`);
+    } else {
+      navigate(`/quizzes?take=${event.id}`);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -57,7 +68,6 @@ const CalendarPage = () => {
       </div>
 
       <div className="rounded-xl border bg-card shadow-card overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="rounded-lg p-2 hover:bg-secondary transition-colors">
             <ChevronLeft className="h-5 w-5" />
@@ -68,14 +78,12 @@ const CalendarPage = () => {
           </button>
         </div>
 
-        {/* Day headers */}
         <div className="grid grid-cols-7 border-b">
           {DAYS.map((d) => (
             <div key={d} className="px-2 py-3 text-center text-xs font-semibold text-muted-foreground uppercase">{d}</div>
           ))}
         </div>
 
-        {/* Grid */}
         <div className="grid grid-cols-7">
           {cells.map((day, i) => {
             if (!day) return <div key={`empty-${i}`} className="min-h-[80px] border-b border-r bg-muted/20" />;
@@ -120,7 +128,7 @@ const CalendarPage = () => {
         </div>
       </div>
 
-      {/* Selected day details */}
+      {/* Selected day details with deep-links */}
       {selectedDate && (
         <div className="rounded-xl border bg-card p-5 shadow-card">
           <h3 className="font-display font-semibold mb-3">
@@ -131,7 +139,11 @@ const CalendarPage = () => {
           ) : (
             <div className="space-y-2">
               {selectedEvents.map((e) => (
-                <div key={e.id} className="flex items-center gap-3 rounded-lg border p-3">
+                <button
+                  key={e.id}
+                  onClick={() => handleEventClick(e)}
+                  className="flex items-center gap-3 rounded-lg border p-3 w-full text-left hover:bg-secondary/50 transition-colors"
+                >
                   {e.type === "assignment" ? (
                     <FileText className="h-5 w-5 text-chart-1" />
                   ) : (
@@ -141,7 +153,7 @@ const CalendarPage = () => {
                     <p className="text-sm font-medium">{e.title}</p>
                     <p className="text-xs text-muted-foreground">{e.courseCode} • {e.type}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}

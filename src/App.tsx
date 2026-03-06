@@ -10,11 +10,15 @@ import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import CoursePage from "./pages/CoursePage";
 import AssignmentsPage from "./pages/AssignmentsPage";
+import AssignmentDetailPage from "./pages/AssignmentDetailPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import DiscussionsPage from "./pages/DiscussionsPage";
+import DiscussionThreadPage from "./pages/DiscussionThreadPage";
 import CoachStudio from "./pages/CoachStudio";
 import GradesPage from "./pages/GradesPage";
 import CalendarPage from "./pages/CalendarPage";
+import LessonPage from "./pages/LessonPage";
+import GradingQueuePage from "./pages/GradingQueuePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -38,15 +42,26 @@ const App = () => (
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/course/:courseId" element={<CoursePage />} />
                       <Route path="/assignments" element={<AssignmentsPage />} />
+                      <Route path="/assignment/:assignmentId" element={<AssignmentDetailPage />} />
                       <Route path="/quizzes" element={<QuizzesPage />} />
                       <Route path="/discussions" element={<DiscussionsPage />} />
+                      <Route path="/discussion/:discussionId" element={<DiscussionThreadPage />} />
                       <Route path="/grades" element={<GradesPage />} />
                       <Route path="/calendar" element={<CalendarPage />} />
+                      <Route path="/lesson/:lessonId" element={<LessonPage />} />
                       <Route
                         path="/coach-studio"
                         element={
                           <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
                             <CoachStudio />
+                          </RoleGuard>
+                        }
+                      />
+                      <Route
+                        path="/grading-queue"
+                        element={
+                          <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
+                            <GradingQueuePage />
                           </RoleGuard>
                         }
                       />

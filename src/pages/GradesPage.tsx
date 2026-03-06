@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  Trophy, TrendingUp, BookOpen, FileText, Brain, CheckCircle2, Clock, XCircle, Loader2, BarChart3,
+  Trophy, TrendingUp, BookOpen, FileText, Brain, CheckCircle2, Clock, XCircle, Loader2, BarChart3, ChevronDown, ChevronRight, MessageSquare,
 } from "lucide-react";
 import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts } from "@/hooks/useData";
 
@@ -38,6 +39,7 @@ const GradesPage = () => {
   const { data: allAssignments, isLoading: loadingAssign } = useAssignments();
   const { data: submissions, isLoading: loadingSubs } = useMySubmissions();
   const { data: quizAttempts, isLoading: loadingQuiz } = useMyQuizAttempts();
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
   const isLoading = loadingEnroll || loadingAssign || loadingSubs || loadingQuiz;
 
@@ -48,24 +50,16 @@ const GradesPage = () => {
       const course = enrollment.courses as any;
       if (!course) return null;
 
-      // Assignments for this course
       const courseAssignments = allAssignments.filter((a: any) => a.course_id === course.id);
       const gradedSubs = courseAssignments.map((a: any) => {
         const sub = submissions.find((s) => s.assignment_id === a.id);
-        return { assignment: a, submission: sub || null };
+        const rubric = Array.isArray(a.rubric_criteria) ? a.rubric_criteria : [];
+        return { assignment: a, submission: sub || null, rubric };
       });
 
       const gradedAssignments = gradedSubs.filter((g) => g.submission?.score !== null && g.submission?.score !== undefined);
       const assignmentEarned = gradedAssignments.reduce((s, g) => s + (g.submission!.score || 0), 0);
       const assignmentMax = gradedAssignments.reduce((s, g) => s + g.assignment.max_score, 0);
-
-      // Quizzes for this course
-      const completedAttempts = quizAttempts.filter(
-        (a) => a.status === "completed" && courseAssignments.length >= 0 // we need quiz course_id
-      );
-      // We need to match quiz attempts to course — quiz_attempts don't have course_id directly
-      // We'll match via the quizzes data embedded or just show all quiz attempts
-      // For now, let's use all completed attempts (since useQuizzes isn't course-filtered here)
 
       const totalEarned = assignmentEarned;
       const totalMax = assignmentMax;
@@ -152,7 +146,7 @@ const GradesPage = () => {
         </div>
       </div>
 
-      {/* Per-Course Grades */}
+      {/* Per-Course Grades with expandable rubric breakdown */}
       <div className="space-y-4">
         <h2 className="font-display text-xl font-semibold flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-primary" />
@@ -164,71 +158,112 @@ const GradesPage = () => {
             <p className="mt-3 text-muted-foreground">Enroll in courses to see your grades here.</p>
           </div>
         ) : (
-          courseGrades.map((cg) => (
-            <div key={cg.courseId} className="rounded-xl border bg-card shadow-card overflow-hidden">
-              <div className="flex items-center gap-4 p-5 border-b bg-secondary/20">
-                <div className="h-3 w-3 rounded-full shrink-0" style={{ background: cg.color || "hsl(var(--primary))" }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display font-semibold">{cg.code}</h3>
-                    <span className="text-sm text-muted-foreground">— {cg.title}</span>
+          courseGrades.map((cg) => {
+            const isExpanded = expandedCourse === cg.courseId;
+            return (
+              <div key={cg.courseId} className="rounded-xl border bg-card shadow-card overflow-hidden">
+                <button
+                  onClick={() => setExpandedCourse(isExpanded ? null : cg.courseId)}
+                  className="flex items-center gap-4 p-5 w-full text-left border-b bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                >
+                  {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                  <div className="h-3 w-3 rounded-full shrink-0" style={{ background: cg.color || "hsl(var(--primary))" }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-display font-semibold">{cg.code}</h3>
+                      <span className="text-sm text-muted-foreground">— {cg.title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{cg.term}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{cg.term}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  {cg.grade ? (
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <p className={`font-display text-2xl font-bold ${cg.grade.color}`}>{cg.grade.letter}</p>
-                        <p className="text-xs text-muted-foreground">{cg.pct}%</p>
+                  <div className="text-right shrink-0">
+                    {cg.grade ? (
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <p className={`font-display text-2xl font-bold ${cg.grade.color}`}>{cg.grade.letter}</p>
+                          <p className="text-xs text-muted-foreground">{cg.pct}%</p>
+                        </div>
+                        <Badge variant="secondary" className="font-mono">{cg.gpa?.toFixed(1)} GPA</Badge>
                       </div>
-                      <Badge variant="secondary" className="font-mono">{cg.gpa?.toFixed(1)} GPA</Badge>
-                    </div>
-                  ) : (
-                    <Badge variant="outline">No grades yet</Badge>
-                  )}
-                </div>
-              </div>
+                    ) : (
+                      <Badge variant="outline">No grades yet</Badge>
+                    )}
+                  </div>
+                </button>
 
-              {/* Assignment breakdown */}
-              <div className="p-4 space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                  <span className="uppercase tracking-wider font-medium">Assignments</span>
-                  <span>{cg.gradedCount}/{cg.totalAssignments} graded • {cg.earned}/{cg.max} pts</span>
-                </div>
-                {cg.pct !== null && (
-                  <Progress value={cg.pct} className="h-2 mb-3" />
-                )}
-                {cg.assignmentDetails.map((detail: any) => {
-                  const a = detail.assignment;
-                  const sub = detail.submission;
-                  const isGraded = sub?.score !== null && sub?.score !== undefined;
-                  const isSubmitted = !!sub;
-                  return (
-                    <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary/30 transition-colors">
-                      {isGraded ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                      ) : isSubmitted ? (
-                        <Clock className="h-4 w-4 text-amber-500 shrink-0" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-                      )}
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="flex-1 text-sm">{a.title}</span>
-                      <Badge variant="secondary" className="text-[10px] uppercase">{a.type}</Badge>
-                      {isGraded ? (
-                        <span className="text-sm font-medium tabular-nums">{sub.score}/{a.max_score}</span>
-                      ) : isSubmitted ? (
-                        <span className="text-xs text-amber-600">Pending</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Not submitted</span>
-                      )}
+                {isExpanded && (
+                  <div className="p-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                      <span className="uppercase tracking-wider font-medium">Assignments</span>
+                      <span>{cg.gradedCount}/{cg.totalAssignments} graded • {cg.earned}/{cg.max} pts</span>
                     </div>
-                  );
-                })}
+                    {cg.pct !== null && <Progress value={cg.pct} className="h-2 mb-3" />}
+
+                    {cg.assignmentDetails.map((detail: any) => {
+                      const a = detail.assignment;
+                      const sub = detail.submission;
+                      const rubric = detail.rubric || [];
+                      const isGraded = sub?.score !== null && sub?.score !== undefined;
+                      const isSubmitted = !!sub;
+
+                      return (
+                        <div key={a.id} className="rounded-lg border overflow-hidden">
+                          <Link
+                            to={`/assignment/${a.id}`}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
+                          >
+                            {isGraded ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            ) : isSubmitted ? (
+                              <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="flex-1 text-sm">{a.title}</span>
+                            <Badge variant="secondary" className="text-[10px] uppercase">{a.type}</Badge>
+                            {isGraded ? (
+                              <span className="text-sm font-medium tabular-nums">{sub.score}/{a.max_score}</span>
+                            ) : isSubmitted ? (
+                              <span className="text-xs text-amber-600">Pending</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not submitted</span>
+                            )}
+                          </Link>
+
+                          {/* Rubric breakdown + tutor feedback */}
+                          {isGraded && (rubric.length > 0 || sub?.feedback) && (
+                            <div className="border-t bg-secondary/10 px-4 py-3 space-y-2">
+                              {rubric.length > 0 && (
+                                <div>
+                                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Rubric Breakdown</p>
+                                  <div className="grid gap-1 sm:grid-cols-2">
+                                    {rubric.map((r: any) => (
+                                      <div key={r.name} className="flex items-center justify-between bg-background rounded px-3 py-1.5 text-xs">
+                                        <span>{r.name}</span>
+                                        <span className="font-medium">{r.maxPoints} pts</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {sub?.feedback && (
+                                <div>
+                                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+                                    <MessageSquare className="h-3 w-3" /> Tutor Comments
+                                  </p>
+                                  <p className="text-sm text-foreground whitespace-pre-wrap bg-background rounded px-3 py-2">{sub.feedback}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   BookOpen, FileText, Brain, MessageSquare, ChevronDown, ChevronRight,
   CheckCircle2, Circle, Video, FileText as Reading, Activity, Clock,
-  Upload, Send, Pin, Heart, Reply, Loader2,
+  Upload, Pin, Loader2,
 } from "lucide-react";
 import { useCourse, useModules, useAssignments, useQuizzes, useDiscussions, useMySubmissions } from "@/hooks/useData";
 
@@ -26,7 +26,6 @@ const CoursePage = () => {
     );
   };
 
-  // Auto-expand first module
   if (modules?.length && expandedModules.length === 0) {
     setExpandedModules([modules[0].id]);
   }
@@ -100,7 +99,7 @@ const CoursePage = () => {
           ))}
         </TabsList>
 
-        {/* Content Tab */}
+        {/* Content Tab - Lessons are now clickable */}
         <TabsContent value="content" className="mt-6 space-y-3">
           {!modules?.length ? (
             <p className="text-center text-muted-foreground py-12">No modules yet</p>
@@ -127,7 +126,11 @@ const CoursePage = () => {
                   {isExpanded && (
                     <div className="border-t">
                       {lessons.map((lesson: any) => (
-                        <div key={lesson.id} className="flex items-center gap-3 px-6 py-3 hover:bg-secondary/20 transition-colors cursor-pointer">
+                        <Link
+                          key={lesson.id}
+                          to={`/lesson/${lesson.id}`}
+                          className="flex items-center gap-3 px-6 py-3 hover:bg-secondary/20 transition-colors"
+                        >
                           {lesson.completed ? (
                             <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                           ) : (
@@ -138,7 +141,7 @@ const CoursePage = () => {
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Clock className="h-3 w-3" /> {lesson.duration}
                           </span>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -148,7 +151,7 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
-        {/* Assignments Tab */}
+        {/* Assignments Tab - clickable to detail page */}
         <TabsContent value="assignments" className="mt-6 space-y-4">
           {!assignments?.length ? (
             <p className="text-center text-muted-foreground py-12">No assignments yet</p>
@@ -156,32 +159,17 @@ const CoursePage = () => {
             assignments.map((a) => {
               const sub = getSubmissionStatus(a.id);
               const status = sub ? (sub.score !== null ? "graded" : "submitted") : (a.due_date && new Date(a.due_date) < new Date() ? "overdue" : "pending");
-              const rubric = Array.isArray(a.rubric_criteria) ? a.rubric_criteria : [];
               return (
-                <div key={a.id} className="rounded-xl border bg-card p-5 shadow-card">
+                <Link key={a.id} to={`/assignment/${a.id}`} className="block rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="font-display font-semibold">{a.title}</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Due: {a.due_date ? new Date(a.due_date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "—"} • {a.max_score} points
                       </p>
-                      {rubric.length > 0 && (
-                        <div className="mt-3 space-y-1">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Rubric</p>
-                          {rubric.map((r: any) => (
-                            <div key={r.name} className="flex items-center justify-between text-sm bg-secondary/50 rounded-lg px-3 py-2">
-                              <span>{r.name}</span>
-                              <span className="text-xs text-muted-foreground">{r.maxPoints} pts</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <div className="text-right shrink-0">
-                      <Badge
-                        variant={status === "graded" ? "default" : status === "overdue" ? "destructive" : "secondary"}
-                        className="capitalize"
-                      >
+                      <Badge variant={status === "graded" ? "default" : status === "overdue" ? "destructive" : "secondary"} className="capitalize">
                         {status}
                       </Badge>
                       {sub?.score !== undefined && sub?.score !== null && (
@@ -190,11 +178,11 @@ const CoursePage = () => {
                     </div>
                   </div>
                   {status === "pending" && (
-                    <Link to={`/assignments?submit=${a.id}`} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                    <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
                       <Upload className="h-4 w-4" /> Submit Work
-                    </Link>
+                    </span>
                   )}
-                </div>
+                </Link>
               );
             })
           )}
@@ -228,13 +216,17 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
-        {/* Discussions Tab */}
+        {/* Discussions Tab - links to thread pages */}
         <TabsContent value="discussions" className="mt-6 space-y-4">
           {!discussions?.length ? (
             <p className="text-center text-muted-foreground py-12">No discussions yet</p>
           ) : (
             discussions.map((d) => (
-              <div key={d.id} className="rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all cursor-pointer">
+              <Link
+                key={d.id}
+                to={`/discussion/${d.id}`}
+                className="block rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all"
+              >
                 <div className="flex items-start gap-3">
                   {d.pinned && <Pin className="h-4 w-4 text-accent shrink-0 mt-0.5" />}
                   <div className="flex-1 min-w-0">
@@ -244,7 +236,7 @@ const CoursePage = () => {
                     </p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </TabsContent>
