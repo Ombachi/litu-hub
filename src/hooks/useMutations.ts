@@ -149,7 +149,7 @@ export function useDeleteQuiz() {
 export function useCreateQuizQuestion() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { quiz_id: string; question_text: string; question_type?: string; options?: any; correct_answer: string; explanation?: string; points?: number; order?: number }) => {
+    mutationFn: async (params: { quiz_id: string; question_text: string; question_type?: string; options?: any; correct_answer: string; explanation?: string; points?: number; order?: number; difficulty?: string; competency_tag?: string; pool_name?: string }) => {
       const { data, error } = await supabase.from("quiz_questions").insert(params).select().single();
       if (error) throw error;
       return data;
