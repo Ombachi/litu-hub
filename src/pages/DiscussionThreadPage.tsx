@@ -1,12 +1,11 @@
 import { useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useDiscussionPosts } from "@/hooks/useData";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Send, Loader2, Reply, Edit, Trash2, Paperclip, Image, FileText, MoreVertical, Pin, Flag,
+  ArrowLeft, Send, Loader2, Reply, Edit, Trash2, Paperclip, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +16,6 @@ const DiscussionThreadPage = () => {
   const { isCoach, isAdmin } = useRole();
   const qc = useQueryClient();
 
-  // Fetch discussion
   const { data: discussion } = useQuery({
     queryKey: ["discussion", discussionId],
     enabled: !!discussionId,
@@ -32,7 +30,6 @@ const DiscussionThreadPage = () => {
     },
   });
 
-  // Fetch all posts (flat, then nest client-side)
   const { data: posts, isLoading } = useQuery({
     queryKey: ["discussion-all-posts", discussionId],
     enabled: !!discussionId,
@@ -53,6 +50,7 @@ const DiscussionThreadPage = () => {
   const [editContent, setEditContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [topPostContent, setTopPostContent] = useState("");
 
   const createPost = useMutation({
     mutationFn: async (params: { content: string; parentId?: string | null }) => {
@@ -74,7 +72,9 @@ const DiscussionThreadPage = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["discussion-all-posts", discussionId] });
+      qc.invalidateQueries({ queryKey: ["discussions"] });
       setReplyContent("");
+      setTopPostContent("");
       setReplyTo(null);
       setFile(null);
       toast.success("Reply posted");
@@ -102,6 +102,7 @@ const DiscussionThreadPage = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["discussion-all-posts", discussionId] });
+      qc.invalidateQueries({ queryKey: ["discussions"] });
       toast.success("Post deleted");
     },
     onError: (e: any) => toast.error(e.message),
@@ -114,8 +115,24 @@ const DiscussionThreadPage = () => {
       ...p,
       children: getReplies(p.id),
     }));
-
   const nestedPosts = rootPosts.map((p) => ({ ...p, children: getReplies(p.id) }));
+
+  // Render attachment links properly
+  const renderContent = (content: string) => {
+    const parts = content.split(/(\[Attachment\]\([^)]+\))/g);
+    return parts.map((part, i) => {
+      const match = part.match(/\[Attachment\]\(([^)]+)\)/);
+      if (match) {
+        const { data } = supabase.storage.from("submissions").getPublicUrl(match[1]);
+        return (
+          <a key={i} href={data.publicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary underline text-xs">
+            📎 View Attachment
+          </a>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
 
   const renderPost = (post: any, depth = 0) => {
     const authorName = post.profiles
@@ -179,7 +196,7 @@ const DiscussionThreadPage = () => {
               </div>
             </div>
           ) : (
-            <div className="mt-2 text-sm whitespace-pre-wrap">{post.content}</div>
+            <div className="mt-2 text-sm whitespace-pre-wrap">{renderContent(post.content)}</div>
           )}
 
           <button
@@ -237,25 +254,28 @@ const DiscussionThreadPage = () => {
 
       {/* New top-level post */}
       <div className="rounded-xl border bg-card p-4 shadow-card">
-        <div className="flex gap-3">
-          <textarea
-            value={replyTo === null ? replyContent : ""}
-            onChange={(e) => { setReplyTo(null); setReplyContent(e.target.value); }}
-            placeholder="Write a post..."
-            className="flex-1 rounded-lg border bg-secondary/30 p-3 text-sm outline-none focus:border-primary resize-none"
-            rows={3}
-          />
-        </div>
+        <textarea
+          value={topPostContent}
+          onChange={(e) => setTopPostContent(e.target.value)}
+          placeholder="Write a post..."
+          className="w-full rounded-lg border bg-secondary/30 p-3 text-sm outline-none focus:border-primary resize-none"
+          rows={3}
+        />
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs hover:bg-secondary transition-colors">
               <Paperclip className="h-3.5 w-3.5" /> {file ? file.name : "Attach"}
             </button>
+            {file && (
+              <button onClick={() => setFile(null)} className="p-1 hover:bg-secondary rounded">
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
           </div>
           <button
-            onClick={() => createPost.mutate({ content: replyContent, parentId: null })}
-            disabled={!replyContent.trim() || createPost.isPending}
+            onClick={() => createPost.mutate({ content: topPostContent, parentId: null })}
+            disabled={!topPostContent.trim() || createPost.isPending}
             className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

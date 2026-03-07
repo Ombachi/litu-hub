@@ -19,6 +19,7 @@ import GradesPage from "./pages/GradesPage";
 import CalendarPage from "./pages/CalendarPage";
 import LessonPage from "./pages/LessonPage";
 import GradingQueuePage from "./pages/GradingQueuePage";
+import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +50,7 @@ const App = () => (
                       <Route path="/grades" element={<GradesPage />} />
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/lesson/:lessonId" element={<LessonPage />} />
+                      <Route path="/profile" element={<ProfilePage />} />
                       <Route
                         path="/coach-studio"
                         element={

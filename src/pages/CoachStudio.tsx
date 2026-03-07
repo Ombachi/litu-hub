@@ -3,9 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle,
+  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X,
 } from "lucide-react";
-import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions } from "@/hooks/useData";
+import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions, useDiscussions } from "@/hooks/useData";
 import {
   useCreateModule, useUpdateModule, useDeleteModule,
   useCreateLesson, useUpdateLesson, useDeleteLesson,
@@ -13,15 +13,20 @@ import {
   useCreateQuiz, useUpdateQuiz, useDeleteQuiz,
   useCreateQuizQuestion, useUpdateQuizQuestion, useDeleteQuizQuestion,
 } from "@/hooks/useMutations";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import ModuleDialog from "@/components/coach/ModuleDialog";
 import LessonDialog from "@/components/coach/LessonDialog";
 import AssignmentDialog from "@/components/coach/AssignmentDialog";
 import QuizDialog from "@/components/coach/QuizDialog";
 import QuestionBankDialog from "@/components/coach/QuestionBankDialog";
 import DeleteConfirmDialog from "@/components/coach/DeleteConfirmDialog";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const CoachStudio = () => {
   const { data: courses, isLoading } = useCourses();
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const courseId = selectedCourseId || courses?.[0]?.id;
@@ -29,6 +34,7 @@ const CoachStudio = () => {
   const { data: modules } = useModules(courseId);
   const { data: assignments } = useAssignments(courseId);
   const { data: quizzes } = useQuizzes(courseId);
+  const { data: discussions } = useDiscussions(courseId);
 
   // Question bank: select quiz to manage questions
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
@@ -51,6 +57,51 @@ const CoachStudio = () => {
   const createQuestion = useCreateQuizQuestion();
   const updateQuestion = useUpdateQuizQuestion();
   const deleteQuestion = useDeleteQuizQuestion();
+
+  // Discussion state
+  const [showCreateDiscussion, setShowCreateDiscussion] = useState(false);
+  const [newDiscTitle, setNewDiscTitle] = useState("");
+
+  const createDiscussion = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("discussions").insert({
+        title: newDiscTitle.trim(),
+        course_id: courseId!,
+        author_id: user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["discussions"] });
+      setShowCreateDiscussion(false);
+      setNewDiscTitle("");
+      toast.success("Discussion thread created");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteDiscussion = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("discussions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["discussions"] });
+      toast.success("Discussion deleted");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const togglePin = useMutation({
+    mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => {
+      const { error } = await supabase.from("discussions").update({ pinned: !pinned }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["discussions"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   // Dialog states
   const [moduleDialog, setModuleDialog] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
@@ -123,7 +174,7 @@ const CoachStudio = () => {
         toast.success("Question updated");
       } else {
         const order = (questions?.length || 0) + 1;
-        await createQuestion.mutateAsync({ quiz_id: activeQuizId!, question_text: data.question_text, question_type: data.question_type, options: data.options, correct_answer: data.correct_answer, explanation: data.explanation, points: data.points, order });
+        await createQuestion.mutateAsync({ quiz_id: activeQuizId!, question_text: data.question_text, question_type: data.question_type, options: data.options, correct_answer: data.correct_answer, explanation: data.explanation, points: data.points, order, difficulty: data.difficulty, competency_tag: data.competency_tag, pool_name: data.pool_name });
         toast.success("Question added");
       }
       setQuestionDialog({ open: false, editing: null });
@@ -199,17 +250,18 @@ const CoachStudio = () => {
           </div>
 
           <Tabs defaultValue="modules" className="w-full">
-            <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none">
+            <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
               {[
                 { value: "modules", icon: Layers, label: "Modules & Lessons" },
                 { value: "assignments", icon: FileText, label: `Assignments (${assignments?.length || 0})` },
                 { value: "quizzes", icon: Brain, label: `Quizzes (${quizzes?.length || 0})` },
                 { value: "questions", icon: HelpCircle, label: "Question Bank" },
+                { value: "discussions", icon: MessageSquare, label: `Discussions (${discussions?.length || 0})` },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none whitespace-nowrap"
                 >
                   <tab.icon className="mr-2 h-4 w-4" />
                   {tab.label}
@@ -408,6 +460,78 @@ const CoachStudio = () => {
                     ))
                   )}
                 </div>
+              )}
+            </TabsContent>
+
+            {/* Discussions Tab */}
+            <TabsContent value="discussions" className="mt-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-display font-semibold">Course Discussions</h3>
+                <button
+                  onClick={() => setShowCreateDiscussion(true)}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="h-4 w-4" /> New Thread
+                </button>
+              </div>
+
+              {showCreateDiscussion && (
+                <div className="rounded-xl border bg-card p-5 shadow-card space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-display font-semibold">Create Discussion Thread</h4>
+                    <button onClick={() => setShowCreateDiscussion(false)} className="p-1 hover:bg-secondary rounded">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <input
+                    value={newDiscTitle}
+                    onChange={(e) => setNewDiscTitle(e.target.value)}
+                    placeholder="Thread title..."
+                    className="w-full rounded-lg border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
+                  />
+                  <button
+                    onClick={() => createDiscussion.mutate()}
+                    disabled={!newDiscTitle.trim() || createDiscussion.isPending}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                  >
+                    {createDiscussion.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Create Thread
+                  </button>
+                </div>
+              )}
+
+              {!discussions?.length ? (
+                <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
+                  <MessageSquare className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <p className="mt-3 text-muted-foreground">No discussions yet. Create one!</p>
+                </div>
+              ) : (
+                discussions.map((d) => (
+                  <div key={d.id} className="rounded-xl border bg-card p-4 shadow-card flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {d.pinned && <span className="text-accent text-xs">📌</span>}
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-sm truncate">{d.title}</h4>
+                        <p className="text-xs text-muted-foreground">{d.discussion_posts?.length || 0} replies • {new Date(d.created_at).toLocaleDateString("en-KE")}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => togglePin.mutate({ id: d.id, pinned: !!d.pinned })}
+                        className={`p-1.5 rounded-lg transition-colors ${d.pinned ? "text-accent hover:bg-accent/10" : "text-muted-foreground hover:bg-secondary"}`}
+                        title={d.pinned ? "Unpin" : "Pin"}
+                      >
+                        📌
+                      </button>
+                      <button
+                        onClick={() => { if (confirm("Delete this discussion?")) deleteDiscussion.mutate(d.id); }}
+                        className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </TabsContent>
           </Tabs>
