@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, FileText, Brain, MessageSquare, GraduationCap,
-  TrendingUp, Calendar, Menu, X, Search, LogOut, ClipboardCheck,
+  TrendingUp, Calendar, Menu, X, Search, LogOut, ClipboardCheck, User,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
+import { useProfile } from "@/hooks/useData";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/NotificationBell";
 
@@ -27,8 +28,20 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { role } = useRole();
-  const initials = user?.user_metadata?.first_name?.[0]?.toUpperCase() + (user?.user_metadata?.last_name?.[0]?.toUpperCase() || '') || user?.email?.[0]?.toUpperCase() || '?';
-  const displayName = user?.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim() : user?.email || 'User';
+  const { data: profile } = useProfile();
+
+  const avatarUrl = profile?.avatar_url
+    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/avatars/${profile.avatar_url}`
+    : null;
+
+  const initials = (profile?.first_name?.[0] || user?.user_metadata?.first_name?.[0] || user?.email?.[0] || '?').toUpperCase() +
+    (profile?.last_name?.[0] || user?.user_metadata?.last_name?.[0] || '').toUpperCase();
+  const displayName = profile?.first_name
+    ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+    : user?.user_metadata?.first_name
+    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
+    : user?.email || 'User';
+
   const navItems = allNavItems.filter((item) => !item.roles || item.roles.includes(role));
 
   return (
@@ -62,9 +75,15 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         </nav>
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">{initials}</div>
+            <Link to="/profile" className="shrink-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="h-9 w-9 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">{initials}</div>
+              )}
+            </Link>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</p>
+              <Link to="/profile" className="text-sm font-medium text-sidebar-foreground truncate block hover:underline">{displayName}</Link>
               <p className="text-xs text-sidebar-foreground/60 truncate">{role}</p>
             </div>
             <button onClick={signOut} className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors" title="Sign out">
@@ -84,7 +103,13 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell />
-            <button className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">{initials}</button>
+            <Link to="/profile">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">{initials}</div>
+              )}
+            </Link>
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8">{children}</main>
