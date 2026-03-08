@@ -966,6 +966,7 @@ export type Database = {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
       }
+      expire_stale_quiz_attempts: { Args: never; Returns: undefined }
       get_user_institution_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
