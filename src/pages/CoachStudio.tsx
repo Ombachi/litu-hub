@@ -25,6 +25,7 @@ import QuestionBankDialog from "@/components/coach/QuestionBankDialog";
 import DeleteConfirmDialog from "@/components/coach/DeleteConfirmDialog";
 import AnnouncementsTab from "@/components/course/AnnouncementsTab";
 import ResourcesTab from "@/components/course/ResourcesTab";
+import AIGenerateButton from "@/components/coach/AIGenerateButton";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -373,11 +374,25 @@ const CoachStudio = () => {
 
             {/* Assignments Tab */}
             <TabsContent value="assignments" className="mt-6 space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-2 flex-wrap">
                 <h3 className="font-display font-semibold">Course Assignments</h3>
-                <button onClick={() => setAssignmentDialog({ open: true, editing: null })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                  <Plus className="h-4 w-4" /> Create Assignment
-                </button>
+                <div className="flex items-center gap-2">
+                  <AIGenerateButton
+                    type="assignment"
+                    courseTitle={selectedCourse?.title || ""}
+                    courseCode={selectedCourse?.code || ""}
+                    onAcceptAssignment={(data) => {
+                      setAssignmentDialog({ open: true, editing: null });
+                      // Small delay to let dialog open, then we'll set values via initial prop workaround
+                      setTimeout(() => {
+                        setAssignmentDialog({ open: true, editing: { ...data, due_date: "", allow_late_submissions: true, late_penalty_percent: 0, grace_period_hours: 0 } });
+                      }, 50);
+                    }}
+                  />
+                  <button onClick={() => setAssignmentDialog({ open: true, editing: null })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                    <Plus className="h-4 w-4" /> Create Assignment
+                  </button>
+                </div>
               </div>
               {!assignments?.length ? (
                 <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
@@ -468,15 +483,43 @@ const CoachStudio = () => {
 
             {/* Question Bank Tab */}
             <TabsContent value="questions" className="mt-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <h3 className="font-display font-semibold">Question Bank</h3>
-                <button
-                  onClick={() => setQuestionDialog({ open: true, editing: null })}
-                  disabled={!activeQuizId}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                >
-                  <Plus className="h-4 w-4" /> Add Question
-                </button>
+                <div className="flex items-center gap-2">
+                  {activeQuizId && (
+                    <AIGenerateButton
+                      type="questions"
+                      courseTitle={selectedCourse?.title || ""}
+                      courseCode={selectedCourse?.code || ""}
+                      onAcceptQuestions={async (aiQuestions) => {
+                        for (const q of aiQuestions) {
+                          const order = (questions?.length || 0) + 1;
+                          await createQuestion.mutateAsync({
+                            quiz_id: activeQuizId!,
+                            question_text: q.question_text,
+                            question_type: q.question_type,
+                            options: q.options || [],
+                            correct_answer: q.correct_answer || "",
+                            explanation: q.explanation || "",
+                            points: q.points || 1,
+                            order,
+                            difficulty: q.difficulty || "medium",
+                            competency_tag: "",
+                            pool_name: "",
+                          });
+                        }
+                        toast.success(`${aiQuestions.length} AI questions added!`);
+                      }}
+                    />
+                  )}
+                  <button
+                    onClick={() => setQuestionDialog({ open: true, editing: null })}
+                    disabled={!activeQuizId}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" /> Add Question
+                  </button>
+                </div>
               </div>
 
               {quizzes && quizzes.length > 0 ? (
@@ -542,14 +585,32 @@ const CoachStudio = () => {
 
             {/* Discussions Tab */}
             <TabsContent value="discussions" className="mt-6 space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-2 flex-wrap">
                 <h3 className="font-display font-semibold">Course Discussions</h3>
-                <button
-                  onClick={() => setShowCreateDiscussion(true)}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <Plus className="h-4 w-4" /> New Thread
-                </button>
+                <div className="flex items-center gap-2">
+                  <AIGenerateButton
+                    type="discussion"
+                    courseTitle={selectedCourse?.title || ""}
+                    courseCode={selectedCourse?.code || ""}
+                    onAcceptDiscussions={async (titles) => {
+                      for (const title of titles) {
+                        await supabase.from("discussions").insert({
+                          title,
+                          course_id: courseId!,
+                          author_id: user!.id,
+                        } as any);
+                      }
+                      qc.invalidateQueries({ queryKey: ["discussions"] });
+                      toast.success(`${titles.length} discussion threads created!`);
+                    }}
+                  />
+                  <button
+                    onClick={() => setShowCreateDiscussion(true)}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" /> New Thread
+                  </button>
+                </div>
               </div>
 
               {showCreateDiscussion && (
