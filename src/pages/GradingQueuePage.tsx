@@ -125,11 +125,31 @@ const GradingQueuePage = () => {
     });
   };
 
-  const renderFilePreview = (fileUrl: string | null) => {
-    if (!fileUrl) return null;
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  const getSignedUrl = async (fileUrl: string) => {
+    if (signedUrls[fileUrl]) return signedUrls[fileUrl];
+    const { data, error } = await supabase.storage.from("submissions").createSignedUrl(fileUrl, 3600);
+    if (data?.signedUrl) {
+      setSignedUrls(prev => ({ ...prev, [fileUrl]: data.signedUrl }));
+      return data.signedUrl;
+    }
+    return null;
+  };
+
+  const FilePreview = ({ fileUrl }: { fileUrl: string }) => {
+    const [url, setUrl] = useState<string | null>(signedUrls[fileUrl] || null);
+    const [loading, setLoading] = useState(!url);
     const ext = fileUrl.split(".").pop()?.toLowerCase();
-    const { data } = supabase.storage.from("submissions").getPublicUrl(fileUrl);
-    const url = data?.publicUrl;
+
+    useState(() => {
+      if (!url) {
+        getSignedUrl(fileUrl).then(u => { setUrl(u); setLoading(false); });
+      }
+    });
+
+    if (loading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading preview...</div>;
+    if (!url) return <p className="text-sm text-destructive">Could not load file</p>;
 
     if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "")) {
       return <img src={url} alt="Submission" className="max-w-full rounded-lg border" />;
@@ -286,7 +306,7 @@ const GradingQueuePage = () => {
               {selectedSubmission.file_url && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Attachment</p>
-                  {renderFilePreview(selectedSubmission.file_url)}
+                  <FilePreview fileUrl={selectedSubmission.file_url} />
                 </div>
               )}
               {selectedSubmission.content && (
