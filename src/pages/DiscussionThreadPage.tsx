@@ -4,8 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
-  ArrowLeft, Send, Loader2, Reply, Edit, Trash2, Paperclip, X,
+  ArrowLeft, Send, Loader2, Reply, Edit, Trash2, Paperclip, X, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +28,6 @@ const AttachmentLink = ({ path }: { path: string }) => {
   );
 };
 
-/** Render HTML content with attachment handling */
 const renderPostContent = (content: string) => {
   const attachRegex = /📎 \[Attachment\]\(([^)]+)\)/g;
   const parts: React.ReactNode[] = [];
@@ -46,11 +46,9 @@ const renderPostContent = (content: string) => {
 
   if (lastIdx < content.length) {
     const remaining = content.slice(lastIdx);
-    // Check if HTML content
     if (remaining.includes("<p") || remaining.includes("<strong") || remaining.includes("<ul") || remaining.includes("<h")) {
       parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: remaining }} />);
     } else {
-      // Auto-link plain URLs
       const urlRegex = /(https?:\/\/[^\s<]+)/g;
       const textParts = remaining.split(urlRegex);
       textParts.forEach((part, i) => {
@@ -104,7 +102,7 @@ const DiscussionThreadPage = () => {
         const authorIds = [...new Set(data.filter(p => p.author_id).map(p => p.author_id!))];
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, first_name, last_name")
+          .select("user_id, first_name, last_name, avatar_url")
           .in("user_id", authorIds);
         const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
         return data.map(p => ({ ...p, profile: profileMap.get(p.author_id || "") || null }));
@@ -197,6 +195,11 @@ const DiscussionThreadPage = () => {
     }));
   const nestedPosts = rootPosts.map((p) => ({ ...p, children: getReplies(p.id) }));
 
+  const getAvatarUrl = (avatarPath: string | null) => {
+    if (!avatarPath) return null;
+    return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/avatars/${avatarPath}`;
+  };
+
   const renderPost = (post: any, depth = 0) => {
     const profile = post.profile;
     const authorName = profile
@@ -210,9 +213,12 @@ const DiscussionThreadPage = () => {
         <div className="rounded-lg border bg-card p-4 mb-3 shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                {authorName[0]?.toUpperCase()}
-              </div>
+              <Avatar className="h-8 w-8">
+                {profile?.avatar_url && <AvatarImage src={getAvatarUrl(profile.avatar_url)!} alt="" />}
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                  {authorName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <p className="text-sm font-medium">{authorName}</p>
                 <p className="text-[10px] text-muted-foreground">
@@ -282,6 +288,9 @@ const DiscussionThreadPage = () => {
     );
   }
 
+  const dueDate = (discussion as any)?.due_date;
+  const isOverdue = dueDate && new Date(dueDate) < new Date();
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       <Link to="/discussions" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -289,7 +298,16 @@ const DiscussionThreadPage = () => {
       </Link>
 
       <div className="rounded-xl border bg-card p-5 shadow-card">
-        <Badge variant="secondary" className="text-xs">{discussion?.courses?.code}</Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="secondary" className="text-xs">{discussion?.courses?.code}</Badge>
+          {dueDate && (
+            <Badge variant={isOverdue ? "destructive" : "default"} className="text-xs flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Due: {new Date(dueDate).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}
+              {isOverdue && " (Overdue)"}
+            </Badge>
+          )}
+        </div>
         <h1 className="mt-2 font-display text-2xl font-bold">{discussion?.title}</h1>
         <p className="text-sm text-muted-foreground">
           {posts?.length || 0} posts • Started {discussion?.created_at ? new Date(discussion.created_at).toLocaleDateString("en-KE") : ""}
