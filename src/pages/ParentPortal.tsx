@@ -33,12 +33,22 @@ const ParentPortal = () => {
     queryKey: ["parent-links", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: rawLinks, error } = await supabase
         .from("parent_student_links")
-        .select("*, profiles:student_id(user_id, first_name, last_name, email)")
+        .select("*")
         .eq("parent_id", user!.id);
       if (error) throw error;
-      return data;
+      if (!rawLinks?.length) return [];
+      // Fetch profiles for linked students
+      const studentIds = rawLinks.map(l => l.student_id);
+      const { data: studentProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", studentIds);
+      return rawLinks.map(l => ({
+        ...l,
+        profiles: studentProfiles?.find(p => p.user_id === l.student_id) || null,
+      }));
     },
   });
 

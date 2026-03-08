@@ -151,10 +151,14 @@ const AdminPanel = () => {
   }
 
   // For school admin, filter profiles to institution members
+  // For platform admin, exclude other platform admins from the user list
   const institutionMemberIds = new Set(institutionMembers?.map(m => m.user_id) || []);
+  const platformAdminIds = new Set(
+    allRoles?.filter(r => r.role === 'admin' || r.role === 'platform_admin').map(r => r.user_id) || []
+  );
   const visibleProfiles = isSchoolAdmin
     ? profiles?.filter(p => institutionMemberIds.has(p.user_id))
-    : profiles;
+    : profiles?.filter(p => !platformAdminIds.has(p.user_id));
 
   const filteredProfiles = visibleProfiles?.filter((p) =>
     `${p.first_name} ${p.last_name} ${p.email}`.toLowerCase().includes(userSearch.toLowerCase())
