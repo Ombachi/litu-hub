@@ -576,6 +576,62 @@ const GradingQueuePage = () => {
                   <div className="rounded-lg border bg-secondary/30 p-4 text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto break-words">{selectedSubmission.content}</div>
                 </div>
               )}
+              {/* AI Suggestion */}
+              <button
+                onClick={async () => {
+                  setAiLoading(true);
+                  setAiSuggestion(null);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("ai-grading-feedback", {
+                      body: {
+                        submissionContent: selectedSubmission.content || "",
+                        assignmentTitle: selectedSubmission.assignments?.title || "",
+                        maxScore: selectedSubmission.assignments?.max_score || 100,
+                        rubricCriteria: selectedSubmission.assignments?.rubric_criteria || [],
+                      },
+                    });
+                    if (error) throw error;
+                    setAiSuggestion(data);
+                    if (data.suggestedScore !== null) setScore(String(data.suggestedScore));
+                    if (data.feedback) setFeedback(data.feedback);
+                    toast.success("AI suggestion generated!");
+                  } catch (e: any) {
+                    toast.error(e.message || "Failed to get AI suggestion");
+                  } finally {
+                    setAiLoading(false);
+                  }
+                }}
+                disabled={aiLoading}
+                className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 w-full"
+              >
+                {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {aiLoading ? "Analyzing submission..." : "Get AI Feedback Suggestion"}
+              </button>
+
+              {aiSuggestion && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                  <p className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> AI Suggestion
+                  </p>
+                  {aiSuggestion.strengths?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Strengths:</p>
+                      <ul className="text-xs text-muted-foreground list-disc pl-4">
+                        {aiSuggestion.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {aiSuggestion.improvements?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Areas for improvement:</p>
+                      <ul className="text-xs text-muted-foreground list-disc pl-4">
+                        {aiSuggestion.improvements.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Score</label>
@@ -594,7 +650,7 @@ const GradingQueuePage = () => {
                 <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Provide feedback to the student..." className="mt-1 w-full rounded-lg border bg-background p-3 text-sm outline-none focus:border-primary resize-none" rows={4} />
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setSelectedSubmission(null)} className="rounded-lg border px-4 py-2 text-sm hover:bg-secondary">Cancel</button>
+                <button onClick={() => { setSelectedSubmission(null); setAiSuggestion(null); }} className="rounded-lg border px-4 py-2 text-sm hover:bg-secondary">Cancel</button>
                 <button
                   onClick={() => gradeMutation.mutate({ id: selectedSubmission.id, score: Number(score), feedback })}
                   disabled={!score || gradeMutation.isPending}
