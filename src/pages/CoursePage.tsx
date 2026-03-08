@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   BookOpen, FileText, Brain, MessageSquare, ChevronDown, ChevronRight,
   CheckCircle2, Circle, Video, FileText as Reading, Activity, Clock,
-  Upload, Pin, Loader2, Megaphone, FolderOpen,
+  Upload, Pin, Loader2, Megaphone, FolderOpen, Lock,
 } from "lucide-react";
 import { useCourse, useModules, useAssignments, useQuizzes, useDiscussions, useMySubmissions } from "@/hooks/useData";
+import { useLessonCompletions } from "@/hooks/useLessonCompletions";
 import AnnouncementsTab from "@/components/course/AnnouncementsTab";
 import ResourcesTab from "@/components/course/ResourcesTab";
 import { useRole } from "@/hooks/useRole";
@@ -23,8 +24,11 @@ const CoursePage = () => {
   const { data: quizzes } = useQuizzes(courseId);
   const { data: discussions } = useDiscussions(courseId);
   const { data: submissions } = useMySubmissions();
+  const { data: completions } = useLessonCompletions();
   const { isCoach } = useRole();
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
+
+  const completedLessonIds = new Set(completions?.map(c => c.lesson_id) || []);
 
   const toggleModule = (id: string) => {
     setExpandedModules((prev) =>
@@ -58,9 +62,20 @@ const CoursePage = () => {
     return <div className="py-20 text-center text-muted-foreground">Course not found</div>;
   }
 
-  const totalLessons = modules?.reduce((s, m) => s + (m.lessons?.length || 0), 0) || 0;
-  const completedLessons = modules?.reduce((s, m) => s + (m.lessons?.filter((l: any) => l.completed).length || 0), 0) || 0;
+  const totalLessons = modules?.reduce((s, m) => s + ((m.lessons as any[])?.length || 0), 0) || 0;
+  const completedLessons = modules?.reduce((s, m) => s + ((m.lessons as any[])?.filter((l: any) => completedLessonIds.has(l.id)).length || 0), 0) || 0;
   const progressPct = totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+  // Check if a module is unlocked (all lessons in previous modules must be completed)
+  const isModuleUnlocked = (moduleIndex: number): boolean => {
+    if (isCoach) return true; // Coaches always see everything
+    if (moduleIndex === 0) return true; // First module always unlocked
+    const prevModule = modules?.[moduleIndex - 1];
+    if (!prevModule) return true;
+    const prevLessons = (prevModule.lessons as any[]) || [];
+    if (prevLessons.length === 0) return true;
+    return prevLessons.every((l: any) => completedLessonIds.has(l.id));
+  };
 
   const getSubmissionStatus = (assignmentId: string) => {
     return submissions?.find((s) => s.assignment_id === assignmentId);
@@ -112,45 +127,59 @@ const CoursePage = () => {
           {!modules?.length ? (
             <p className="text-center text-muted-foreground py-12">No modules yet</p>
           ) : (
-            modules.map((mod) => {
+            modules.map((mod, modIndex) => {
               const isExpanded = expandedModules.includes(mod.id);
               const lessons = (mod.lessons as any[]) || [];
-              const completed = lessons.filter((l) => l.completed).length;
+              const completed = lessons.filter((l) => completedLessonIds.has(l.id)).length;
+              const unlocked = isModuleUnlocked(modIndex);
+
               return (
-                <div key={mod.id} className="rounded-xl border bg-card shadow-card overflow-hidden">
+                <div key={mod.id} className={`rounded-xl border bg-card shadow-card overflow-hidden ${!unlocked ? "opacity-60" : ""}`}>
                   <button
-                    onClick={() => toggleModule(mod.id)}
-                    className="flex w-full items-center justify-between p-4 text-left hover:bg-secondary/30 transition-colors"
+                    onClick={() => unlocked && toggleModule(mod.id)}
+                    className={`flex w-full items-center justify-between p-4 text-left transition-colors ${unlocked ? "hover:bg-secondary/30" : "cursor-not-allowed"}`}
+                    disabled={!unlocked}
                   >
                     <div className="flex items-center gap-3">
-                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      {!unlocked ? (
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                      ) : isExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                       <div>
                         <p className="font-display font-semibold">{mod.title}</p>
-                        <p className="text-xs text-muted-foreground">{completed}/{lessons.length} lessons complete</p>
+                        <p className="text-xs text-muted-foreground">
+                          {!unlocked ? "Complete previous module to unlock" : `${completed}/${lessons.length} lessons complete`}
+                        </p>
                       </div>
                     </div>
                     <Progress value={lessons.length ? (completed / lessons.length) * 100 : 0} className="h-1.5 w-20" />
                   </button>
-                  {isExpanded && (
+                  {isExpanded && unlocked && (
                     <div className="border-t">
-                      {lessons.map((lesson: any) => (
-                        <Link
-                          key={lesson.id}
-                          to={`/lesson/${lesson.id}`}
-                          className="flex items-center gap-3 px-6 py-3 hover:bg-secondary/20 transition-colors"
-                        >
-                          {lesson.completed ? (
-                            <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                          ) : (
-                            <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
-                          )}
-                          {lessonIcon(lesson.type)}
-                          <span className="flex-1 text-sm">{lesson.title}</span>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> {lesson.duration}
-                          </span>
-                        </Link>
-                      ))}
+                      {lessons.map((lesson: any) => {
+                        const lessonDone = completedLessonIds.has(lesson.id);
+                        return (
+                          <Link
+                            key={lesson.id}
+                            to={`/lesson/${lesson.id}`}
+                            className="flex items-center gap-3 px-6 py-3 hover:bg-secondary/20 transition-colors"
+                          >
+                            {lessonDone ? (
+                              <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                            ) : (
+                              <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            {lessonIcon(lesson.type)}
+                            <span className="flex-1 text-sm">{lesson.title}</span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {lesson.duration}
+                            </span>
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -259,7 +288,7 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
-        {/* Resources Tab - read-only for students */}
+        {/* Resources Tab */}
         <TabsContent value="resources" className="mt-6">
           {courseId && <ResourcesTab courseId={courseId} />}
         </TabsContent>
