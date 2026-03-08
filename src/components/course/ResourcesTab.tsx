@@ -5,11 +5,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, Trash2, Loader2, Download, File, Video, Image, ExternalLink, X } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { FileText, Upload, Trash2, Loader2, Download, File, Video, Image, ExternalLink, X, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 interface ResourcesTabProps {
   courseId: string;
+  isManaging?: boolean; // When true, allows uploading/deleting (Coach Studio)
 }
 
 const FILE_TYPE_ICONS: Record<string, any> = {
@@ -19,7 +21,7 @@ const FILE_TYPE_ICONS: Record<string, any> = {
   other: File,
 };
 
-const ResourcesTab = ({ courseId }: ResourcesTabProps) => {
+const ResourcesTab = ({ courseId, isManaging = false }: ResourcesTabProps) => {
   const { user } = useAuth();
   const { isCoach } = useRole();
   const qc = useQueryClient();
@@ -27,6 +29,11 @@ const ResourcesTab = ({ courseId }: ResourcesTabProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<string>("");
+
+  // Only allow managing if explicitly set AND user is coach
+  const canManage = isManaging && isCoach;
 
   const { data: resources, isLoading } = useQuery({
     queryKey: ["course-resources", courseId],
@@ -91,6 +98,35 @@ const ResourcesTab = ({ courseId }: ResourcesTabProps) => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const openPreview = (url: string, fileType: string, title: string) => {
+    const ext = title.split(".").pop()?.toLowerCase() || "";
+    
+    // Images can be previewed directly
+    if (fileType === "image") {
+      setPreviewUrl(url);
+      setPreviewType("image");
+      return;
+    }
+    
+    // PDFs can be previewed directly in iframe
+    if (ext === "pdf") {
+      setPreviewUrl(url);
+      setPreviewType("pdf");
+      return;
+    }
+    
+    // Use Google Docs Viewer for Office documents
+    if (["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(ext)) {
+      const encodedUrl = encodeURIComponent(url);
+      setPreviewUrl(`https://docs.google.com/gview?url=${encodedUrl}&embedded=true`);
+      setPreviewType("gdocs");
+      return;
+    }
+    
+    // For other types, open in new tab
+    window.open(url, "_blank");
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -101,7 +137,7 @@ const ResourcesTab = ({ courseId }: ResourcesTabProps) => {
         <h3 className="font-display font-semibold">Course Resources</h3>
       </div>
 
-      {isCoach && (
+      {canManage && (
         <div className="rounded-xl border bg-card p-5 shadow-card space-y-3">
           <h4 className="font-medium text-sm">Upload New Resource</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -157,6 +193,13 @@ const ResourcesTab = ({ courseId }: ResourcesTabProps) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => openPreview(r.file_url, r.file_type || "other", r.title)}
+                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
+                    title="Preview"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
                   <a
                     href={r.file_url}
                     target="_blank"
@@ -164,9 +207,9 @@ const ResourcesTab = ({ courseId }: ResourcesTabProps) => {
                     className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
                     title="Download"
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                   </a>
-                  {isCoach && (
+                  {canManage && (
                     <button
                       onClick={() => { if (confirm("Delete this resource?")) deleteResource.mutate(r.id); }}
                       className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
@@ -180,6 +223,30 @@ const ResourcesTab = ({ courseId }: ResourcesTabProps) => {
           })}
         </div>
       )}
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b">
+            <h3 className="font-semibold">Document Preview</h3>
+            <button onClick={() => setPreviewUrl(null)} className="p-1 hover:bg-secondary rounded">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex-1 h-full">
+            {previewType === "image" && previewUrl && (
+              <img src={previewUrl} alt="Preview" className="w-full h-full object-contain p-4" />
+            )}
+            {(previewType === "pdf" || previewType === "gdocs") && previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-[calc(80vh-60px)]"
+                title="Document Preview"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

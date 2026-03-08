@@ -12,15 +12,19 @@ import RichTextEditor from "@/components/RichTextEditor";
 
 interface AnnouncementsTabProps {
   courseId: string;
+  isManaging?: boolean; // When true, allows creating/editing (Coach Studio)
 }
 
-const AnnouncementsTab = ({ courseId }: AnnouncementsTabProps) => {
+const AnnouncementsTab = ({ courseId, isManaging = false }: AnnouncementsTabProps) => {
   const { user } = useAuth();
   const { isCoach } = useRole();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+
+  // Only allow creating if explicitly managing (Coach Studio) AND user is coach
+  const canCreate = isManaging && isCoach;
 
   const { data: announcements, isLoading } = useQuery({
     queryKey: ["announcements", courseId],
@@ -95,7 +99,7 @@ const AnnouncementsTab = ({ courseId }: AnnouncementsTabProps) => {
         <h3 className="font-display font-semibold flex items-center gap-2">
           <Megaphone className="h-5 w-5 text-primary" /> Announcements
         </h3>
-        {isCoach && !showForm && (
+        {canCreate && !showForm && (
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -105,7 +109,7 @@ const AnnouncementsTab = ({ courseId }: AnnouncementsTabProps) => {
         )}
       </div>
 
-      {showForm && (
+      {showForm && canCreate && (
         <div className="rounded-xl border bg-card p-5 shadow-card space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-display font-semibold">Post Announcement</h4>
@@ -147,15 +151,16 @@ const AnnouncementsTab = ({ courseId }: AnnouncementsTabProps) => {
                     <Avatar className="h-5 w-5">
                       {author?.avatar_url && <AvatarImage src={getAvatarUrl(author.avatar_url)!} alt="" />}
                       <AvatarFallback className="bg-primary/10 text-primary text-[8px] font-bold">
-                        {authorName[0]?.toUpperCase()}
+                        {authorName[0]?.toUpperCase() || "?"}
                       </AvatarFallback>
                     </Avatar>
                     <p className="text-xs text-muted-foreground">
-                      {authorName} • {new Date(a.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
+                      {authorName || "Coach"} • {new Date(a.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
                     </p>
                   </div>
                 </div>
-                {isCoach && (
+                {/* Only show management buttons in Coach Studio (isManaging) AND if user is coach */}
+                {canCreate && (
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => togglePin.mutate({ id: a.id, pinned: a.pinned })}
