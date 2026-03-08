@@ -102,13 +102,30 @@ const GradesPage = () => {
 
   const exportPDF = useCallback(() => {
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Grade Report", 14, 22);
+    
+    // School Header
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Litu Hub Learning Management System", 14, 18);
     doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleDateString("en-KE")}`, 14, 30);
+    doc.setFont("helvetica", "normal");
+    doc.text("Academic Grade Report", 14, 26);
+    doc.setDrawColor(34, 87, 58);
+    doc.setLineWidth(0.5);
+    doc.line(14, 29, 196, 29);
+    
+    // Student Info
+    const profile = enrollments?.[0]?.courses as any;
+    doc.setFontSize(10);
+    doc.text(`Student: ${displayName || "N/A"}`, 14, 36);
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-KE", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`, 14, 42);
     if (overallGpa !== null) {
-      doc.text(`Overall GPA: ${overallGpa.toFixed(2)}`, 14, 36);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Overall GPA: ${overallGpa.toFixed(2)} / 4.0`, 14, 48);
+      doc.setFont("helvetica", "normal");
     }
+    doc.text(`Total Courses: ${courseGrades.length}`, 120, 36);
+    doc.text(`Graded Items: ${courseGrades.reduce((s, c) => s + c.gradedCount, 0)}`, 120, 42);
 
     const tableData = courseGrades.map((cg) => [
       cg.code, cg.title, cg.term, cg.grade?.letter || "N/A",
@@ -117,16 +134,24 @@ const GradesPage = () => {
     ]);
 
     autoTable(doc, {
-      startY: 42,
+      startY: 54,
       head: [["Code", "Course", "Term", "Grade", "%", "GPA", "Points"]],
       body: tableData,
       theme: "striped",
       headStyles: { fillColor: [34, 87, 58] },
+      styles: { fontSize: 9 },
     });
+
+    // Footer
+    const finalY = (doc as any).lastAutoTable?.finalY || 100;
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text("This is a computer-generated report from Litu Hub LMS.", 14, finalY + 15);
+    doc.text(`Report ID: ${crypto.randomUUID().slice(0, 8).toUpperCase()}`, 14, finalY + 20);
 
     doc.save("grade_report.pdf");
     toast.success("PDF downloaded");
-  }, [courseGrades, overallGpa]);
+  }, [courseGrades, overallGpa, enrollments]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

@@ -463,16 +463,18 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
         {/* Short Answer Question */}
         {isSAQ && (
           <div className="mt-6 space-y-4">
-            <textarea
-              value={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
-              onChange={(e) => {
-                const existing = typeof answers[question.id] === "object" ? answers[question.id] : {};
-                setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: e.target.value } }));
-              }}
-              placeholder="Type your answer here..."
-              className="w-full rounded-lg border bg-secondary/30 p-4 text-sm outline-none focus:border-primary resize-y min-h-[150px]"
-              rows={6}
-            />
+            <div className="rounded-lg border bg-background overflow-hidden">
+              <textarea
+                value={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
+                onChange={(e) => {
+                  const existing = typeof answers[question.id] === "object" ? answers[question.id] : {};
+                  setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: e.target.value } }));
+                }}
+                placeholder="Type your answer here... (supports formatting in text)"
+                className="w-full rounded-lg border-0 bg-secondary/30 p-4 text-sm outline-none focus:ring-1 focus:ring-primary resize-y min-h-[150px]"
+                rows={6}
+              />
+            </div>
             {/* File upload for SAQ */}
             <div className="flex items-center gap-2">
               <input
