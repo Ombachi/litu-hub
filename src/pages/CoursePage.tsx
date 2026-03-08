@@ -157,6 +157,11 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
+        {/* Announcements Tab */}
+        <TabsContent value="announcements" className="mt-6">
+          {courseId && <AnnouncementsTab courseId={courseId} />}
+        </TabsContent>
+
         {/* Assignments Tab - clickable to detail page */}
         <TabsContent value="assignments" className="mt-6 space-y-4">
           {!assignments?.length ? (
@@ -245,6 +250,11 @@ const CoursePage = () => {
               </Link>
             ))
           )}
+        </TabsContent>
+
+        {/* Resources Tab */}
+        <TabsContent value="resources" className="mt-6">
+          {courseId && <ResourcesTab courseId={courseId} />}
         </TabsContent>
       </Tabs>
     </div>
