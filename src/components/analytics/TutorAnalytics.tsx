@@ -3,7 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCourses } from "@/hooks/useData";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, TrendingUp, AlertTriangle, FileText, Brain, BarChart3 } from "lucide-react";
+import { Loader2, Users, TrendingUp, AlertTriangle, FileText, Brain, BarChart3, Download } from "lucide-react";
+import { exportCSV, exportPDF } from "@/lib/exportReports";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -362,7 +363,46 @@ const TutorAnalytics = () => {
 
       {/* Full Student Table */}
       <div className="rounded-xl border bg-card p-5 shadow-sm">
-        <h3 className="font-semibold mb-3">Student Performance</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold">Student Performance</h3>
+          {studentStats.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const headers = ["Student", "Email", "Assignment Avg", "Quiz Avg", "Submissions", "Lessons", "Status"];
+                  const rows = studentStats.map(s => ({
+                    Student: s.name, Email: s.email,
+                    "Assignment Avg": s.avgAssignment !== null ? `${s.avgAssignment}%` : "—",
+                    "Quiz Avg": s.avgQuiz !== null ? `${s.avgQuiz}%` : "—",
+                    Submissions: `${s.submissionRate}%`, Lessons: `${s.lessonPct}%`,
+                    Status: s.atRisk ? "At Risk" : "On Track",
+                  }));
+                  exportCSV(`student-performance-${activeCourseId.slice(0,8)}`, headers, rows);
+                }}
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                onClick={() => {
+                  const courseName = myCourses.find(c => c.id === activeCourseId)?.code || "Course";
+                  const headers = ["Student", "Email", "Assignment Avg", "Quiz Avg", "Submissions", "Lessons", "Status"];
+                  const rows = studentStats.map(s => ({
+                    Student: s.name, Email: s.email,
+                    "Assignment Avg": s.avgAssignment !== null ? `${s.avgAssignment}%` : "—",
+                    "Quiz Avg": s.avgQuiz !== null ? `${s.avgQuiz}%` : "—",
+                    Submissions: `${s.submissionRate}%`, Lessons: `${s.lessonPct}%`,
+                    Status: s.atRisk ? "At Risk" : "On Track",
+                  }));
+                  exportPDF(`${courseName} — Student Performance Report`, `student-performance-${activeCourseId.slice(0,8)}`, headers, rows);
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Download className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
+        </div>
         {studentStats.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No students enrolled</p>
         ) : (

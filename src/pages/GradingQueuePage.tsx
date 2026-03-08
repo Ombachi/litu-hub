@@ -5,7 +5,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  FileText, Brain, CheckCircle2, Loader2, Eye, Send, X, ExternalLink, MessageSquare,
+  FileText, Brain, CheckCircle2, Loader2, Eye, Send, X, ExternalLink, MessageSquare, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -101,6 +101,13 @@ const GradingQueuePage = () => {
   const [bulkScore, setBulkScore] = useState("");
   const [bulkFeedback, setBulkFeedback] = useState("");
   const [viewingDoc, setViewingDoc] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    suggestedScore: number | null;
+    feedback: string;
+    strengths: string[];
+    improvements: string[];
+  } | null>(null);
 
   const isTutorRole = role === "tutor" || role === "ta";
 
