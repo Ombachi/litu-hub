@@ -19,6 +19,7 @@ interface CalendarEvent {
 const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  // Fetch ALL assignments and quizzes (no courseId filter) to capture everything
   const { data: assignments } = useAssignments();
   const { data: quizzes } = useQuizzes();
   const navigate = useNavigate();
@@ -33,6 +34,12 @@ const CalendarPage = () => {
     });
     quizzes?.forEach((q: any) => {
       if (q.due_date) items.push({ id: q.id, title: q.title, date: new Date(q.due_date), type: "quiz", courseCode: q.courses?.code, courseId: q.course_id });
+    });
+    // Also include quizzes/assignments with created_at if no due_date (so they appear somewhere)
+    quizzes?.forEach((q: any) => {
+      if (!q.due_date && q.created_at) {
+        items.push({ id: q.id + "-created", title: q.title + " (no due date)", date: new Date(q.created_at), type: "quiz", courseCode: q.courses?.code, courseId: q.course_id });
+      }
     });
     return items;
   }, [assignments, quizzes]);
@@ -56,7 +63,8 @@ const CalendarPage = () => {
     if (event.type === "assignment") {
       navigate(`/assignment/${event.id}`);
     } else {
-      navigate(`/quizzes?take=${event.id}`);
+      const realId = event.id.replace("-created", "");
+      navigate(`/quizzes?take=${realId}`);
     }
   };
 
@@ -128,7 +136,6 @@ const CalendarPage = () => {
         </div>
       </div>
 
-      {/* Selected day details with deep-links */}
       {selectedDate && (
         <div className="rounded-xl border bg-card p-5 shadow-card">
           <h3 className="font-display font-semibold mb-3">

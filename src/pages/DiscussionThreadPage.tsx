@@ -9,43 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-/** Convert plain URLs to clickable links */
-const renderTextWithLinks = (text: string) => {
-  const parts: React.ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    const attachIdx = remaining.indexOf("📎 [Attachment](");
-    const urlMatch = remaining.match(/(https?:\/\/[^\s<]+)/);
-
-    if (attachIdx >= 0 && (!urlMatch || attachIdx <= (urlMatch.index ?? Infinity))) {
-      if (attachIdx > 0) parts.push(<span key={key++}>{remaining.slice(0, attachIdx)}</span>);
-      const endParen = remaining.indexOf(")", attachIdx);
-      if (endParen >= 0) {
-        const path = remaining.slice(attachIdx + "📎 [Attachment](".length, endParen);
-        parts.push(<AttachmentLink key={key++} path={path} />);
-        remaining = remaining.slice(endParen + 1);
-      } else {
-        parts.push(<span key={key++}>{remaining}</span>);
-        remaining = "";
-      }
-    } else if (urlMatch && urlMatch.index !== undefined) {
-      if (urlMatch.index > 0) parts.push(<span key={key++}>{remaining.slice(0, urlMatch.index)}</span>);
-      parts.push(
-        <a key={key++} href={urlMatch[0]} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all hover:text-primary/80">
-          {urlMatch[0]}
-        </a>
-      );
-      remaining = remaining.slice(urlMatch.index + urlMatch[0].length);
-    } else {
-      parts.push(<span key={key++}>{remaining}</span>);
-      remaining = "";
-    }
-  }
-  return parts;
-};
+import RichTextEditor from "@/components/RichTextEditor";
 
 const AttachmentLink = ({ path }: { path: string }) => {
   const handleClick = async () => {
@@ -61,6 +25,48 @@ const AttachmentLink = ({ path }: { path: string }) => {
       📎 View Attachment
     </button>
   );
+};
+
+/** Render HTML content with attachment handling */
+const renderPostContent = (content: string) => {
+  const attachRegex = /📎 \[Attachment\]\(([^)]+)\)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIdx = 0;
+  let match;
+  let key = 0;
+
+  while ((match = attachRegex.exec(content)) !== null) {
+    if (match.index > lastIdx) {
+      const htmlPart = content.slice(lastIdx, match.index);
+      parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: htmlPart }} />);
+    }
+    parts.push(<AttachmentLink key={key++} path={match[1]} />);
+    lastIdx = match.index + match[0].length;
+  }
+
+  if (lastIdx < content.length) {
+    const remaining = content.slice(lastIdx);
+    // Check if HTML content
+    if (remaining.includes("<p") || remaining.includes("<strong") || remaining.includes("<ul") || remaining.includes("<h")) {
+      parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: remaining }} />);
+    } else {
+      // Auto-link plain URLs
+      const urlRegex = /(https?:\/\/[^\s<]+)/g;
+      const textParts = remaining.split(urlRegex);
+      textParts.forEach((part, i) => {
+        if (part.match(/^https?:\/\//)) {
+          parts.push(
+            <a key={`link-${key++}`} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all hover:text-primary/80">
+              {part}
+            </a>
+          );
+        } else if (part) {
+          parts.push(<span key={`text-${key++}`}>{part}</span>);
+        }
+      });
+    }
+  }
+  return parts;
 };
 
 const DiscussionThreadPage = () => {
@@ -107,28 +113,16 @@ const DiscussionThreadPage = () => {
     },
   });
 
-  // Realtime subscription for new posts
+  // Realtime subscription
   useEffect(() => {
     if (!discussionId) return;
     const channel = supabase
       .channel(`discussion-posts-${discussionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'discussion_posts',
-          filter: `discussion_id=eq.${discussionId}`,
-        },
-        () => {
-          qc.invalidateQueries({ queryKey: ["discussion-all-posts", discussionId] });
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_posts', filter: `discussion_id=eq.${discussionId}` },
+        () => { qc.invalidateQueries({ queryKey: ["discussion-all-posts", discussionId] }); }
       )
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [discussionId, qc]);
 
   const [replyContent, setReplyContent] = useState("");
@@ -195,7 +189,6 @@ const DiscussionThreadPage = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Build nested tree
   const rootPosts = posts?.filter((p) => !p.parent_post_id) || [];
   const getReplies = (parentId: string): any[] =>
     (posts?.filter((p) => p.parent_post_id === parentId) || []).map((p) => ({
@@ -230,17 +223,11 @@ const DiscussionThreadPage = () => {
             {canModerate && (
               <div className="flex items-center gap-1">
                 {isOwn && (
-                  <button
-                    onClick={() => { setEditingId(post.id); setEditContent(post.content); }}
-                    className="p-1 hover:bg-secondary rounded text-muted-foreground"
-                  >
+                  <button onClick={() => { setEditingId(post.id); setEditContent(post.content); }} className="p-1 hover:bg-secondary rounded text-muted-foreground">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
                 )}
-                <button
-                  onClick={() => { if (confirm("Delete this post?")) deletePost.mutate(post.id); }}
-                  className="p-1 hover:bg-destructive/10 rounded text-destructive"
-                >
+                <button onClick={() => { if (confirm("Delete this post?")) deletePost.mutate(post.id); }} className="p-1 hover:bg-destructive/10 rounded text-destructive">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -249,52 +236,36 @@ const DiscussionThreadPage = () => {
 
           {editingId === post.id ? (
             <div className="mt-3 space-y-2">
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full rounded-lg border bg-secondary/30 p-3 text-sm outline-none focus:border-primary resize-none"
-                rows={3}
-              />
+              <RichTextEditor content={editContent} onChange={setEditContent} minHeight="80px" />
               <div className="flex gap-2">
-                <button
-                  onClick={() => updatePost.mutate({ id: post.id, content: editContent })}
-                  disabled={updatePost.isPending}
-                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-                >
-                  Save
-                </button>
+                <button onClick={() => updatePost.mutate({ id: post.id, content: editContent })} disabled={updatePost.isPending}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground">Save</button>
                 <button onClick={() => setEditingId(null)} className="rounded-lg border px-3 py-1.5 text-xs">Cancel</button>
               </div>
             </div>
           ) : (
-            <div className="mt-2 text-sm whitespace-pre-wrap break-words">
-              {renderTextWithLinks(post.content)}
+            <div className="mt-2 text-sm break-words prose prose-sm max-w-none
+              [&_a]:text-primary [&_a]:underline [&_a]:cursor-pointer">
+              {renderPostContent(post.content)}
             </div>
           )}
 
-          <button
-            onClick={() => setReplyTo(replyTo === post.id ? null : post.id)}
-            className="mt-2 flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-          >
+          <button onClick={() => setReplyTo(replyTo === post.id ? null : post.id)}
+            className="mt-2 flex items-center gap-1 text-xs text-primary hover:text-primary/80">
             <Reply className="h-3 w-3" /> Reply
           </button>
 
           {replyTo === post.id && (
-            <div className="mt-3 flex gap-2">
-              <textarea
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="Write a reply..."
-                className="flex-1 rounded-lg border bg-secondary/30 p-2 text-sm outline-none focus:border-primary resize-none"
-                rows={2}
-              />
-              <button
-                onClick={() => createPost.mutate({ content: replyContent, parentId: post.id })}
-                disabled={!replyContent.trim() || createPost.isPending}
-                className="self-end rounded-lg bg-primary p-2 text-primary-foreground disabled:opacity-50"
-              >
-                {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
+            <div className="mt-3 space-y-2">
+              <RichTextEditor content={replyContent} onChange={setReplyContent} placeholder="Write a reply..." minHeight="60px" />
+              <div className="flex justify-end">
+                <button onClick={() => createPost.mutate({ content: replyContent, parentId: post.id })}
+                  disabled={!replyContent.trim() || createPost.isPending}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50">
+                  {createPost.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5 inline mr-1" />}
+                  Reply
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -325,16 +296,10 @@ const DiscussionThreadPage = () => {
         </p>
       </div>
 
-      {/* New top-level post */}
-      <div className="rounded-xl border bg-card p-4 shadow-card">
-        <textarea
-          value={topPostContent}
-          onChange={(e) => setTopPostContent(e.target.value)}
-          placeholder="Write a post..."
-          className="w-full rounded-lg border bg-secondary/30 p-3 text-sm outline-none focus:border-primary resize-none"
-          rows={3}
-        />
-        <div className="mt-2 flex items-center justify-between">
+      {/* New top-level post with rich editor */}
+      <div className="rounded-xl border bg-card p-4 shadow-card space-y-3">
+        <RichTextEditor content={topPostContent} onChange={setTopPostContent} placeholder="Write a post..." minHeight="80px" />
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs hover:bg-secondary transition-colors">
@@ -346,11 +311,9 @@ const DiscussionThreadPage = () => {
               </button>
             )}
           </div>
-          <button
-            onClick={() => createPost.mutate({ content: topPostContent, parentId: null })}
-            disabled={!topPostContent.trim() || createPost.isPending}
-            className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
+          <button onClick={() => createPost.mutate({ content: topPostContent, parentId: null })}
+            disabled={!topPostContent.trim() || topPostContent === "<p></p>" || createPost.isPending}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
             {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Post
           </button>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, Check, CheckCheck } from "lucide-react";
 import { useNotifications, useMarkNotificationRead, useMarkAllRead } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,15 @@ const NotificationBell = () => {
   const { data: notifications, unreadCount } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllRead();
+  const navigate = useNavigate();
+
+  const handleClick = (n: any) => {
+    if (!n.read) markRead.mutate(n.id);
+    if (n.link) {
+      navigate(n.link);
+      setOpen(false);
+    }
+  };
 
   return (
     <div className="relative">
@@ -45,9 +55,7 @@ const NotificationBell = () => {
                 notifications.map((n: any) => (
                   <button
                     key={n.id}
-                    onClick={() => {
-                      if (!n.read) markRead.mutate(n.id);
-                    }}
+                    onClick={() => handleClick(n)}
                     className={cn(
                       "flex w-full gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-secondary/50 last:border-0",
                       !n.read && "bg-primary/5"
