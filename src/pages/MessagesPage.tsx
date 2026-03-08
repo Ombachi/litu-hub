@@ -163,7 +163,7 @@ const MessagesPage = () => {
   const selectedUser = selectedUserId ? getUserProfile(selectedUserId) : null;
 
   const filteredUsers = allUsers?.filter((u) =>
-    `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())
+    `${u.first_name} ${u.last_name} ${u.email} ${u.role}`.toLowerCase().includes(userSearch.toLowerCase())
   );
 
   const getAvatarUrl = (avatarPath: string | null) => {
@@ -218,7 +218,10 @@ const MessagesPage = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{u.first_name} {u.last_name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{u.first_name} {u.last_name}</p>
+                    <Badge variant="secondary" className="text-[10px] capitalize shrink-0">{(u as any).role?.replace("_", " ")}</Badge>
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 </div>
               </button>
