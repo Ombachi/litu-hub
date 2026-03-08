@@ -79,6 +79,29 @@ const AdminPanel = () => {
     },
   });
 
+  // For platform admin: all user-institution links for grouping
+  const { data: allUserInstitutions } = useQuery({
+    queryKey: ["all-user-institutions"],
+    enabled: isPlatformAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_institutions")
+        .select("user_id, institution_id, institutions(name)");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: allInstitutions } = useQuery({
+    queryKey: ["institutions"],
+    enabled: isPlatformAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("institutions").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: auditLogs, isLoading: loadingLogs } = useQuery({
     queryKey: ["audit-logs"],
     enabled: isAdmin || isSchoolAdmin,
