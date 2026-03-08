@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
@@ -12,7 +12,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 /** Convert plain URLs to clickable links */
 const renderTextWithLinks = (text: string) => {
-  // Handle attachment pattern first
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let key = 0;
@@ -22,14 +21,11 @@ const renderTextWithLinks = (text: string) => {
     const urlMatch = remaining.match(/(https?:\/\/[^\s<]+)/);
 
     if (attachIdx >= 0 && (!urlMatch || attachIdx <= (urlMatch.index ?? Infinity))) {
-      // Process attachment
       if (attachIdx > 0) parts.push(<span key={key++}>{remaining.slice(0, attachIdx)}</span>);
       const endParen = remaining.indexOf(")", attachIdx);
       if (endParen >= 0) {
         const path = remaining.slice(attachIdx + "📎 [Attachment](".length, endParen);
-        parts.push(
-          <AttachmentLink key={key++} path={path} />
-        );
+        parts.push(<AttachmentLink key={key++} path={path} />);
         remaining = remaining.slice(endParen + 1);
       } else {
         parts.push(<span key={key++}>{remaining}</span>);
@@ -52,9 +48,8 @@ const renderTextWithLinks = (text: string) => {
 };
 
 const AttachmentLink = ({ path }: { path: string }) => {
-  const [url, setUrl] = useState<string | null>(null);
   const handleClick = async () => {
-    const { data, error } = await supabase.storage.from("submissions").createSignedUrl(path, 3600);
+    const { data } = await supabase.storage.from("submissions").createSignedUrl(path, 3600);
     if (data?.signedUrl) {
       window.open(data.signedUrl, "_blank");
     } else {
@@ -111,6 +106,30 @@ const DiscussionThreadPage = () => {
       return data || [];
     },
   });
+
+  // Realtime subscription for new posts
+  useEffect(() => {
+    if (!discussionId) return;
+    const channel = supabase
+      .channel(`discussion-posts-${discussionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'discussion_posts',
+          filter: `discussion_id=eq.${discussionId}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ["discussion-all-posts", discussionId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [discussionId, qc]);
 
   const [replyContent, setReplyContent] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);

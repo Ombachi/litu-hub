@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   useQuizzes,
   useQuizQuestions,
@@ -9,8 +10,10 @@ import {
   useStartQuizAttempt,
   useSubmitQuizResponses,
 } from "@/hooks/useData";
-import { Brain, Clock, Play, RotateCcw, Loader2, ChevronLeft, ChevronRight, CheckCircle2, X, AlertTriangle } from "lucide-react";
+import { Brain, Clock, Play, RotateCcw, Loader2, ChevronLeft, ChevronRight, CheckCircle2, X, AlertTriangle, Upload, Paperclip } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const QuizzesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,22 +99,24 @@ const QuizzesPage = () => {
 
 // ---- Quiz Taking Engine ----
 function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) {
+  const { user } = useAuth();
   const { data: questions, isLoading: loadingQ } = useQuizQuestions(quizId);
   const startAttempt = useStartQuizAttempt();
   const submitResponses = useSubmitQuizResponses();
 
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // answers can be string (single) or string[] (multi-select) or { text, fileUrl } for SAQ
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [results, setResults] = useState<{ score: number; total: number; correct: number } | null>(null);
+  const [results, setResults] = useState<{ score: number; total: number; correct: number; pendingReview: number } | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  // Get quiz info
   const { data: quizzes } = useQuizzes();
   const quiz = quizzes?.find((q) => q.id === quizId);
 
-  // Start attempt
   useEffect(() => {
     if (questions?.length && !attemptId && !submitted) {
       startAttempt.mutate(quizId, {
@@ -127,7 +132,6 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
     }
   }, [questions, quizId]);
 
-  // Timer
   useEffect(() => {
     if (timeLeft === null || submitted) return;
     if (timeLeft <= 0) {
@@ -138,16 +142,68 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
     return () => clearTimeout(t);
   }, [timeLeft, submitted]);
 
+  const handleSAQFileUpload = async (questionId: string, file: File) => {
+    if (!user) return;
+    setUploadingFile(true);
+    try {
+      const path = `quiz-answers/${user.id}/${quizId}/${questionId}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from("submissions").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = await supabase.storage.from("submissions").createSignedUrl(path, 31536000);
+      const existing = answers[questionId] || {};
+      setAnswers(prev => ({
+        ...prev,
+        [questionId]: { ...existing, fileUrl: data?.signedUrl || path, fileName: file.name },
+      }));
+      toast.success("File attached");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+    setUploadingFile(false);
+  };
+
   const handleSubmit = useCallback(async () => {
     if (!attemptId || !questions || submitted) return;
     setSubmitted(true);
 
+    let pendingReview = 0;
     const responses = questions.map((q) => {
-      const ans = answers[q.id] || "";
+      const ans = answers[q.id];
+
+      if (q.question_type === "short_answer") {
+        // SAQ — always pending manual review
+        pendingReview++;
+        const textAnswer = typeof ans === "object" ? (ans.text || "") : (ans || "");
+        const fileUrl = typeof ans === "object" ? (ans.fileUrl || "") : "";
+        return {
+          question_id: q.id,
+          response: fileUrl ? `${textAnswer}\n\n📎 ${fileUrl}` : textAnswer,
+          is_correct: false,
+          points_earned: 0,
+        };
+      }
+
+      // Check for multiple correct answers (stored as "|||" separated)
+      const correctSet = new Set((q.correct_answer || "").split("|||").filter(Boolean));
+      
+      if (correctSet.size > 1) {
+        // Multi-correct: answer is an array
+        const selectedSet = new Set(Array.isArray(ans) ? ans : []);
+        const isCorrect = correctSet.size === selectedSet.size &&
+          [...correctSet].every(c => selectedSet.has(c));
+        return {
+          question_id: q.id,
+          response: Array.isArray(ans) ? ans.join("|||") : (ans || ""),
+          is_correct: isCorrect,
+          points_earned: isCorrect ? q.points : 0,
+        };
+      }
+
+      // Single correct
       const isCorrect = ans === q.correct_answer;
       return {
         question_id: q.id,
-        response: ans,
+        response: ans || "",
         is_correct: isCorrect,
         points_earned: isCorrect ? q.points : 0,
       };
@@ -159,7 +215,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
 
     try {
       await submitResponses.mutateAsync({ attemptId, responses });
-      setResults({ score, total, correct });
+      setResults({ score, total, correct, pendingReview });
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -195,7 +251,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
           <div className="mt-6 grid grid-cols-3 gap-4">
             <div className="rounded-lg bg-secondary p-4">
               <p className="text-3xl font-display font-bold text-primary">{results.score}</p>
-              <p className="text-xs text-muted-foreground">Points</p>
+              <p className="text-xs text-muted-foreground">Points (auto-graded)</p>
             </div>
             <div className="rounded-lg bg-secondary p-4">
               <p className="text-3xl font-display font-bold">{results.correct}/{questions.length}</p>
@@ -206,12 +262,51 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
               <p className="text-xs text-muted-foreground">Score</p>
             </div>
           </div>
+          {results.pendingReview > 0 && (
+            <div className="mt-4 rounded-lg bg-warning/10 p-3 text-sm text-warning">
+              📝 {results.pendingReview} short answer question(s) pending tutor review. Your final score may change.
+            </div>
+          )}
           {/* Review answers */}
           <div className="mt-8 text-left space-y-4">
             {questions.map((q, i) => {
-              const ans = answers[q.id] || "";
-              const correct = ans === q.correct_answer;
+              const ans = answers[q.id];
+              const correctSet = new Set((q.correct_answer || "").split("|||").filter(Boolean));
+              const isSAQ = q.question_type === "short_answer";
               const options = Array.isArray(q.options) ? q.options as string[] : [];
+
+              if (isSAQ) {
+                const textAnswer = typeof ans === "object" ? ans.text : ans;
+                return (
+                  <div key={q.id} className="rounded-lg border border-muted/50 bg-muted/5 p-4">
+                    <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                    <Badge variant="secondary" className="text-[10px] mt-1">Pending Manual Review</Badge>
+                    {textAnswer && <p className="mt-2 text-sm text-muted-foreground">Your answer: {textAnswer}</p>}
+                    {q.explanation && <p className="mt-2 text-xs text-muted-foreground italic">{q.explanation}</p>}
+                  </div>
+                );
+              }
+
+              if (correctSet.size > 1) {
+                // Multi-correct review
+                const selected = new Set(Array.isArray(ans) ? ans : []);
+                const allCorrect = correctSet.size === selected.size && [...correctSet].every(c => selected.has(c));
+                return (
+                  <div key={q.id} className={`rounded-lg border p-4 ${allCorrect ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
+                    <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                    <div className="mt-2 space-y-1">
+                      {options.map((opt) => (
+                        <div key={opt} className={`text-sm px-3 py-1.5 rounded ${correctSet.has(opt) ? "text-success font-medium" : selected.has(opt) && !correctSet.has(opt) ? "text-destructive line-through" : "text-muted-foreground"}`}>
+                          {correctSet.has(opt) ? "✓ " : selected.has(opt) ? "✗ " : "  "}{opt}
+                        </div>
+                      ))}
+                    </div>
+                    {q.explanation && <p className="mt-2 text-xs text-muted-foreground italic">{q.explanation}</p>}
+                  </div>
+                );
+              }
+
+              const correct = ans === q.correct_answer;
               return (
                 <div key={q.id} className={`rounded-lg border p-4 ${correct ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
                   <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
@@ -244,6 +339,9 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
   const mins = Math.floor((timeLeft || 0) / 60);
   const secs = (timeLeft || 0) % 60;
   const answeredCount = Object.keys(answers).length;
+  const correctSet = new Set((question.correct_answer || "").split("|||").filter(Boolean));
+  const isMultiCorrect = correctSet.size > 1;
+  const isSAQ = question.question_type === "short_answer";
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
@@ -290,24 +388,105 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
       {/* Question Card */}
       <div className="rounded-xl border bg-card p-6 shadow-card">
         <div className="flex items-start justify-between">
-          <Badge variant="secondary" className="text-xs">{question.points} pts</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">{question.points} pts</Badge>
+            <Badge variant="outline" className="text-xs capitalize">{question.question_type.replace("_", " ")}</Badge>
+            {isMultiCorrect && <Badge variant="outline" className="text-xs">Select multiple</Badge>}
+          </div>
         </div>
         <h3 className="mt-4 text-lg font-medium">{question.question_text}</h3>
-        <div className="mt-6 space-y-3">
-          {options.map((opt) => (
-            <button
-              key={opt}
-              onClick={() => setAnswers((prev) => ({ ...prev, [question.id]: opt }))}
-              className={`w-full text-left rounded-lg border p-4 text-sm transition-all ${
-                answers[question.id] === opt
-                  ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
-                  : "hover:border-primary/50 hover:bg-secondary/30"
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
+
+        {/* MCQ/TF with single correct */}
+        {!isSAQ && !isMultiCorrect && (
+          <div className="mt-6 space-y-3">
+            {options.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setAnswers((prev) => ({ ...prev, [question.id]: opt }))}
+                className={`w-full text-left rounded-lg border p-4 text-sm transition-all ${
+                  answers[question.id] === opt
+                    ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
+                    : "hover:border-primary/50 hover:bg-secondary/30"
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* MCQ with multiple correct */}
+        {!isSAQ && isMultiCorrect && (
+          <div className="mt-6 space-y-3">
+            {options.map((opt) => {
+              const selected = Array.isArray(answers[question.id]) ? answers[question.id] : [];
+              const isSelected = selected.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  onClick={() => {
+                    const current = Array.isArray(answers[question.id]) ? [...answers[question.id]] : [];
+                    if (isSelected) {
+                      setAnswers(prev => ({ ...prev, [question.id]: current.filter(o => o !== opt) }));
+                    } else {
+                      setAnswers(prev => ({ ...prev, [question.id]: [...current, opt] }));
+                    }
+                  }}
+                  className={`w-full text-left rounded-lg border p-4 text-sm transition-all flex items-center gap-3 ${
+                    isSelected
+                      ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
+                      : "hover:border-primary/50 hover:bg-secondary/30"
+                  }`}
+                >
+                  <Checkbox checked={isSelected} className="pointer-events-none" />
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Short Answer Question */}
+        {isSAQ && (
+          <div className="mt-6 space-y-4">
+            <textarea
+              value={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
+              onChange={(e) => {
+                const existing = typeof answers[question.id] === "object" ? answers[question.id] : {};
+                setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: e.target.value } }));
+              }}
+              placeholder="Type your answer here..."
+              className="w-full rounded-lg border bg-secondary/30 p-4 text-sm outline-none focus:border-primary resize-y min-h-[150px]"
+              rows={6}
+            />
+            {/* File upload for SAQ */}
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.mp4"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleSAQFileUpload(question.id, f);
+                }}
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploadingFile}
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs hover:bg-secondary transition-colors"
+              >
+                {uploadingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                {typeof answers[question.id] === "object" && answers[question.id]?.fileName
+                  ? answers[question.id].fileName
+                  : "Attach file (optional)"}
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              📝 This question will be reviewed and graded by your tutor.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
@@ -339,7 +518,6 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
         )}
       </div>
 
-      {/* Warning if not all answered */}
       {answeredCount < questions.length && currentIdx === questions.length - 1 && (
         <div className="flex items-center gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
           <AlertTriangle className="h-4 w-4 shrink-0" />
