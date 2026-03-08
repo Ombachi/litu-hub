@@ -1,17 +1,21 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
   BookOpen, FileText, Brain, MessageSquare, ChevronDown, ChevronRight,
   CheckCircle2, Circle, Video, FileText as Reading, Activity, Clock,
-  Upload, Pin, Loader2,
+  Upload, Pin, Loader2, Megaphone, FolderOpen,
 } from "lucide-react";
 import { useCourse, useModules, useAssignments, useQuizzes, useDiscussions, useMySubmissions } from "@/hooks/useData";
+import AnnouncementsTab from "@/components/course/AnnouncementsTab";
+import ResourcesTab from "@/components/course/ResourcesTab";
 
 const CoursePage = () => {
   const { courseId } = useParams();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") || "content";
   const { data: course, isLoading } = useCourse(courseId);
   const { data: modules } = useModules(courseId);
   const { data: assignments } = useAssignments(courseId);
@@ -80,18 +84,20 @@ const CoursePage = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="content" className="w-full">
-        <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none">
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
           {[
             { value: "content", icon: BookOpen, label: "Content" },
+            { value: "announcements", icon: Megaphone, label: "Announcements" },
             { value: "assignments", icon: FileText, label: `Assignments (${assignments?.length || 0})` },
             { value: "quizzes", icon: Brain, label: `Quizzes (${quizzes?.length || 0})` },
+            { value: "resources", icon: FolderOpen, label: "Resources" },
             { value: "discussions", icon: MessageSquare, label: `Discussions (${discussions?.length || 0})` },
           ].map((tab) => (
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none whitespace-nowrap"
             >
               <tab.icon className="mr-2 h-4 w-4" />
               {tab.label}
