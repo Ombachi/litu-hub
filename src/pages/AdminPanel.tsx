@@ -79,6 +79,29 @@ const AdminPanel = () => {
     },
   });
 
+  // For platform admin: all user-institution links for grouping
+  const { data: allUserInstitutions } = useQuery({
+    queryKey: ["all-user-institutions"],
+    enabled: isPlatformAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_institutions")
+        .select("user_id, institution_id, institutions(name)");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: allInstitutions } = useQuery({
+    queryKey: ["institutions"],
+    enabled: isPlatformAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("institutions").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: auditLogs, isLoading: loadingLogs } = useQuery({
     queryKey: ["audit-logs"],
     enabled: isAdmin || isSchoolAdmin,
@@ -92,6 +115,43 @@ const AdminPanel = () => {
   const [userSearch, setUserSearch] = useState("");
   const [editingRole, setEditingRole] = useState<{ userId: string; role: string } | null>(null);
   const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "" });
+  const [instFilter, setInstFilter] = useState<string>("all");
+  const [addUserToInstId, setAddUserToInstId] = useState("");
+
+  // School admin: add user to institution
+  const addUserToInstitution = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.from("user_institutions").insert({
+        user_id: userId,
+        institution_id: myInstitution!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inst-members-admin"] });
+      qc.invalidateQueries({ queryKey: ["inst-members"] });
+      setAddUserToInstId("");
+      toast.success("User added to institution");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const removeUserFromInstitution = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("user_institutions")
+        .delete()
+        .eq("user_id", userId)
+        .eq("institution_id", myInstitution!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inst-members-admin"] });
+      qc.invalidateQueries({ queryKey: ["inst-members"] });
+      toast.success("User removed from institution");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const updateRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
@@ -156,13 +216,32 @@ const AdminPanel = () => {
   const platformAdminIds = new Set(
     allRoles?.filter(r => r.role === 'admin' || r.role === 'platform_admin').map(r => r.user_id) || []
   );
+  // Build a map of userId -> institution name for platform admin
+  const userInstMap = new Map<string, string>();
+  allUserInstitutions?.forEach(ui => {
+    userInstMap.set(ui.user_id, (ui.institutions as any)?.name || "Unknown");
+  });
+
   const visibleProfiles = isSchoolAdmin
     ? profiles?.filter(p => institutionMemberIds.has(p.user_id))
     : profiles?.filter(p => !platformAdminIds.has(p.user_id));
 
-  const filteredProfiles = visibleProfiles?.filter((p) =>
+  // Platform admin: apply institution filter
+  const instFilteredProfiles = isPlatformAdmin && instFilter !== "all"
+    ? visibleProfiles?.filter(p => {
+        if (instFilter === "unassigned") return !userInstMap.has(p.user_id);
+        return userInstMap.get(p.user_id) === instFilter;
+      })
+    : visibleProfiles;
+
+  const filteredProfiles = instFilteredProfiles?.filter((p) =>
     `${p.first_name} ${p.last_name} ${p.email}`.toLowerCase().includes(userSearch.toLowerCase())
   );
+
+  // School admin: users not yet in institution (for adding)
+  const nonMemberProfiles = isSchoolAdmin
+    ? profiles?.filter(p => !institutionMemberIds.has(p.user_id))
+    : [];
   const getUserRole = (userId: string) => allRoles?.find((r) => r.user_id === userId)?.role || "student";
 
   // Display courses: institution-scoped for school admin, all for platform admin
@@ -251,10 +330,57 @@ const AdminPanel = () => {
 
         {/* Users Tab (both roles) */}
         <TabsContent value="users" className="mt-6 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users by name or email..." className="pl-10" />
+          {/* School admin: Add user to institution */}
+          {isSchoolAdmin && myInstitution && (
+            <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-primary" /> Add User to {myInstitution.name}
+              </h4>
+              <div className="flex gap-2">
+                <Select value={addUserToInstId} onValueChange={setAddUserToInstId}>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="Select a user to add..." /></SelectTrigger>
+                  <SelectContent>
+                    {nonMemberProfiles?.map(p => (
+                      <SelectItem key={p.user_id} value={p.user_id}>
+                        {p.first_name} {p.last_name} ({p.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button
+                  onClick={() => addUserToInstId && addUserToInstitution.mutate(addUserToInstId)}
+                  disabled={!addUserToInstId || addUserToInstitution.isPending}
+                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+                >
+                  {addUserToInstitution.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Platform admin: filter by institution */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users by name or email..." className="pl-10" />
+            </div>
+            {isPlatformAdmin && (
+              <Select value={instFilter} onValueChange={setInstFilter}>
+                <SelectTrigger className="w-full sm:w-56">
+                  <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by school" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Schools</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {allInstitutions?.map(i => (
+                    <SelectItem key={i.id} value={i.name}>{i.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
+
           {loadingProfiles ? (
             <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
@@ -265,6 +391,7 @@ const AdminPanel = () => {
                     <th className="px-5 py-3 text-left font-medium">User</th>
                     <th className="px-5 py-3 text-left font-medium">Email</th>
                     <th className="px-5 py-3 text-left font-medium">Role</th>
+                    {isPlatformAdmin && <th className="px-5 py-3 text-left font-medium">School</th>}
                     <th className="px-5 py-3 text-left font-medium">Joined</th>
                     <th className="px-5 py-3 text-right font-medium">Actions</th>
                   </tr>
@@ -273,6 +400,7 @@ const AdminPanel = () => {
                   {filteredProfiles?.map((p) => {
                     const userRole = getUserRole(p.user_id);
                     const isEditing = editingRole?.userId === p.user_id;
+                    const instName = userInstMap.get(p.user_id);
                     return (
                       <tr key={p.id} className="border-b last:border-0 hover:bg-secondary/20 transition-colors">
                         <td className="px-5 py-3">
@@ -304,13 +432,33 @@ const AdminPanel = () => {
                             <Badge variant="secondary" className="text-xs capitalize">{userRole.replace("_", " ")}</Badge>
                           )}
                         </td>
+                        {isPlatformAdmin && (
+                          <td className="px-5 py-3">
+                            {instName ? (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
+                                <Building2 className="h-3 w-3" /> {instName}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-5 py-3 text-sm text-muted-foreground">
                           {new Date(p.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
                         </td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="px-5 py-3 text-right flex items-center justify-end gap-1">
                           {!isEditing && (
                             <button onClick={() => setEditingRole({ userId: p.user_id, role: userRole })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors" title="Change role">
                               <Shield className="h-4 w-4" />
+                            </button>
+                          )}
+                          {isSchoolAdmin && (
+                            <button
+                              onClick={() => { if (confirm(`Remove ${p.first_name} from ${myInstitution?.name}?`)) removeUserFromInstitution.mutate(p.user_id); }}
+                              className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
+                              title="Remove from institution"
+                            >
+                              <X className="h-4 w-4" />
                             </button>
                           )}
                         </td>
