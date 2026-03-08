@@ -250,30 +250,7 @@ const SchoolAdminDashboard = () => {
         </div>
       </div>
 
-      {/* Submission Stats */}
-      <div className="rounded-xl border bg-card p-5 shadow-sm">
-        <h3 className="font-semibold mb-3">Submission Overview</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <p className="text-2xl font-bold">{totalSubmissions}</p>
-            <p className="text-xs text-muted-foreground">Total Submissions</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-primary">{gradedCount}</p>
-            <p className="text-xs text-muted-foreground">Graded</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-amber-500">{pendingCount}</p>
-            <p className="text-xs text-muted-foreground">Pending Review</p>
-          </div>
-        </div>
-        {totalSubmissions > 0 && (
-          <div className="mt-3">
-            <Progress value={(gradedCount / totalSubmissions) * 100} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-1">{Math.round((gradedCount / totalSubmissions) * 100)}% graded</p>
-          </div>
-        )}
-      </div>
+      {/* Tutors */}
 
       {/* Tutors */}
       {courseTutors && courseTutors.length > 0 && (
