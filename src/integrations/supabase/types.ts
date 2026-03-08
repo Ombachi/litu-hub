@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          author_id: string | null
+          content: string
+          course_id: string
+          created_at: string
+          id: string
+          pinned: boolean | null
+          title: string
+        }
+        Insert: {
+          author_id?: string | null
+          content?: string
+          course_id: string
+          created_at?: string
+          id?: string
+          pinned?: boolean | null
+          title: string
+        }
+        Update: {
+          author_id?: string | null
+          content?: string
+          course_id?: string
+          created_at?: string
+          id?: string
+          pinned?: boolean | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignment_submissions: {
         Row: {
           assignment_id: string
@@ -60,33 +98,42 @@ export type Database = {
       }
       assignments: {
         Row: {
+          allow_late_submissions: boolean | null
           course_id: string
           created_at: string
           description: string | null
           due_date: string | null
+          grace_period_hours: number | null
           id: string
+          late_penalty_percent: number | null
           max_score: number
           rubric_criteria: Json | null
           title: string
           type: string
         }
         Insert: {
+          allow_late_submissions?: boolean | null
           course_id: string
           created_at?: string
           description?: string | null
           due_date?: string | null
+          grace_period_hours?: number | null
           id?: string
+          late_penalty_percent?: number | null
           max_score?: number
           rubric_criteria?: Json | null
           title: string
           type?: string
         }
         Update: {
+          allow_late_submissions?: boolean | null
           course_id?: string
           created_at?: string
           description?: string | null
           due_date?: string | null
+          grace_period_hours?: number | null
           id?: string
+          late_penalty_percent?: number | null
           max_score?: number
           rubric_criteria?: Json | null
           title?: string
@@ -128,6 +175,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      course_resources: {
+        Row: {
+          course_id: string
+          created_at: string
+          description: string | null
+          file_type: string | null
+          file_url: string
+          id: string
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          description?: string | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          description?: string | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_resources_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       course_tutors: {
         Row: {
@@ -201,6 +289,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id?: string
+          sender_id?: string
+        }
+        Relationships: []
       }
       discussion_posts: {
         Row: {
