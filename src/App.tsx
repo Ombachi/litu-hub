@@ -25,6 +25,7 @@ import AdminPanel from "./pages/AdminPanel";
 import ParentPortal from "./pages/ParentPortal";
 import MessagesPage from "./pages/MessagesPage";
 import AuthPage from "./pages/AuthPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
                         <Route path="/calendar" element={<CalendarPage />} />
                         <Route path="/lesson/:lessonId" element={<LessonPage />} />
                         <Route path="/messages" element={<MessagesPage />} />
+                        <Route path="/analytics" element={<AnalyticsPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route
                           path="/parent"

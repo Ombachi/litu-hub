@@ -1,11 +1,11 @@
 import { useParams, Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle2, Circle, Loader2, ExternalLink } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useLessonCompletions, useToggleLessonCompletion } from "@/hooks/useLessonCompletions";
 
-/** Normalize URLs without scheme */
 const ensureScheme = (url: string) => {
   if (!url) return url;
   if (url.match(/^https?:\/\//)) return url;
@@ -14,7 +14,10 @@ const ensureScheme = (url: string) => {
 
 const LessonPage = () => {
   const { lessonId } = useParams();
-  const qc = useQueryClient();
+  const { data: completions } = useLessonCompletions();
+  const toggleComplete = useToggleLessonCompletion();
+
+  const isCompleted = completions?.some(c => c.lesson_id === lessonId) || false;
 
   const { data: lesson, isLoading } = useQuery({
     queryKey: ["lesson", lessonId],
@@ -44,21 +47,6 @@ const LessonPage = () => {
     },
   });
 
-  const toggleComplete = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("lessons")
-        .update({ completed: !lesson?.completed })
-        .eq("id", lessonId!);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lesson", lessonId] });
-      qc.invalidateQueries({ queryKey: ["modules"] });
-      toast.success(lesson?.completed ? "Unmarked" : "Lesson completed!");
-    },
-  });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -82,9 +70,7 @@ const LessonPage = () => {
   const content = ensureScheme(contentRaw) !== contentRaw ? ensureScheme(contentRaw) : contentRaw;
 
   const youtubeMatch = content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-  
-  // Detect file extension from URL (handle signed URLs with query params)
-  const cleanUrl = content.split("?")[0]; // strip query params for extension check
+  const cleanUrl = content.split("?")[0];
   const urlExt = cleanUrl.match(/\.(\w+)$/)?.[1]?.toLowerCase();
   const isDocUrl = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt"].includes(urlExt || "");
   const isVideoUrl = ["mp4", "webm", "ogg", "mov", "avi"].includes(urlExt || "");
@@ -92,8 +78,12 @@ const LessonPage = () => {
   const isHtml = content.includes("<") && (content.includes("<p") || content.includes("<h") || content.includes("<ul") || content.includes("<ol") || content.includes("<strong") || content.includes("<li") || content.includes("<blockquote"));
   const isExternalUrl = content.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isDocUrl && !isHtml;
 
-  // For Supabase storage signed URLs - generate proper video URL
-  const isSupabaseUrl = content.includes("supabase") && content.includes("/storage/");
+  const handleToggle = () => {
+    toggleComplete.mutate(
+      { lessonId: lessonId!, completed: isCompleted },
+      { onSuccess: () => toast.success(isCompleted ? "Unmarked" : "Lesson completed!") }
+    );
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -112,21 +102,20 @@ const LessonPage = () => {
             <p className="text-sm text-muted-foreground">{mod?.title}</p>
           </div>
           <button
-            onClick={() => toggleComplete.mutate()}
+            onClick={handleToggle}
             disabled={toggleComplete.isPending}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
-              lesson.completed
+              isCompleted
                 ? "bg-success/10 text-success hover:bg-success/20"
                 : "bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
             }`}
           >
-            {lesson.completed ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-            {lesson.completed ? "Completed" : "Mark Complete"}
+            {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+            {isCompleted ? "Completed" : "Mark Complete"}
           </button>
         </div>
       </div>
 
-      {/* YouTube embed */}
       {youtubeMatch && (
         <div className="rounded-xl overflow-hidden border shadow-card aspect-video">
           <iframe
@@ -139,17 +128,9 @@ const LessonPage = () => {
         </div>
       )}
 
-      {/* Video file embed */}
       {isVideoUrl && !youtubeMatch && content && (
         <div className="rounded-xl overflow-hidden border shadow-card">
-          <video 
-            controls 
-            playsInline
-            muted={false}
-            preload="metadata"
-            className="w-full max-h-[70vh] bg-black"
-            key={content}
-          >
+          <video controls playsInline muted={false} preload="metadata" className="w-full max-h-[70vh] bg-black" key={content}>
             <source src={content} type={urlExt === "mov" ? "video/quicktime" : urlExt === "webm" ? "video/webm" : urlExt === "ogg" ? "video/ogg" : "video/mp4"} />
             Your browser does not support the video tag.
           </video>
@@ -162,7 +143,6 @@ const LessonPage = () => {
         </div>
       )}
 
-      {/* Document embed (DOCX, PPT, etc.) via Google Docs Viewer */}
       {isDocUrl && !isPdfUrl && content && (
         <div className="rounded-xl overflow-hidden border shadow-card">
           <iframe
@@ -179,7 +159,6 @@ const LessonPage = () => {
         </div>
       )}
 
-      {/* PDF embed */}
       {isPdfUrl && content && (
         <div className="rounded-xl overflow-hidden border shadow-card">
           <iframe src={content} className="w-full h-[70vh]" title={lesson.title} />
@@ -192,7 +171,6 @@ const LessonPage = () => {
         </div>
       )}
 
-      {/* External link (non-video, non-pdf) */}
       {isExternalUrl && content && (
         <div className="rounded-xl border bg-card p-6 shadow-card">
           <div className="flex items-center gap-3">
@@ -213,7 +191,6 @@ const LessonPage = () => {
         </div>
       )}
 
-      {/* Rich HTML content */}
       {isHtml && (
         <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
           <div
@@ -226,7 +203,6 @@ const LessonPage = () => {
         </div>
       )}
 
-      {/* Plain text (not a URL, not HTML) */}
       {content && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isDocUrl && !isExternalUrl && !isHtml && (
         <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
           <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap break-words overflow-auto max-h-[70vh]">
