@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X,
+  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen,
 } from "lucide-react";
 import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions, useDiscussions } from "@/hooks/useData";
 import {
@@ -22,7 +22,11 @@ import AssignmentDialog from "@/components/coach/AssignmentDialog";
 import QuizDialog from "@/components/coach/QuizDialog";
 import QuestionBankDialog from "@/components/coach/QuestionBankDialog";
 import DeleteConfirmDialog from "@/components/coach/DeleteConfirmDialog";
+import AnnouncementsTab from "@/components/course/AnnouncementsTab";
+import ResourcesTab from "@/components/course/ResourcesTab";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const CoachStudio = () => {
   const { data: courses, isLoading } = useCourses();
@@ -62,6 +66,7 @@ const CoachStudio = () => {
   // Discussion state
   const [showCreateDiscussion, setShowCreateDiscussion] = useState(false);
   const [newDiscTitle, setNewDiscTitle] = useState("");
+  const [newDiscDueDate, setNewDiscDueDate] = useState("");
 
   const createDiscussion = useMutation({
     mutationFn: async () => {
@@ -69,13 +74,15 @@ const CoachStudio = () => {
         title: newDiscTitle.trim(),
         course_id: courseId!,
         author_id: user!.id,
-      });
+        due_date: newDiscDueDate ? new Date(newDiscDueDate).toISOString() : null,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["discussions"] });
       setShowCreateDiscussion(false);
       setNewDiscTitle("");
+      setNewDiscDueDate("");
       toast.success("Discussion thread created");
     },
     onError: (e: any) => toast.error(e.message),
@@ -258,6 +265,8 @@ const CoachStudio = () => {
                 { value: "quizzes", icon: Brain, label: `Quizzes (${quizzes?.length || 0})` },
                 { value: "questions", icon: HelpCircle, label: "Question Bank" },
                 { value: "discussions", icon: MessageSquare, label: `Discussions (${discussions?.length || 0})` },
+                { value: "announcements", icon: Megaphone, label: "Announcements" },
+                { value: "resources", icon: FolderOpen, label: "Resources" },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
@@ -391,7 +400,6 @@ const CoachStudio = () => {
                         <button onClick={() => setDeleteDialog({ open: true, type: "quiz", id: q.id, name: q.title })} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
-                    {/* Inline questions for selected quiz */}
                     {activeQuizId === q.id && questions && (
                       <div className="mt-4 border-t pt-4 space-y-3">
                         <div className="flex items-center justify-between">
@@ -439,7 +447,6 @@ const CoachStudio = () => {
                 </button>
               </div>
 
-              {/* Quiz selector */}
               {quizzes && quizzes.length > 0 ? (
                 <div className="flex gap-2 flex-wrap">
                   {quizzes.map((q) => (
@@ -458,7 +465,6 @@ const CoachStudio = () => {
                 <p className="text-sm text-muted-foreground">Create a quiz first to manage questions.</p>
               )}
 
-              {/* Questions list */}
               {activeQuizId && (
                 <div className="space-y-3">
                   {!questions?.length ? (
@@ -528,6 +534,14 @@ const CoachStudio = () => {
                     placeholder="Thread title..."
                     className="w-full rounded-lg border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
                   />
+                  <div className="space-y-1">
+                    <Label className="text-xs">Due Date (optional)</Label>
+                    <Input
+                      type="datetime-local"
+                      value={newDiscDueDate}
+                      onChange={(e) => setNewDiscDueDate(e.target.value)}
+                    />
+                  </div>
                   <button
                     onClick={() => createDiscussion.mutate()}
                     disabled={!newDiscTitle.trim() || createDiscussion.isPending}
@@ -551,7 +565,12 @@ const CoachStudio = () => {
                       {d.pinned && <span className="text-accent text-xs">📌</span>}
                       <div className="min-w-0">
                         <h4 className="font-medium text-sm truncate">{d.title}</h4>
-                        <p className="text-xs text-muted-foreground">{d.discussion_posts?.length || 0} replies • {new Date(d.created_at).toLocaleDateString("en-KE")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {d.discussion_posts?.length || 0} replies • {new Date(d.created_at).toLocaleDateString("en-KE")}
+                          {(d as any).due_date && (
+                            <span className="ml-2 text-accent">Due: {new Date((d as any).due_date).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}</span>
+                          )}
+                        </p>
                       </div>
                     </Link>
                     <div className="flex items-center gap-1 shrink-0">
@@ -572,6 +591,16 @@ const CoachStudio = () => {
                   </div>
                 ))
               )}
+            </TabsContent>
+
+            {/* Announcements Tab - Coach manages */}
+            <TabsContent value="announcements" className="mt-6">
+              {courseId && <AnnouncementsTab courseId={courseId} />}
+            </TabsContent>
+
+            {/* Resources Tab - Coach manages */}
+            <TabsContent value="resources" className="mt-6">
+              {courseId && <ResourcesTab courseId={courseId} />}
             </TabsContent>
           </Tabs>
         </>

@@ -20,6 +20,7 @@ const QuizzesPage = () => {
   const takeQuizId = searchParams.get("take");
   const { data: quizzes, isLoading } = useQuizzes();
   const { data: allAttempts } = useMyQuizAttempts();
+  const [showCompleted, setShowCompleted] = useState(false);
 
   if (isLoading) {
     return (
@@ -33,6 +34,63 @@ const QuizzesPage = () => {
     return <QuizEngine quizId={takeQuizId} onExit={() => setSearchParams({})} />;
   }
 
+  // Separate completed and pending quizzes
+  const completedQuizzes = quizzes?.filter((q) => {
+    const attempts = allAttempts?.filter((a) => a.quiz_id === q.id) || [];
+    const completedAttempts = attempts.filter((a) => a.status === "completed");
+    return completedAttempts.length > 0 && attempts.length >= q.max_attempts;
+  }) || [];
+
+  const pendingQuizzes = quizzes?.filter((q) => !completedQuizzes.some((c) => c.id === q.id)) || [];
+
+  const renderQuizCard = (q: any) => {
+    const attempts = allAttempts?.filter((a) => a.quiz_id === q.id) || [];
+    const completedAttempts = attempts.filter((a) => a.status === "completed");
+    const bestScore = completedAttempts.length
+      ? Math.max(...completedAttempts.map((a) => a.score || 0))
+      : undefined;
+    const canRetake = attempts.length < q.max_attempts;
+
+    return (
+      <div key={q.id} className="rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all">
+        <div className="flex items-start justify-between gap-2">
+          <Badge variant="secondary" className="text-xs">{q.courses?.code}</Badge>
+          <Badge variant={completedAttempts.length > 0 ? "default" : "secondary"} className="capitalize text-xs">
+            {completedAttempts.length > 0 ? "completed" : "not started"}
+          </Badge>
+        </div>
+        <h3 className="mt-3 font-display font-semibold">{q.title}</h3>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg bg-secondary/50 p-2">
+            <p className="text-lg font-display font-bold">{q.time_limit}</p>
+            <p className="text-xs text-muted-foreground">Minutes</p>
+          </div>
+          <div className="rounded-lg bg-secondary/50 p-2">
+            <p className="text-lg font-display font-bold">{q.max_attempts}</p>
+            <p className="text-xs text-muted-foreground">Max Tries</p>
+          </div>
+          <div className="rounded-lg bg-secondary/50 p-2">
+            <p className="text-lg font-display font-bold">{attempts.length}/{q.max_attempts}</p>
+            <p className="text-xs text-muted-foreground">Used</p>
+          </div>
+        </div>
+        {bestScore !== undefined && (
+          <div className="mt-3 flex items-center justify-center">
+            <span className="text-2xl font-display font-bold text-primary">{bestScore} pts</span>
+          </div>
+        )}
+        {canRetake && (
+          <button
+            onClick={() => setSearchParams({ take: q.id })}
+            className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            {attempts.length === 0 ? <><Play className="h-4 w-4" /> Start Quiz</> : <><RotateCcw className="h-4 w-4" /> Retry</>}
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -43,55 +101,37 @@ const QuizzesPage = () => {
       {!quizzes?.length ? (
         <p className="text-center text-muted-foreground py-12">No quizzes. Enroll in courses to see quizzes.</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {quizzes.map((q) => {
-            const attempts = allAttempts?.filter((a) => a.quiz_id === q.id) || [];
-            const completedAttempts = attempts.filter((a) => a.status === "completed");
-            const bestScore = completedAttempts.length
-              ? Math.max(...completedAttempts.map((a) => a.score || 0))
-              : undefined;
-            const canRetake = attempts.length < q.max_attempts;
-
-            return (
-              <div key={q.id} className="rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all">
-                <div className="flex items-start justify-between gap-2">
-                  <Badge variant="secondary" className="text-xs">{q.courses?.code}</Badge>
-                  <Badge variant={completedAttempts.length > 0 ? "default" : "secondary"} className="capitalize text-xs">
-                    {completedAttempts.length > 0 ? "completed" : "not started"}
-                  </Badge>
-                </div>
-                <h3 className="mt-3 font-display font-semibold">{q.title}</h3>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-lg bg-secondary/50 p-2">
-                    <p className="text-lg font-display font-bold">{q.time_limit}</p>
-                    <p className="text-xs text-muted-foreground">Minutes</p>
-                  </div>
-                  <div className="rounded-lg bg-secondary/50 p-2">
-                    <p className="text-lg font-display font-bold">{q.max_attempts}</p>
-                    <p className="text-xs text-muted-foreground">Max Tries</p>
-                  </div>
-                  <div className="rounded-lg bg-secondary/50 p-2">
-                    <p className="text-lg font-display font-bold">{attempts.length}/{q.max_attempts}</p>
-                    <p className="text-xs text-muted-foreground">Used</p>
-                  </div>
-                </div>
-                {bestScore !== undefined && (
-                  <div className="mt-3 flex items-center justify-center">
-                    <span className="text-2xl font-display font-bold text-primary">{bestScore} pts</span>
-                  </div>
-                )}
-                {canRetake && (
-                  <button
-                    onClick={() => setSearchParams({ take: q.id })}
-                    className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    {attempts.length === 0 ? <><Play className="h-4 w-4" /> Start Quiz</> : <><RotateCcw className="h-4 w-4" /> Retry</>}
-                  </button>
-                )}
+        <>
+          {/* Pending quizzes */}
+          <div>
+            <h2 className="font-display font-semibold text-lg mb-4">Pending ({pendingQuizzes.length})</h2>
+            {pendingQuizzes.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">All quizzes completed!</p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {pendingQuizzes.map(renderQuizCard)}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
+
+          {/* Completed quizzes - collapsible */}
+          {completedQuizzes.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className="font-display font-semibold text-lg flex items-center gap-2 hover:text-primary transition-colors mb-4"
+              >
+                Completed ({completedQuizzes.length})
+                <span className="text-xs text-muted-foreground">{showCompleted ? "▲ Hide" : "▼ Show"}</span>
+              </button>
+              {showCompleted && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {completedQuizzes.map(renderQuizCard)}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -106,7 +146,6 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
 
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
-  // answers can be string (single) or string[] (multi-select) or { text, fileUrl } for SAQ
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -171,7 +210,6 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
       const ans = answers[q.id];
 
       if (q.question_type === "short_answer") {
-        // SAQ — always pending manual review
         pendingReview++;
         const textAnswer = typeof ans === "object" ? (ans.text || "") : (ans || "");
         const fileUrl = typeof ans === "object" ? (ans.fileUrl || "") : "";
@@ -183,11 +221,9 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
         };
       }
 
-      // Check for multiple correct answers (stored as "|||" separated)
       const correctSet = new Set((q.correct_answer || "").split("|||").filter(Boolean));
       
       if (correctSet.size > 1) {
-        // Multi-correct: answer is an array
         const selectedSet = new Set(Array.isArray(ans) ? ans : []);
         const isCorrect = correctSet.size === selectedSet.size &&
           [...correctSet].every(c => selectedSet.has(c));
@@ -199,7 +235,6 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
         };
       }
 
-      // Single correct
       const isCorrect = ans === q.correct_answer;
       return {
         question_id: q.id,
@@ -267,7 +302,6 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
               📝 {results.pendingReview} short answer question(s) pending tutor review. Your final score may change.
             </div>
           )}
-          {/* Review answers */}
           <div className="mt-8 text-left space-y-4">
             {questions.map((q, i) => {
               const ans = answers[q.id];
@@ -288,7 +322,6 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
               }
 
               if (correctSet.size > 1) {
-                // Multi-correct review
                 const selected = new Set(Array.isArray(ans) ? ans : []);
                 const allCorrect = correctSet.size === selected.size && [...correctSet].every(c => selected.has(c));
                 return (
@@ -401,26 +434,69 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
 
       {/* Question Card */}
       <div className="rounded-xl border bg-card p-6 shadow-card">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">{question.points} pts</Badge>
-            <Badge variant="outline" className="text-xs capitalize">{question.question_type.replace("_", " ")}</Badge>
-            {isMultiCorrect && <Badge variant="outline" className="text-xs">Select multiple</Badge>}
-          </div>
+        <div className="flex items-center gap-2 mb-4">
+          <Badge variant="secondary" className="text-xs">{question.question_type === "short_answer" ? "Short Answer" : isMultiCorrect ? "Multi-Select" : "Multiple Choice"}</Badge>
+          <Badge variant="outline" className="text-xs">{question.points} pts</Badge>
+          {question.difficulty && <Badge variant="outline" className="text-xs capitalize">{question.difficulty}</Badge>}
         </div>
-        <h3 className="mt-4 text-lg font-medium">{question.question_text}</h3>
+        <p className="text-base font-medium leading-relaxed">{question.question_text}</p>
 
-        {/* MCQ/TF with single correct */}
-        {!isSAQ && !isMultiCorrect && (
-          <div className="mt-6 space-y-3">
+        {isSAQ ? (
+          <div className="mt-4 space-y-3">
+            <textarea
+              value={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
+              onChange={(e) => {
+                const existing = typeof answers[question.id] === "object" ? answers[question.id] : {};
+                setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: e.target.value } }));
+              }}
+              placeholder="Type your answer here..."
+              className="w-full min-h-[120px] rounded-lg border bg-secondary/30 p-3 text-sm outline-none focus:border-primary resize-y"
+            />
+            <div className="flex items-center gap-2">
+              <input ref={fileRef} type="file" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleSAQFileUpload(question.id, f);
+              }} />
+              <button onClick={() => fileRef.current?.click()} disabled={uploadingFile}
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs hover:bg-secondary transition-colors">
+                {uploadingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                {typeof answers[question.id] === "object" && answers[question.id]?.fileName ? answers[question.id].fileName : "Attach file"}
+              </button>
+              {typeof answers[question.id] === "object" && answers[question.id]?.fileUrl && (
+                <span className="text-xs text-success">✓ File attached</span>
+              )}
+            </div>
+          </div>
+        ) : isMultiCorrect ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs text-muted-foreground mb-2">Select all correct answers</p>
+            {options.map((opt) => {
+              const selected = Array.isArray(answers[question.id]) ? answers[question.id] : [];
+              const isChecked = selected.includes(opt);
+              return (
+                <label key={opt} className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
+                  isChecked ? "border-primary bg-primary/5" : "hover:bg-secondary/50"
+                }`}>
+                  <Checkbox checked={isChecked} onCheckedChange={(checked) => {
+                    const prev = Array.isArray(answers[question.id]) ? [...answers[question.id]] : [];
+                    const next = checked ? [...prev, opt] : prev.filter((o: string) => o !== opt);
+                    setAnswers(a => ({ ...a, [question.id]: next }));
+                  }} />
+                  <span className="text-sm">{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 space-y-2">
             {options.map((opt) => (
               <button
                 key={opt}
-                onClick={() => setAnswers((prev) => ({ ...prev, [question.id]: opt }))}
-                className={`w-full text-left rounded-lg border p-4 text-sm transition-all ${
+                onClick={() => setAnswers((a) => ({ ...a, [question.id]: opt }))}
+                className={`w-full text-left rounded-lg border p-3 text-sm transition-all ${
                   answers[question.id] === opt
-                    ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
-                    : "hover:border-primary/50 hover:bg-secondary/30"
+                    ? "border-primary bg-primary/5 font-medium"
+                    : "hover:bg-secondary/50"
                 }`}
               >
                 {opt}
@@ -428,118 +504,35 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
             ))}
           </div>
         )}
-
-        {/* MCQ with multiple correct */}
-        {!isSAQ && isMultiCorrect && (
-          <div className="mt-6 space-y-3">
-            {options.map((opt) => {
-              const selected = Array.isArray(answers[question.id]) ? answers[question.id] : [];
-              const isSelected = selected.includes(opt);
-              return (
-                <button
-                  key={opt}
-                  onClick={() => {
-                    const current = Array.isArray(answers[question.id]) ? [...answers[question.id]] : [];
-                    if (isSelected) {
-                      setAnswers(prev => ({ ...prev, [question.id]: current.filter(o => o !== opt) }));
-                    } else {
-                      setAnswers(prev => ({ ...prev, [question.id]: [...current, opt] }));
-                    }
-                  }}
-                  className={`w-full text-left rounded-lg border p-4 text-sm transition-all flex items-center gap-3 ${
-                    isSelected
-                      ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
-                      : "hover:border-primary/50 hover:bg-secondary/30"
-                  }`}
-                >
-                  <Checkbox checked={isSelected} className="pointer-events-none" />
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Short Answer Question */}
-        {isSAQ && (
-          <div className="mt-6 space-y-4">
-            <div className="rounded-lg border bg-background overflow-hidden">
-              <textarea
-                value={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
-                onChange={(e) => {
-                  const existing = typeof answers[question.id] === "object" ? answers[question.id] : {};
-                  setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: e.target.value } }));
-                }}
-                placeholder="Type your answer here... (supports formatting in text)"
-                className="w-full rounded-lg border-0 bg-secondary/30 p-4 text-sm outline-none focus:ring-1 focus:ring-primary resize-y min-h-[150px]"
-                rows={6}
-              />
-            </div>
-            {/* File upload for SAQ */}
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileRef}
-                type="file"
-                className="hidden"
-                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.mp4"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleSAQFileUpload(question.id, f);
-                }}
-              />
-              <button
-                onClick={() => fileRef.current?.click()}
-                disabled={uploadingFile}
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs hover:bg-secondary transition-colors"
-              >
-                {uploadingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                {typeof answers[question.id] === "object" && answers[question.id]?.fileName
-                  ? answers[question.id].fileName
-                  : "Attach file (optional)"}
-              </button>
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              📝 This question will be reviewed and graded by your tutor.
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
+          onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
           disabled={currentIdx === 0}
-          className="flex items-center gap-1 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1 rounded-lg border px-4 py-2 text-sm disabled:opacity-50 hover:bg-secondary transition-colors"
         >
           <ChevronLeft className="h-4 w-4" /> Previous
         </button>
-
         {currentIdx === questions.length - 1 ? (
           <button
             onClick={handleSubmit}
             disabled={submitResponses.isPending}
-            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            {submitResponses.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            Submit Quiz ({answeredCount}/{questions.length} answered)
+            {submitResponses.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Submit Quiz
           </button>
         ) : (
           <button
-            onClick={() => setCurrentIdx(Math.min(questions.length - 1, currentIdx + 1))}
-            className="flex items-center gap-1 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors"
+            onClick={() => setCurrentIdx((i) => Math.min(questions.length - 1, i + 1))}
+            className="flex items-center gap-1 rounded-lg border px-4 py-2 text-sm hover:bg-secondary transition-colors"
           >
             Next <ChevronRight className="h-4 w-4" />
           </button>
         )}
       </div>
-
-      {answeredCount < questions.length && currentIdx === questions.length - 1 && (
-        <div className="flex items-center gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          You have {questions.length - answeredCount} unanswered question(s).
-        </div>
-      )}
     </div>
   );
 }

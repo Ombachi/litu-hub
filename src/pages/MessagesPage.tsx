@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Loader2, Search, User, MessageSquare, Check, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,7 +23,7 @@ const MessagesPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, first_name, last_name, email")
+        .select("user_id, first_name, last_name, email, avatar_url")
         .neq("user_id", user!.id)
         .order("first_name");
       if (error) throw error;
@@ -42,7 +43,6 @@ const MessagesPage = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // Group by conversation partner
       const convMap = new Map<string, { partnerId: string; lastMessage: any; unreadCount: number }>();
       data?.forEach((msg) => {
         const partnerId = msg.sender_id === user!.id ? msg.receiver_id : msg.sender_id;
@@ -85,12 +85,7 @@ const MessagesPage = () => {
       .channel("direct-messages")
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-          filter: `receiver_id=eq.${user.id}`,
-        },
+        { event: "INSERT", schema: "public", table: "direct_messages", filter: `receiver_id=eq.${user.id}` },
         () => {
           qc.invalidateQueries({ queryKey: ["conversations"] });
           refetchMessages();
@@ -140,6 +135,11 @@ const MessagesPage = () => {
     `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())
   );
 
+  const getAvatarUrl = (avatarPath: string | null) => {
+    if (!avatarPath) return null;
+    return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/avatars/${avatarPath}`;
+  };
+
   return (
     <div className="flex h-[calc(100vh-120px)] rounded-xl border bg-card shadow-card overflow-hidden animate-fade-in">
       {/* Sidebar */}
@@ -158,16 +158,18 @@ const MessagesPage = () => {
         </div>
         <div className="flex-1 overflow-y-auto">
           {userSearch ? (
-            // Search results
             filteredUsers?.map((u) => (
               <button
                 key={u.user_id}
                 onClick={() => { setSelectedUserId(u.user_id); setUserSearch(""); }}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
-                  {(u.first_name?.[0] || u.email?.[0] || "?").toUpperCase()}
-                </div>
+                <Avatar className="h-10 w-10 shrink-0">
+                  {u.avatar_url && <AvatarImage src={getAvatarUrl(u.avatar_url)!} alt="" />}
+                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                    {(u.first_name?.[0] || u.email?.[0] || "?").toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{u.first_name} {u.last_name}</p>
                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
@@ -175,7 +177,6 @@ const MessagesPage = () => {
               </button>
             ))
           ) : (
-            // Existing conversations
             conversations?.map((conv) => {
               const partner = getUserProfile(conv.partnerId);
               const isSelected = selectedUserId === conv.partnerId;
@@ -187,9 +188,12 @@ const MessagesPage = () => {
                     isSelected ? "bg-primary/10" : "hover:bg-secondary/50"
                   }`}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
-                    {(partner?.first_name?.[0] || "?").toUpperCase()}
-                  </div>
+                  <Avatar className="h-10 w-10 shrink-0">
+                    {partner?.avatar_url && <AvatarImage src={getAvatarUrl(partner.avatar_url)!} alt="" />}
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                      {(partner?.first_name?.[0] || "?").toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">
                       {partner?.first_name || "User"} {partner?.last_name || ""}
@@ -220,9 +224,12 @@ const MessagesPage = () => {
         {selectedUserId ? (
           <>
             <div className="px-5 py-4 border-b flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                {(selectedUser?.first_name?.[0] || "?").toUpperCase()}
-              </div>
+              <Avatar className="h-9 w-9">
+                {selectedUser?.avatar_url && <AvatarImage src={getAvatarUrl(selectedUser.avatar_url)!} alt="" />}
+                <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                  {(selectedUser?.first_name?.[0] || "?").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <p className="font-medium text-sm">{selectedUser?.first_name || "User"} {selectedUser?.last_name || ""}</p>
                 <p className="text-xs text-muted-foreground">{selectedUser?.email}</p>

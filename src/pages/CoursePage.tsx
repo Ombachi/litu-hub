@@ -11,6 +11,7 @@ import {
 import { useCourse, useModules, useAssignments, useQuizzes, useDiscussions, useMySubmissions } from "@/hooks/useData";
 import AnnouncementsTab from "@/components/course/AnnouncementsTab";
 import ResourcesTab from "@/components/course/ResourcesTab";
+import { useRole } from "@/hooks/useRole";
 
 const CoursePage = () => {
   const { courseId } = useParams();
@@ -22,6 +23,7 @@ const CoursePage = () => {
   const { data: quizzes } = useQuizzes(courseId);
   const { data: discussions } = useDiscussions(courseId);
   const { data: submissions } = useMySubmissions();
+  const { isCoach } = useRole();
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
 
   const toggleModule = (id: string) => {
@@ -105,7 +107,7 @@ const CoursePage = () => {
           ))}
         </TabsList>
 
-        {/* Content Tab - Lessons are now clickable */}
+        {/* Content Tab */}
         <TabsContent value="content" className="mt-6 space-y-3">
           {!modules?.length ? (
             <p className="text-center text-muted-foreground py-12">No modules yet</p>
@@ -157,12 +159,12 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
-        {/* Announcements Tab */}
+        {/* Announcements Tab - read-only for students, managed from Coach Studio */}
         <TabsContent value="announcements" className="mt-6">
           {courseId && <AnnouncementsTab courseId={courseId} />}
         </TabsContent>
 
-        {/* Assignments Tab - clickable to detail page */}
+        {/* Assignments Tab */}
         <TabsContent value="assignments" className="mt-6 space-y-4">
           {!assignments?.length ? (
             <p className="text-center text-muted-foreground py-12">No assignments yet</p>
@@ -227,7 +229,7 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
-        {/* Discussions Tab - links to thread pages */}
+        {/* Discussions Tab */}
         <TabsContent value="discussions" className="mt-6 space-y-4">
           {!discussions?.length ? (
             <p className="text-center text-muted-foreground py-12">No discussions yet</p>
@@ -244,6 +246,11 @@ const CoursePage = () => {
                     <h4 className="font-medium">{d.title}</h4>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {d.discussion_posts?.length || 0} replies • {new Date(d.created_at).toLocaleDateString("en-KE")}
+                      {(d as any).due_date && (
+                        <span className="ml-2 text-accent font-medium">
+                          Due: {new Date((d as any).due_date).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -252,7 +259,7 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
-        {/* Resources Tab */}
+        {/* Resources Tab - read-only for students */}
         <TabsContent value="resources" className="mt-6">
           {courseId && <ResourcesTab courseId={courseId} />}
         </TabsContent>

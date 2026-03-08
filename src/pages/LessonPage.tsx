@@ -84,12 +84,16 @@ const LessonPage = () => {
   const youtubeMatch = content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
   
   // Detect file extension from URL (handle signed URLs with query params)
-  const urlExt = content.match(/\.(\w+)(\?|$)/)?.[1]?.toLowerCase();
+  const cleanUrl = content.split("?")[0]; // strip query params for extension check
+  const urlExt = cleanUrl.match(/\.(\w+)$/)?.[1]?.toLowerCase();
   const isDocUrl = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt"].includes(urlExt || "");
   const isVideoUrl = ["mp4", "webm", "ogg", "mov", "avi"].includes(urlExt || "");
   const isPdfUrl = urlExt === "pdf";
   const isHtml = content.includes("<") && (content.includes("<p") || content.includes("<h") || content.includes("<ul") || content.includes("<ol") || content.includes("<strong") || content.includes("<li") || content.includes("<blockquote"));
   const isExternalUrl = content.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isDocUrl && !isHtml;
+
+  // For Supabase storage signed URLs - generate proper video URL
+  const isSupabaseUrl = content.includes("supabase") && content.includes("/storage/");
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -141,14 +145,16 @@ const LessonPage = () => {
           <video 
             controls 
             playsInline
-            preload="auto"
+            muted={false}
+            preload="metadata"
             className="w-full max-h-[70vh] bg-black"
+            key={content}
           >
-            <source src={content} type={`video/${urlExt === "mov" ? "quicktime" : urlExt}`} />
+            <source src={content} type={urlExt === "mov" ? "video/quicktime" : urlExt === "webm" ? "video/webm" : urlExt === "ogg" ? "video/ogg" : "video/mp4"} />
             Your browser does not support the video tag.
           </video>
           <div className="p-3 border-t bg-secondary/20 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Video</span>
+            <span className="text-sm text-muted-foreground">Video ({urlExt?.toUpperCase()})</span>
             <a href={content} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:text-primary/80">
               Open in new tab <ExternalLink className="h-3.5 w-3.5" />
             </a>
