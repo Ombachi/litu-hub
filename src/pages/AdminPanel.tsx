@@ -18,6 +18,7 @@ import InstitutionsTab from "@/components/admin/InstitutionsTab";
 import PlatformDashboard from "@/components/admin/PlatformDashboard";
 import SchoolAdminsTab from "@/components/admin/SchoolAdminsTab";
 import SchoolAdminDashboard from "@/components/admin/SchoolAdminDashboard";
+import SchoolAdminCoursesTab from "@/components/admin/SchoolAdminCoursesTab";
 
 const ROLES = ["admin", "platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as const;
 
@@ -480,51 +481,8 @@ const AdminPanel = () => {
 
         {/* Courses Tab (school admin) */}
         {isSchoolAdmin && (
-          <TabsContent value="courses" className="mt-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold">{myInstitution?.name} Courses</h3>
-              <button onClick={() => setCourseForm({ open: true, title: "", code: "", description: "" })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                <Plus className="h-4 w-4" /> Create Course
-              </button>
-            </div>
-            {courseForm.open && (
-              <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold">New Course</h4>
-                  <button onClick={() => setCourseForm({ ...courseForm, open: false })} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Input value={courseForm.code} onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })} placeholder="e.g. BUS101" />
-                  <Input value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} placeholder="e.g. Introduction to Business" />
-                </div>
-                <Input value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} placeholder="Course description..." />
-                <button
-                  onClick={() => createCourse.mutate({ title: courseForm.title, code: courseForm.code, description: courseForm.description })}
-                  disabled={!courseForm.title.trim() || !courseForm.code.trim() || createCourse.isPending}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                >
-                  {createCourse.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Create Course
-                </button>
-              </div>
-            )}
-            {!displayCourses?.length ? (
-              <p className="text-center text-muted-foreground py-12">No courses yet.</p>
-            ) : (
-              displayCourses.map((c) => (
-                <div key={c.id} className="rounded-xl border bg-card p-5 shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full" style={{ background: c.color || "hsl(var(--primary))" }} />
-                    <div>
-                      <h4 className="font-semibold">{c.code} — {c.title}</h4>
-                      <p className="text-sm text-muted-foreground">{c.description || "No description"}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => { if (confirm(`Delete "${c.code}"?`)) deleteCourse.mutate(c.id); }} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))
-            )}
+          <TabsContent value="courses" className="mt-6">
+            <SchoolAdminCoursesTab />
           </TabsContent>
         )}
 
