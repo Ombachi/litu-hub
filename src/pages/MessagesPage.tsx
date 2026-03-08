@@ -5,8 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Loader2, Search, User, MessageSquare, Check, CheckCheck } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Send, Loader2, Search, User, MessageSquare, Check, CheckCheck, Smile, Paperclip, X, FileText, Image, Download } from "lucide-react";
 import { toast } from "sonner";
+import data from "@emoji-mart/data";
+import Picker from "@emoji-mart/react";
 
 const MessagesPage = () => {
   const { user } = useAuth();
@@ -14,7 +17,10 @@ const MessagesPage = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Fetch all users (profiles) that can be messaged
   const { data: allUsers } = useQuery({
@@ -113,19 +119,39 @@ const MessagesPage = () => {
 
   const sendMessage = useMutation({
     mutationFn: async () => {
+      setUploading(true);
+      let fileUrl: string | null = null;
+      let fileName: string | null = null;
+
+      if (attachment) {
+        const path = `${user!.id}/${Date.now()}_${attachment.name}`;
+        const { error: uploadErr } = await supabase.storage.from("message-attachments").upload(path, attachment);
+        if (uploadErr) throw uploadErr;
+        const { data } = await supabase.storage.from("message-attachments").createSignedUrl(path, 31536000);
+        fileUrl = data?.signedUrl || null;
+        fileName = attachment.name;
+      }
+
       const { error } = await supabase.from("direct_messages").insert({
         sender_id: user!.id,
         receiver_id: selectedUserId!,
         content: message.trim(),
+        file_url: fileUrl,
+        file_name: fileName,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       setMessage("");
+      setAttachment(null);
+      setUploading(false);
       refetchMessages();
       qc.invalidateQueries({ queryKey: ["conversations"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      setUploading(false);
+      toast.error(e.message);
+    },
   });
 
   const getUserProfile = (userId: string) => allUsers?.find((u) => u.user_id === userId);
@@ -139,6 +165,22 @@ const MessagesPage = () => {
     if (!avatarPath) return null;
     return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/avatars/${avatarPath}`;
   };
+
+  const handleEmojiSelect = (emoji: any) => {
+    setMessage((prev) => prev + emoji.native);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File must be under 10MB");
+      return;
+    }
+    setAttachment(file);
+  };
+
+  const isImage = (filename: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
 
   return (
     <div className="flex h-[calc(100vh-120px)] rounded-xl border bg-card shadow-card overflow-hidden animate-fade-in">
@@ -198,7 +240,7 @@ const MessagesPage = () => {
                     <p className="text-sm font-medium truncate">
                       {partner?.first_name || "User"} {partner?.last_name || ""}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">{conv.lastMessage?.content}</p>
+                    <p className="text-xs text-muted-foreground truncate">{conv.lastMessage?.content || "📎 Attachment"}</p>
                   </div>
                   {conv.unreadCount > 0 && (
                     <Badge variant="default" className="text-[10px] h-5 min-w-[20px] flex items-center justify-center">
@@ -238,12 +280,39 @@ const MessagesPage = () => {
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
               {messages?.map((msg) => {
                 const isMine = msg.sender_id === user?.id;
+                const senderProfile = isMine ? null : getUserProfile(msg.sender_id);
                 return (
-                  <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                  <div key={msg.id} className={`flex gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+                    {!isMine && (
+                      <Avatar className="h-7 w-7 shrink-0 mt-1">
+                        {senderProfile?.avatar_url && <AvatarImage src={getAvatarUrl(senderProfile.avatar_url)!} alt="" />}
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                          {(senderProfile?.first_name?.[0] || "?").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                     <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
                       isMine ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary rounded-bl-md"
                     }`}>
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                      {(msg as any).file_url && (
+                        <div className="mb-2">
+                          {isImage((msg as any).file_name || "") ? (
+                            <img src={(msg as any).file_url} alt="" className="rounded-lg max-w-full max-h-48 object-cover" />
+                          ) : (
+                            <a
+                              href={(msg as any).file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`flex items-center gap-2 p-2 rounded-lg ${isMine ? "bg-primary-foreground/20" : "bg-background/50"}`}
+                            >
+                              <FileText className="h-4 w-4 shrink-0" />
+                              <span className="text-xs truncate flex-1">{(msg as any).file_name}</span>
+                              <Download className="h-3 w-3 shrink-0" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {msg.content && <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>}
                       <div className={`flex items-center gap-1 mt-1 ${isMine ? "justify-end" : ""}`}>
                         <span className="text-[10px] opacity-70">
                           {new Date(msg.created_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}
@@ -258,8 +327,51 @@ const MessagesPage = () => {
               })}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Attachment preview */}
+            {attachment && (
+              <div className="px-4 py-2 border-t bg-secondary/30 flex items-center gap-2">
+                {isImage(attachment.name) ? (
+                  <Image className="h-4 w-4 text-primary" />
+                ) : (
+                  <FileText className="h-4 w-4 text-primary" />
+                )}
+                <span className="text-sm truncate flex-1">{attachment.name}</span>
+                <button onClick={() => setAttachment(null)} className="p-1 hover:bg-secondary rounded">
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
             <div className="p-4 border-t">
-              <form onSubmit={(e) => { e.preventDefault(); if (message.trim()) sendMessage.mutate(); }} className="flex gap-2">
+              <form onSubmit={(e) => { e.preventDefault(); if (message.trim() || attachment) sendMessage.mutate(); }} className="flex gap-2 items-end">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  onChange={handleFileSelect}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors"
+                >
+                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                </button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors"
+                    >
+                      <Smile className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 border-none" align="start">
+                    <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" />
+                  </PopoverContent>
+                </Popover>
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -268,10 +380,10 @@ const MessagesPage = () => {
                 />
                 <button
                   type="submit"
-                  disabled={!message.trim() || sendMessage.isPending}
+                  disabled={(!message.trim() && !attachment) || uploading}
                   className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
                 >
-                  {sendMessage.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </form>
             </div>

@@ -595,12 +595,12 @@ const CoachStudio = () => {
 
             {/* Announcements Tab - Coach manages */}
             <TabsContent value="announcements" className="mt-6">
-              {courseId && <AnnouncementsTab courseId={courseId} />}
+              {courseId && <AnnouncementsTab courseId={courseId} isManaging={true} />}
             </TabsContent>
 
             {/* Resources Tab - Coach manages */}
             <TabsContent value="resources" className="mt-6">
-              {courseId && <ResourcesTab courseId={courseId} />}
+              {courseId && <ResourcesTab courseId={courseId} isManaging={true} />}
             </TabsContent>
           </Tabs>
         </>

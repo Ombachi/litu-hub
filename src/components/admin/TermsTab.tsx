@@ -82,7 +82,7 @@ const TermsTab = () => {
   });
 
   const getTermCourses = (termId: string) => courses?.filter((c) => c.term_id === termId) || [];
-  const unassignedCourses = courses?.filter((c) => !c.term_id) || [];
+  const availableCourses = courses?.filter((c) => !c.term_id || c.term_id === assigningTerm) || [];
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -182,7 +182,7 @@ const TermsTab = () => {
                     <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                       <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Select course..." /></SelectTrigger>
                       <SelectContent>
-                        {unassignedCourses.map((c) => (
+                        {availableCourses.filter(c => !c.term_id).map((c) => (
                           <SelectItem key={c.id} value={c.id} className="text-xs">{c.code} — {c.title}</SelectItem>
                         ))}
                       </SelectContent>
