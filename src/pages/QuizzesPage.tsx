@@ -345,13 +345,27 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
+      {/* Timer Warning Banner */}
+      {(timeLeft || 0) <= 120 && (timeLeft || 0) > 0 && (
+        <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 flex items-center gap-3 animate-pulse" role="alert">
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+          <span className="text-sm font-medium text-destructive">
+            {(timeLeft || 0) <= 30 ? "⚠️ Less than 30 seconds! Quiz will auto-submit." : "⏰ Less than 2 minutes remaining!"}
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <button onClick={onExit} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <X className="h-4 w-4" /> Exit
         </button>
-        <h2 className="font-display font-bold">{quiz?.title}</h2>
-        <div className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-mono font-bold ${(timeLeft || 0) < 60 ? "bg-destructive/10 text-destructive" : "bg-secondary"}`}>
+        <h2 className="font-display font-bold text-sm sm:text-base truncate mx-2">{quiz?.title}</h2>
+        <div className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-mono font-bold shrink-0 transition-colors ${
+          (timeLeft || 0) < 30 ? "bg-destructive text-destructive-foreground animate-pulse" :
+          (timeLeft || 0) < 120 ? "bg-destructive/10 text-destructive" :
+          (timeLeft || 0) < 300 ? "bg-warning/10 text-warning" : "bg-secondary"
+        }`} aria-live="polite" aria-label={`${mins} minutes ${secs} seconds remaining`}>
           <Clock className="h-4 w-4" />
           {mins}:{secs.toString().padStart(2, "0")}
         </div>
