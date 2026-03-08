@@ -64,19 +64,35 @@ const SchoolAdminDashboard = () => {
     },
   });
 
-  // Institution members
-  const { data: members } = useQuery({
-    queryKey: ["inst-members", institutionId],
+  // Institution members - fetch user_ids first, then profiles separately (no FK join)
+  const { data: memberLinks } = useQuery({
+    queryKey: ["inst-member-links", institutionId],
     enabled: !!institutionId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_institutions")
-        .select("user_id, profiles:user_id(first_name, last_name, email)")
+        .select("user_id")
         .eq("institution_id", institutionId!);
       if (error) throw error;
       return data;
     },
   });
+
+  const { data: memberProfiles } = useQuery({
+    queryKey: ["inst-member-profiles", institutionId],
+    enabled: !!memberLinks?.length,
+    queryFn: async () => {
+      const userIds = memberLinks!.map(m => m.user_id);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", userIds);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const members = memberLinks;
 
   // Member roles
   const { data: memberRoles } = useQuery({
