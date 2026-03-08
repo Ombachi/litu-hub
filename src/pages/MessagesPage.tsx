@@ -221,7 +221,7 @@ const MessagesPage = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium truncate">{u.first_name} {u.last_name}</p>
-                    <Badge variant="secondary" className="text-[10px] capitalize shrink-0">{(u as any).role?.replace("_", " ")}</Badge>
+                    {u.role && <Badge variant="secondary" className="text-[10px] capitalize shrink-0">{u.role.replace("_", " ")}</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 </div>
