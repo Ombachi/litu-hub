@@ -10,6 +10,33 @@ import {
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+/** Convert plain URLs to clickable links */
+const renderTextWithLinks = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      urlRegex.lastIndex = 0;
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all hover:text-primary/80">
+          {part}
+        </a>
+      );
+    }
+    // Check for attachment pattern
+    const attachMatch = part.match(/📎 \[Attachment\]\(([^)]+)\)/);
+    if (attachMatch) {
+      const { data } = supabase.storage.from("submissions").getPublicUrl(attachMatch[1]);
+      return (
+        <a key={i} href={data.publicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary underline text-xs">
+          📎 View Attachment
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 const DiscussionThreadPage = () => {
   const { discussionId } = useParams();
   const { user } = useAuth();
@@ -30,7 +57,7 @@ const DiscussionThreadPage = () => {
     },
   });
 
-  const { data: posts, isLoading } = useQuery({
+  const { data: posts, isLoading, refetch } = useQuery({
     queryKey: ["discussion-all-posts", discussionId],
     enabled: !!discussionId,
     queryFn: async () => {
@@ -117,23 +144,6 @@ const DiscussionThreadPage = () => {
     }));
   const nestedPosts = rootPosts.map((p) => ({ ...p, children: getReplies(p.id) }));
 
-  // Render attachment links properly
-  const renderContent = (content: string) => {
-    const parts = content.split(/(\[Attachment\]\([^)]+\))/g);
-    return parts.map((part, i) => {
-      const match = part.match(/\[Attachment\]\(([^)]+)\)/);
-      if (match) {
-        const { data } = supabase.storage.from("submissions").getPublicUrl(match[1]);
-        return (
-          <a key={i} href={data.publicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary underline text-xs">
-            📎 View Attachment
-          </a>
-        );
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
   const renderPost = (post: any, depth = 0) => {
     const authorName = post.profiles
       ? `${post.profiles.first_name || ""} ${post.profiles.last_name || ""}`.trim() || "Anonymous"
@@ -196,7 +206,9 @@ const DiscussionThreadPage = () => {
               </div>
             </div>
           ) : (
-            <div className="mt-2 text-sm whitespace-pre-wrap">{renderContent(post.content)}</div>
+            <div className="mt-2 text-sm whitespace-pre-wrap break-words">
+              {renderTextWithLinks(post.content)}
+            </div>
           )}
 
           <button

@@ -5,7 +5,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  FileText, Brain, CheckCircle2, Loader2, Eye, MessageSquare, Send, X, ChevronDown,
+  FileText, Brain, CheckCircle2, Loader2, Eye, Send, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,35 +29,55 @@ const GradingQueuePage = () => {
   const [bulkScore, setBulkScore] = useState("");
   const [bulkFeedback, setBulkFeedback] = useState("");
 
-  // Fetch all ungraded submissions
+  // Fetch all ungraded submissions — use separate profile query to avoid FK issues
   const { data: submissions, isLoading } = useQuery({
     queryKey: ["grading-queue"],
     enabled: isCoach || isAdmin,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assignment_submissions")
-        .select("*, assignments(title, max_score, course_id, courses(code, title)), profiles:student_id(first_name, last_name, email)")
+        .select("*, assignments(title, max_score, course_id, courses(code, title))")
         .is("score", null)
         .eq("status", "submitted")
         .order("submitted_at", { ascending: true });
       if (error) throw error;
-      return data;
+
+      // Fetch profiles for the student_ids
+      if (data && data.length > 0) {
+        const studentIds = [...new Set(data.map((s: any) => s.student_id))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, email")
+          .in("user_id", studentIds);
+        const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+        return data.map((s: any) => ({ ...s, profile: profileMap.get(s.student_id) || null }));
+      }
+      return data || [];
     },
   });
 
-  // Fetch quiz attempts needing review
   const { data: quizAttempts } = useQuery({
     queryKey: ["grading-quiz-attempts"],
     enabled: isCoach || isAdmin,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quiz_attempts")
-        .select("*, quizzes(title, course_id, courses(code)), profiles:student_id(first_name, last_name)")
+        .select("*, quizzes(title, course_id, courses(code))")
         .eq("status", "completed")
         .order("completed_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data;
+
+      if (data && data.length > 0) {
+        const studentIds = [...new Set(data.map((a: any) => a.student_id))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", studentIds);
+        const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+        return data.map((a: any) => ({ ...a, profile: profileMap.get(a.student_id) || null }));
+      }
+      return data || [];
     },
   });
 
@@ -105,7 +125,6 @@ const GradingQueuePage = () => {
     });
   };
 
-  // File viewer helper
   const renderFilePreview = (fileUrl: string | null) => {
     if (!fileUrl) return null;
     const ext = fileUrl.split(".").pop()?.toLowerCase();
@@ -155,26 +174,13 @@ const GradingQueuePage = () => {
         </TabsList>
 
         <TabsContent value="submissions" className="mt-6 space-y-4">
-          {/* Bulk actions */}
           {selectedIds.size > 0 && (
             <div className="rounded-xl border bg-primary/5 p-4 flex items-center gap-4 flex-wrap">
               <span className="text-sm font-medium">{selectedIds.size} selected</span>
-              <input
-                type="number"
-                placeholder="Score"
-                value={bulkScore}
-                onChange={(e) => setBulkScore(e.target.value)}
-                className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm"
-              />
-              <select
-                value={bulkFeedback}
-                onChange={(e) => setBulkFeedback(e.target.value)}
-                className="rounded-lg border bg-background px-3 py-1.5 text-sm"
-              >
+              <input type="number" placeholder="Score" value={bulkScore} onChange={(e) => setBulkScore(e.target.value)} className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm" />
+              <select value={bulkFeedback} onChange={(e) => setBulkFeedback(e.target.value)} className="rounded-lg border bg-background px-3 py-1.5 text-sm">
                 <option value="">Select feedback template...</option>
-                {FEEDBACK_TEMPLATES.map((t) => (
-                  <option key={t} value={t}>{t.substring(0, 50)}...</option>
-                ))}
+                {FEEDBACK_TEMPLATES.map((t) => (<option key={t} value={t}>{t.substring(0, 50)}...</option>))}
               </select>
               <button
                 onClick={() => bulkGradeMutation.mutate({ ids: Array.from(selectedIds), score: Number(bulkScore), feedback: bulkFeedback })}
@@ -193,19 +199,14 @@ const GradingQueuePage = () => {
             </div>
           ) : (
             submissions.map((sub: any) => {
-              const student = sub.profiles;
+              const profile = sub.profile;
               const assignment = sub.assignments;
-              const studentName = student ? `${student.first_name || ""} ${student.last_name || ""}`.trim() || student.email : "Student";
+              const studentName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email : "Student";
 
               return (
                 <div key={sub.id} className="rounded-xl border bg-card p-5 shadow-card">
                   <div className="flex items-start gap-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(sub.id)}
-                      onChange={() => toggleSelect(sub.id)}
-                      className="mt-1 h-4 w-4 rounded border-muted-foreground"
-                    />
+                    <input type="checkbox" checked={selectedIds.has(sub.id)} onChange={() => toggleSelect(sub.id)} className="mt-1 h-4 w-4 rounded border-muted-foreground" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -216,9 +217,7 @@ const GradingQueuePage = () => {
                         </div>
                         <Badge variant="secondary">/{assignment?.max_score} pts</Badge>
                       </div>
-                      {sub.content && (
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{sub.content}</p>
-                      )}
+                      {sub.content && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{sub.content}</p>}
                       <div className="mt-3 flex items-center gap-2">
                         <button
                           onClick={() => { setSelectedSubmission(sub); setScore(""); setFeedback(""); }}
@@ -254,7 +253,7 @@ const GradingQueuePage = () => {
                   {quizAttempts.map((attempt: any) => (
                     <tr key={attempt.id} className="border-b last:border-0 hover:bg-secondary/20 transition-colors">
                       <td className="px-5 py-3 text-sm">
-                        {attempt.profiles ? `${attempt.profiles.first_name || ""} ${attempt.profiles.last_name || ""}`.trim() : "Student"}
+                        {attempt.profile ? `${attempt.profile.first_name || ""} ${attempt.profile.last_name || ""}`.trim() : "Student"}
                       </td>
                       <td className="px-5 py-3 text-sm font-medium">{attempt.quizzes?.title}</td>
                       <td className="px-5 py-3 text-sm text-muted-foreground">{attempt.quizzes?.courses?.code}</td>
@@ -277,77 +276,42 @@ const GradingQueuePage = () => {
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border bg-card p-6 shadow-elevated animate-scale-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display font-bold text-lg">Grade Submission</h3>
-              <button onClick={() => setSelectedSubmission(null)} className="p-1 hover:bg-secondary rounded">
-                <X className="h-4 w-4" />
-              </button>
+              <button onClick={() => setSelectedSubmission(null)} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
             </div>
-
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium">{selectedSubmission.assignments?.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  Max: {selectedSubmission.assignments?.max_score} pts • Submitted: {new Date(selectedSubmission.submitted_at).toLocaleDateString("en-KE")}
-                </p>
+                <p className="text-xs text-muted-foreground">Max: {selectedSubmission.assignments?.max_score} pts • Submitted: {new Date(selectedSubmission.submitted_at).toLocaleDateString("en-KE")}</p>
               </div>
-
-              {/* File preview */}
               {selectedSubmission.file_url && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Attachment</p>
                   {renderFilePreview(selectedSubmission.file_url)}
                 </div>
               )}
-
-              {/* Text content */}
               {selectedSubmission.content && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Submission Content</p>
-                  <div className="rounded-lg border bg-secondary/30 p-4 text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                    {selectedSubmission.content}
-                  </div>
+                  <div className="rounded-lg border bg-secondary/30 p-4 text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto break-words">{selectedSubmission.content}</div>
                 </div>
               )}
-
-              {/* Score */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Score</label>
-                  <input
-                    type="number"
-                    value={score}
-                    onChange={(e) => setScore(e.target.value)}
-                    placeholder={`0 - ${selectedSubmission.assignments?.max_score}`}
-                    max={selectedSubmission.assignments?.max_score}
-                    min={0}
-                    className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                  />
+                  <input type="number" value={score} onChange={(e) => setScore(e.target.value)} placeholder={`0 - ${selectedSubmission.assignments?.max_score}`} max={selectedSubmission.assignments?.max_score} min={0} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Template</label>
-                  <select
-                    onChange={(e) => setFeedback(e.target.value)}
-                    className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                  >
+                  <select onChange={(e) => setFeedback(e.target.value)} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
                     <option value="">Choose template...</option>
-                    {FEEDBACK_TEMPLATES.map((t) => (
-                      <option key={t} value={t}>{t.substring(0, 60)}...</option>
-                    ))}
+                    {FEEDBACK_TEMPLATES.map((t) => (<option key={t} value={t}>{t.substring(0, 60)}...</option>))}
                   </select>
                 </div>
               </div>
-
-              {/* Feedback */}
               <div>
                 <label className="text-sm font-medium">Feedback</label>
-                <textarea
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Provide feedback to the student..."
-                  className="mt-1 w-full rounded-lg border bg-background p-3 text-sm outline-none focus:border-primary resize-none"
-                  rows={4}
-                />
+                <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Provide feedback to the student..." className="mt-1 w-full rounded-lg border bg-background p-3 text-sm outline-none focus:border-primary resize-none" rows={4} />
               </div>
-
               <div className="flex justify-end gap-2">
                 <button onClick={() => setSelectedSubmission(null)} className="rounded-lg border px-4 py-2 text-sm hover:bg-secondary">Cancel</button>
                 <button

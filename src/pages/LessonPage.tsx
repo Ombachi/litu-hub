@@ -5,6 +5,30 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+/** Convert plain URLs in text to clickable links */
+const renderContentWithLinks = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      // Reset lastIndex since we reuse the regex
+      urlRegex.lastIndex = 0;
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline break-all hover:text-primary/80"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 const LessonPage = () => {
   const { lessonId } = useParams();
   const qc = useQueryClient();
@@ -23,7 +47,6 @@ const LessonPage = () => {
     },
   });
 
-  // Sibling lessons for nav
   const { data: siblings } = useQuery({
     queryKey: ["lesson-siblings", lesson?.module_id],
     enabled: !!lesson?.module_id,
@@ -72,7 +95,6 @@ const LessonPage = () => {
   const prevLesson = currentIdx > 0 ? siblings?.[currentIdx - 1] : null;
   const nextLesson = siblings && currentIdx < siblings.length - 1 ? siblings[currentIdx + 1] : null;
 
-  // Check if content looks like a YouTube URL
   const youtubeMatch = lesson.content?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
 
   return (
@@ -83,7 +105,7 @@ const LessonPage = () => {
 
       <div className="rounded-xl border bg-card p-6 shadow-card">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-xs uppercase">{lesson.type}</Badge>
               {lesson.duration && <span className="text-xs text-muted-foreground">{lesson.duration}</span>}
@@ -94,7 +116,7 @@ const LessonPage = () => {
           <button
             onClick={() => toggleComplete.mutate()}
             disabled={toggleComplete.isPending}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
               lesson.completed
                 ? "bg-success/10 text-success hover:bg-success/20"
                 : "bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
@@ -106,7 +128,6 @@ const LessonPage = () => {
         </div>
       </div>
 
-      {/* Video embed */}
       {youtubeMatch && (
         <div className="rounded-xl overflow-hidden border shadow-card aspect-video">
           <iframe
@@ -119,16 +140,14 @@ const LessonPage = () => {
         </div>
       )}
 
-      {/* Content */}
       {lesson.content && !youtubeMatch && (
-        <div className="rounded-xl border bg-card p-6 shadow-card">
-          <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
-            {lesson.content}
+        <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
+          <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap break-words overflow-auto max-h-[70vh]">
+            {renderContentWithLinks(lesson.content)}
           </div>
         </div>
       )}
 
-      {/* Navigation */}
       <div className="flex items-center justify-between">
         {prevLesson ? (
           <Link to={`/lesson/${prevLesson.id}`} className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors">

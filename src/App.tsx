@@ -20,6 +20,7 @@ import CalendarPage from "./pages/CalendarPage";
 import LessonPage from "./pages/LessonPage";
 import GradingQueuePage from "./pages/GradingQueuePage";
 import ProfilePage from "./pages/ProfilePage";
+import AdminPanel from "./pages/AdminPanel";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -56,6 +57,14 @@ const App = () => (
                         element={
                           <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
                             <CoachStudio />
+                          </RoleGuard>
+                        }
+                      />
+                      <Route
+                        path="/admin"
+                        element={
+                          <RoleGuard allowedRoles={["admin", "platform_admin"]}>
+                            <AdminPanel />
                           </RoleGuard>
                         }
                       />
