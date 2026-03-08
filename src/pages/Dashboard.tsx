@@ -38,6 +38,7 @@ const Dashboard = () => {
   if (role === "platform_admin" || role === "admin") return <Navigate to="/admin" replace />;
   if (role === "school_admin") return <Navigate to="/admin" replace />;
   if (role === "parent") return <Navigate to="/parent" replace />;
+  if (role === "tutor") return <Navigate to="/analytics" replace />;
 
   const enrolledCourseIds = new Set(enrollments?.map((e) => e.course_id) || []);
   const enrolledCourses = courses?.filter((c) => enrolledCourseIds.has(c.id)) || [];

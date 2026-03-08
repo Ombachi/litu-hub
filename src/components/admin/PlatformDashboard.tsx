@@ -1,11 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, BookOpen, GraduationCap, Building2, TrendingUp, FileText, Brain } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Loader2, Users, Building2, TrendingUp } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line,
+  PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 
 const COLORS = [
@@ -32,46 +29,10 @@ const PlatformDashboard = () => {
     },
   });
 
-  const { data: courses } = useQuery({
-    queryKey: ["platform-all-courses"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("courses").select("id, code, title, institution_id, created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: enrollments } = useQuery({
-    queryKey: ["platform-all-enrollments"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("enrollments").select("course_id, enrolled_at");
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const { data: institutions } = useQuery({
     queryKey: ["institutions"],
     queryFn: async () => {
       const { data, error } = await supabase.from("institutions").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: submissions } = useQuery({
-    queryKey: ["platform-all-submissions"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("assignment_submissions").select("submitted_at, score, status");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: quizAttempts } = useQuery({
-    queryKey: ["platform-all-quiz-attempts"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("quiz_attempts").select("started_at, score, status");
       if (error) throw error;
       return data;
     },
@@ -86,8 +47,6 @@ const PlatformDashboard = () => {
   }
 
   const totalUsers = profiles?.length || 0;
-  const totalCourses = courses?.length || 0;
-  const totalEnrollments = enrollments?.length || 0;
   const totalInstitutions = institutions?.length || 0;
 
   // Role distribution
@@ -98,14 +57,6 @@ const PlatformDashboard = () => {
     value: count,
     color: COLORS[i % COLORS.length],
   }));
-
-  // Enrollments per course (top 10)
-  const enrollmentsByCoursMap: Record<string, number> = {};
-  enrollments?.forEach(e => { enrollmentsByCoursMap[e.course_id] = (enrollmentsByCoursMap[e.course_id] || 0) + 1; });
-  const enrollmentsByCourse = courses
-    ?.map(c => ({ name: c.code, enrollments: enrollmentsByCoursMap[c.id] || 0 }))
-    .sort((a, b) => b.enrollments - a.enrollments)
-    .slice(0, 10) || [];
 
   // Monthly signup trend (last 6 months)
   const now = new Date();
@@ -119,20 +70,6 @@ const PlatformDashboard = () => {
     return { month: d.toLocaleDateString("en", { month: "short", year: "2-digit" }), users: count };
   });
 
-  // Submissions status breakdown
-  const gradedCount = submissions?.filter(s => s.status === "graded").length || 0;
-  const pendingCount = submissions?.filter(s => s.status === "submitted").length || 0;
-  const completedQuizzes = quizAttempts?.filter(a => a.status === "completed").length || 0;
-  const inProgressQuizzes = quizAttempts?.filter(a => a.status === "in_progress").length || 0;
-
-  // Institution stats
-  const instStats = institutions?.map(inst => {
-    const instCourses = courses?.filter(c => c.institution_id === inst.id).length || 0;
-    const instCourseIds = new Set(courses?.filter(c => c.institution_id === inst.id).map(c => c.id) || []);
-    const instEnrollments = enrollments?.filter(e => instCourseIds.has(e.course_id)).length || 0;
-    return { name: inst.name, courses: instCourses, enrollments: instEnrollments };
-  }) || [];
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -141,12 +78,11 @@ const PlatformDashboard = () => {
       </div>
 
       {/* Top Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {[
           { label: "Total Users", value: totalUsers, icon: Users, color: "text-primary" },
-          { label: "Courses", value: totalCourses, icon: BookOpen, color: "text-accent" },
-          { label: "Enrollments", value: totalEnrollments, icon: GraduationCap, color: "text-primary" },
           { label: "Institutions", value: totalInstitutions, icon: Building2, color: "text-primary" },
+          { label: "Roles Assigned", value: allRoles?.length || 0, icon: Users, color: "text-accent" },
         ].map(stat => (
           <div key={stat.label} className="rounded-xl border bg-card p-4 shadow-sm">
             <div className="flex items-center gap-3">
@@ -198,86 +134,27 @@ const PlatformDashboard = () => {
             </ResponsiveContainer>
           )}
         </div>
-
-        {/* Enrollments by Course */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <GraduationCap className="h-4 w-4 text-primary" /> Enrollments by Course
-          </h3>
-          {enrollmentsByCourse.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No enrollment data</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={enrollmentsByCourse} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" angle={-30} textAnchor="end" height={50} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-                <Bar dataKey="enrollments" name="Students" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Activity Summary */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-accent" /> Activity Summary
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm">Submissions Graded</span>
-                <span className="text-sm font-bold text-primary">{gradedCount}</span>
-              </div>
-              <Progress value={submissions?.length ? (gradedCount / submissions.length) * 100 : 0} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-0.5">{pendingCount} pending review</p>
-            </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm">Quizzes Completed</span>
-                <span className="text-sm font-bold text-primary">{completedQuizzes}</span>
-              </div>
-              <Progress value={quizAttempts?.length ? (completedQuizzes / quizAttempts.length) * 100 : 0} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-0.5">{inProgressQuizzes} in progress</p>
-            </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm">Total Submissions</span>
-                <span className="text-sm font-bold">{submissions?.length || 0}</span>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm">Total Quiz Attempts</span>
-                <span className="text-sm font-bold">{quizAttempts?.length || 0}</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Institution Breakdown */}
-      {instStats.length > 0 && (
+      {(institutions?.length || 0) > 0 && (
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" /> Institutions Breakdown
+            <Building2 className="h-4 w-4 text-primary" /> Institutions
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-muted-foreground">
                   <th className="text-left py-2 pr-4 font-medium">Institution</th>
-                  <th className="text-center py-2 px-2 font-medium">Courses</th>
-                  <th className="text-center py-2 px-2 font-medium">Enrollments</th>
+                  <th className="text-center py-2 px-2 font-medium">Slug</th>
                 </tr>
               </thead>
               <tbody>
-                {instStats.map(inst => (
-                  <tr key={inst.name} className="border-b last:border-0">
+                {institutions?.map(inst => (
+                  <tr key={inst.id} className="border-b last:border-0">
                     <td className="py-2.5 pr-4 font-medium">{inst.name}</td>
-                    <td className="text-center py-2.5 px-2">{inst.courses}</td>
-                    <td className="text-center py-2.5 px-2">{inst.enrollments}</td>
+                    <td className="text-center py-2.5 px-2 text-muted-foreground">{inst.slug}</td>
                   </tr>
                 ))}
               </tbody>

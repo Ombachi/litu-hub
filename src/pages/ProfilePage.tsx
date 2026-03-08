@@ -14,6 +14,38 @@ import {
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+type NotifPref = { key: string; label: string; desc: string };
+
+const STUDENT_PREFS: NotifPref[] = [
+  { key: "notif-assignments", label: "Assignment reminders", desc: "Get notified about upcoming due dates" },
+  { key: "notif-grades", label: "Grade updates", desc: "Get notified when assignments are graded" },
+  { key: "notif-discussions", label: "Discussion replies", desc: "Get notified about replies to your posts" },
+  { key: "notif-quizzes", label: "Quiz availability", desc: "Get notified about new or upcoming quizzes" },
+];
+
+const TUTOR_PREFS: NotifPref[] = [
+  { key: "notif-submissions", label: "New submissions", desc: "Get notified when students submit assignments" },
+  { key: "notif-discussions", label: "Discussion activity", desc: "Get notified about new discussion posts" },
+  { key: "notif-messages", label: "Direct messages", desc: "Get notified about new messages" },
+];
+
+const PARENT_PREFS: NotifPref[] = [
+  { key: "notif-grades", label: "Grade updates", desc: "Get notified when your child's assignments are graded" },
+  { key: "notif-messages", label: "Direct messages", desc: "Get notified about new messages" },
+];
+
+const ADMIN_PREFS: NotifPref[] = [
+  { key: "notif-messages", label: "Direct messages", desc: "Get notified about new messages" },
+  { key: "notif-users", label: "New user signups", desc: "Get notified when new users register" },
+];
+
+function getPrefsForRole(role: string): NotifPref[] {
+  if (role === "parent") return PARENT_PREFS;
+  if (role === "tutor" || role === "ta") return TUTOR_PREFS;
+  if (["admin", "platform_admin", "school_admin"].includes(role)) return ADMIN_PREFS;
+  return STUDENT_PREFS;
+}
+
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { data: profile, isLoading } = useProfile();
@@ -27,11 +59,12 @@ const ProfilePage = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
-  // Notification preferences (stored in localStorage)
-  const [notifAssignments, setNotifAssignments] = useState(() => localStorage.getItem("notif-assignments") !== "false");
-  const [notifGrades, setNotifGrades] = useState(() => localStorage.getItem("notif-grades") !== "false");
-  const [notifDiscussions, setNotifDiscussions] = useState(() => localStorage.getItem("notif-discussions") !== "false");
-  const [notifQuizzes, setNotifQuizzes] = useState(() => localStorage.getItem("notif-quizzes") !== "false");
+  const notifPrefs = getPrefsForRole(role);
+  const [prefState, setPrefState] = useState<Record<string, boolean>>(() => {
+    const state: Record<string, boolean> = {};
+    notifPrefs.forEach(p => { state[p.key] = localStorage.getItem(p.key) !== "false"; });
+    return state;
+  });
 
   if (profile && !initialized) {
     setFirstName(profile.first_name || "");
@@ -60,9 +93,7 @@ const ProfilePage = () => {
   const saveProfile = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Not logged in");
-
       let newAvatarPath = profile?.avatar_url || null;
-
       if (avatarFile) {
         const ext = avatarFile.name.split(".").pop();
         const path = `${user.id}/avatar.${ext}`;
@@ -70,14 +101,9 @@ const ProfilePage = () => {
         if (uploadErr) throw uploadErr;
         newAvatarPath = path;
       }
-
       const { error } = await supabase
         .from("profiles")
-        .update({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          avatar_url: newAvatarPath,
-        })
+        .update({ first_name: firstName.trim(), last_name: lastName.trim(), avatar_url: newAvatarPath })
         .eq("user_id", user.id);
       if (error) throw error;
     },
@@ -90,10 +116,7 @@ const ProfilePage = () => {
   });
 
   const saveNotifPrefs = () => {
-    localStorage.setItem("notif-assignments", String(notifAssignments));
-    localStorage.setItem("notif-grades", String(notifGrades));
-    localStorage.setItem("notif-discussions", String(notifDiscussions));
-    localStorage.setItem("notif-quizzes", String(notifQuizzes));
+    Object.entries(prefState).forEach(([key, val]) => localStorage.setItem(key, String(val)));
     toast.success("Notification preferences saved");
   };
 
@@ -117,20 +140,11 @@ const ProfilePage = () => {
         <div className="flex items-center gap-6">
           <div className="relative group">
             {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt="Avatar"
-                className="h-20 w-20 rounded-full object-cover border-2 border-primary/20"
-              />
+              <img src={avatarUrl} alt="Avatar" className="h-20 w-20 rounded-full object-cover border-2 border-primary/20" />
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
-                {initials}
-              </div>
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">{initials}</div>
             )}
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="absolute inset-0 flex items-center justify-center rounded-full bg-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
+            <button onClick={() => fileRef.current?.click()} className="absolute inset-0 flex items-center justify-center rounded-full bg-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity">
               <Camera className="h-5 w-5 text-background" />
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarSelect} />
@@ -166,18 +180,16 @@ const ProfilePage = () => {
           <Bell className="h-4 w-4 text-primary" /> Notification Preferences
         </h2>
         <div className="space-y-4">
-          {[
-            { label: "Assignment reminders", desc: "Get notified about upcoming due dates", value: notifAssignments, set: setNotifAssignments },
-            { label: "Grade updates", desc: "Get notified when assignments are graded", value: notifGrades, set: setNotifGrades },
-            { label: "Discussion replies", desc: "Get notified about replies to your posts", value: notifDiscussions, set: setNotifDiscussions },
-            { label: "Quiz availability", desc: "Get notified about new or upcoming quizzes", value: notifQuizzes, set: setNotifQuizzes },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between">
+          {notifPrefs.map((item) => (
+            <div key={item.key} className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{item.label}</p>
                 <p className="text-xs text-muted-foreground">{item.desc}</p>
               </div>
-              <Switch checked={item.value} onCheckedChange={item.set} />
+              <Switch
+                checked={prefState[item.key] ?? true}
+                onCheckedChange={(v) => setPrefState(prev => ({ ...prev, [item.key]: v }))}
+              />
             </div>
           ))}
         </div>
@@ -209,18 +221,12 @@ const ProfilePage = () => {
                 <p className="text-xs text-muted-foreground">••••••••</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                if (!user?.email) return;
-                const { error } = await supabase.auth.resetPasswordForEmail(user.email);
-                if (error) toast.error(error.message);
-                else toast.success("Password reset email sent!");
-              }}
-            >
-              Change
-            </Button>
+            <Button variant="outline" size="sm" onClick={async () => {
+              if (!user?.email) return;
+              const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+              if (error) toast.error(error.message);
+              else toast.success("Password reset email sent!");
+            }}>Change</Button>
           </div>
         </div>
         <div className="mt-6 pt-4 border-t">
