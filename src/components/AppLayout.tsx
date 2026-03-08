@@ -72,7 +72,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           {showBranding && myInstitution?.logo_url ? (
             <img src={myInstitution.logo_url} alt={myInstitution.name} className="h-9 w-9 rounded-lg object-cover" />
           ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={brandColor ? { backgroundColor: brandColor } : undefined} className2="bg-sidebar-primary">
+            <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", !brandColor && "bg-sidebar-primary")} style={brandColor ? { backgroundColor: brandColor } : undefined}>
               <BookOpen className="h-5 w-5 text-sidebar-primary-foreground" />
             </div>
           )}
