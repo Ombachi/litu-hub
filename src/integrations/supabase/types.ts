@@ -367,6 +367,7 @@ export type Database = {
           author_id: string | null
           course_id: string
           created_at: string
+          due_date: string | null
           id: string
           pinned: boolean | null
           title: string
@@ -375,6 +376,7 @@ export type Database = {
           author_id?: string | null
           course_id: string
           created_at?: string
+          due_date?: string | null
           id?: string
           pinned?: boolean | null
           title: string
@@ -383,6 +385,7 @@ export type Database = {
           author_id?: string | null
           course_id?: string
           created_at?: string
+          due_date?: string | null
           id?: string
           pinned?: boolean | null
           title?: string

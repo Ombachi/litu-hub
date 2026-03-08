@@ -1,0 +1,1 @@
+ALTER TABLE public.discussions ADD COLUMN IF NOT EXISTS due_date timestamp with time zone DEFAULT NULL;
