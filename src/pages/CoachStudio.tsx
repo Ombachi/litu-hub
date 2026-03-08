@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
   useCreateQuizQuestion, useUpdateQuizQuestion, useDeleteQuizQuestion,
 } from "@/hooks/useMutations";
 import { useAuth } from "@/hooks/useAuth";
+import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import ModuleDialog from "@/components/coach/ModuleDialog";
 import LessonDialog from "@/components/coach/LessonDialog";
@@ -24,15 +25,46 @@ import QuestionBankDialog from "@/components/coach/QuestionBankDialog";
 import DeleteConfirmDialog from "@/components/coach/DeleteConfirmDialog";
 import AnnouncementsTab from "@/components/course/AnnouncementsTab";
 import ResourcesTab from "@/components/course/ResourcesTab";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const CoachStudio = () => {
-  const { data: courses, isLoading } = useCourses();
+  const { data: allCourses, isLoading: loadingAllCourses } = useCourses();
   const { user } = useAuth();
+  const { role } = useRole();
   const qc = useQueryClient();
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const courseFromUrl = searchParams.get("course");
+
+  // For tutors/TAs: only show assigned courses
+  const isTutorRole = role === "tutor" || role === "ta";
+  const { data: tutorCourseIds, isLoading: loadingTutorCourses } = useQuery({
+    queryKey: ["tutor-course-ids", user?.id],
+    enabled: !!user && isTutorRole,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("course_tutors")
+        .select("course_id")
+        .eq("tutor_id", user!.id);
+      if (error) throw error;
+      return new Set(data.map(d => d.course_id));
+    },
+  });
+
+  const courses = isTutorRole
+    ? allCourses?.filter(c => tutorCourseIds?.has(c.id))
+    : allCourses;
+  const isLoading = loadingAllCourses || (isTutorRole && loadingTutorCourses);
+
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(courseFromUrl);
+
+  // If URL has ?course=ID, select it
+  useEffect(() => {
+    if (courseFromUrl && courses?.some(c => c.id === courseFromUrl)) {
+      setSelectedCourseId(courseFromUrl);
+    }
+  }, [courseFromUrl, courses]);
 
   const courseId = selectedCourseId || courses?.[0]?.id;
   const selectedCourse = courses?.find((c) => c.id === courseId);

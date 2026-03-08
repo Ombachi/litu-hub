@@ -113,7 +113,7 @@ const TutorDashboard = () => {
             {tutorCourses.map((course) => (
               <Link
                 key={course.id}
-                to={`/course/${course.id}`}
+                to={`/coach-studio?course=${course.id}`}
                 className="group rounded-xl border bg-card overflow-hidden shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
               >
                 <div className="h-2" style={{ background: course.color || "hsl(var(--primary))" }} />
