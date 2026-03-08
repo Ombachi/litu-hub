@@ -1,0 +1,177 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { type, topic, courseTitle, courseCode, difficulty, count } = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    let systemPrompt = "";
+    let tools: any[] = [];
+    let toolChoice: any = {};
+
+    const courseCtx = `Course: ${courseCode} — ${courseTitle}`;
+
+    if (type === "questions") {
+      systemPrompt = `You are an expert academic question creator for university-level courses. Generate ${count || 3} quiz questions on the given topic.
+${courseCtx}
+Difficulty: ${difficulty || "medium"}
+Create varied question types (multiple_choice, true_false, short_answer). For multiple choice, provide 4 options. Ensure questions test understanding, not just recall. Use a tone appropriate for Kenyan university students.`;
+
+      tools = [{
+        type: "function",
+        function: {
+          name: "generate_questions",
+          description: "Return generated quiz questions",
+          parameters: {
+            type: "object",
+            properties: {
+              questions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    question_text: { type: "string" },
+                    question_type: { type: "string", enum: ["multiple_choice", "true_false", "short_answer"] },
+                    options: { type: "array", items: { type: "string" } },
+                    correct_answer: { type: "string", description: "For MCQ/TF the correct option text. For short_answer leave empty." },
+                    explanation: { type: "string" },
+                    points: { type: "number" },
+                    difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                  },
+                  required: ["question_text", "question_type", "options", "correct_answer", "explanation", "points", "difficulty"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["questions"],
+            additionalProperties: false,
+          },
+        },
+      }];
+      toolChoice = { type: "function", function: { name: "generate_questions" } };
+
+    } else if (type === "assignment") {
+      systemPrompt = `You are an expert academic curriculum designer. Generate an assignment for the given topic.
+${courseCtx}
+Create a clear, detailed assignment with a title, description with instructions, suggested type, and recommended max score. Be specific about requirements and evaluation criteria. Use a professional tone for Kenyan university students.`;
+
+      tools = [{
+        type: "function",
+        function: {
+          name: "generate_assignment",
+          description: "Return a generated assignment",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              description: { type: "string", description: "Detailed instructions with requirements" },
+              type: { type: "string", enum: ["essay", "project", "code", "presentation"] },
+              max_score: { type: "number" },
+            },
+            required: ["title", "description", "type", "max_score"],
+            additionalProperties: false,
+          },
+        },
+      }];
+      toolChoice = { type: "function", function: { name: "generate_assignment" } };
+
+    } else if (type === "discussion") {
+      systemPrompt = `You are an expert academic facilitator. Generate ${count || 3} engaging discussion topics/prompts for the given subject area.
+${courseCtx}
+Create thought-provoking discussion titles that encourage critical thinking, debate, and peer learning. Each should be a concise but compelling title suitable as a forum thread heading. Use a tone appropriate for Kenyan university students.`;
+
+      tools = [{
+        type: "function",
+        function: {
+          name: "generate_discussions",
+          description: "Return generated discussion topics",
+          parameters: {
+            type: "object",
+            properties: {
+              discussions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string", description: "Discussion thread title" },
+                  },
+                  required: ["title"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["discussions"],
+            additionalProperties: false,
+          },
+        },
+      }];
+      toolChoice = { type: "function", function: { name: "generate_discussions" } };
+
+    } else {
+      return new Response(JSON.stringify({ error: "Invalid type. Use: questions, assignment, or discussion" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Topic: ${topic}` },
+        ],
+        tools,
+        tool_choice: toolChoice,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const t = await response.text();
+      console.error("AI gateway error:", response.status, t);
+      return new Response(JSON.stringify({ error: "AI gateway error" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      const result = JSON.parse(toolCall.function.arguments);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "No structured response from AI" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("ai-content-generate error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

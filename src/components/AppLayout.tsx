@@ -11,6 +11,7 @@ import { useMyInstitution } from "@/hooks/useInstitution";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
+import ScientificCalculator from "@/components/ScientificCalculator";
 
 const allNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "tutor", "ta", "school_admin", "admin", "platform_admin", "parent"] as string[] },
@@ -149,6 +150,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8" role="main">{children}</main>
       </div>
+      {/* Scientific calculator for tutors and students */}
+      {["student", "tutor", "ta"].includes(role) && <ScientificCalculator />}
     </div>
   );
 };
