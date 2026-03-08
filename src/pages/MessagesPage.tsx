@@ -22,18 +22,23 @@ const MessagesPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all users (profiles) that can be messaged
+  // Fetch all users (profiles) that can be messaged, with their roles
   const { data: allUsers } = useQuery({
     queryKey: ["message-users"],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: profilesData, error } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name, email, avatar_url")
         .neq("user_id", user!.id)
         .order("first_name");
       if (error) throw error;
-      return data;
+      // Fetch roles for all users to display alongside
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+      const roleMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
+      return profilesData?.map(p => ({ ...p, role: roleMap.get(p.user_id) || "student" })) || [];
     },
   });
 
