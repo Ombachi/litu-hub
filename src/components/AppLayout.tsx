@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { useProfile } from "@/hooks/useData";
+import { useMyInstitution } from "@/hooks/useInstitution";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -34,6 +35,11 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, signOut } = useAuth();
   const { role } = useRole();
   const { data: profile } = useProfile();
+  const { data: myInstitution } = useMyInstitution();
+
+  // Institution branding for school_admin and student roles
+  const showBranding = ["school_admin", "student", "tutor", "ta"].includes(role) && myInstitution;
+  const brandColor = showBranding && myInstitution?.primary_color ? myInstitution.primary_color : null;
 
   const avatarUrl = profile?.avatar_url
     ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/avatars/${profile.avatar_url}`
@@ -63,10 +69,16 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         aria-label="Main navigation"
       >
         <div className="flex h-16 items-center gap-3 px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-            <BookOpen className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
-          <span className="font-display text-xl font-bold text-sidebar-foreground">Litu Hub</span>
+          {showBranding && myInstitution?.logo_url ? (
+            <img src={myInstitution.logo_url} alt={myInstitution.name} className="h-9 w-9 rounded-lg object-cover" />
+          ) : (
+            <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", !brandColor && "bg-sidebar-primary")} style={brandColor ? { backgroundColor: brandColor } : undefined}>
+              <BookOpen className="h-5 w-5 text-sidebar-primary-foreground" />
+            </div>
+          )}
+          <span className="font-display text-xl font-bold text-sidebar-foreground">
+            {showBranding ? myInstitution?.name || "Litu Hub" : "Litu Hub"}
+          </span>
           <button className="ml-auto lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
             <X className="h-5 w-5" />
           </button>

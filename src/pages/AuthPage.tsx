@@ -145,7 +145,15 @@ const AuthPage = () => {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          {isLogin && (
+            <p className="mt-4 text-center">
+              <a href="/forgot-password" className="text-sm text-primary hover:underline font-medium">
+                Forgot your password?
+              </a>
+            </p>
+          )}
+
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
             <button
               onClick={() => setIsLogin(!isLogin)}
