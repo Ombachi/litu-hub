@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -544,15 +545,15 @@ const CoachStudio = () => {
                   <p className="mt-3 text-muted-foreground">No discussions yet. Create one!</p>
                 </div>
               ) : (
-                discussions.map((d) => (
+              discussions.map((d) => (
                   <div key={d.id} className="rounded-xl border bg-card p-4 shadow-card flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <Link to={`/discussion/${d.id}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity">
                       {d.pinned && <span className="text-accent text-xs">📌</span>}
                       <div className="min-w-0">
                         <h4 className="font-medium text-sm truncate">{d.title}</h4>
                         <p className="text-xs text-muted-foreground">{d.discussion_posts?.length || 0} replies • {new Date(d.created_at).toLocaleDateString("en-KE")}</p>
                       </div>
-                    </div>
+                    </Link>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => togglePin.mutate({ id: d.id, pinned: !!d.pinned })}

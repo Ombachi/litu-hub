@@ -12,29 +12,60 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 /** Convert plain URLs to clickable links */
 const renderTextWithLinks = (text: string) => {
-  const urlRegex = /(https?:\/\/[^\s<]+)/g;
-  const parts = text.split(urlRegex);
-  return parts.map((part, i) => {
-    if (urlRegex.test(part)) {
-      urlRegex.lastIndex = 0;
-      return (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all hover:text-primary/80">
-          {part}
+  // Handle attachment pattern first
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  while (remaining.length > 0) {
+    const attachIdx = remaining.indexOf("📎 [Attachment](");
+    const urlMatch = remaining.match(/(https?:\/\/[^\s<]+)/);
+
+    if (attachIdx >= 0 && (!urlMatch || attachIdx <= (urlMatch.index ?? Infinity))) {
+      // Process attachment
+      if (attachIdx > 0) parts.push(<span key={key++}>{remaining.slice(0, attachIdx)}</span>);
+      const endParen = remaining.indexOf(")", attachIdx);
+      if (endParen >= 0) {
+        const path = remaining.slice(attachIdx + "📎 [Attachment](".length, endParen);
+        parts.push(
+          <AttachmentLink key={key++} path={path} />
+        );
+        remaining = remaining.slice(endParen + 1);
+      } else {
+        parts.push(<span key={key++}>{remaining}</span>);
+        remaining = "";
+      }
+    } else if (urlMatch && urlMatch.index !== undefined) {
+      if (urlMatch.index > 0) parts.push(<span key={key++}>{remaining.slice(0, urlMatch.index)}</span>);
+      parts.push(
+        <a key={key++} href={urlMatch[0]} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all hover:text-primary/80">
+          {urlMatch[0]}
         </a>
       );
+      remaining = remaining.slice(urlMatch.index + urlMatch[0].length);
+    } else {
+      parts.push(<span key={key++}>{remaining}</span>);
+      remaining = "";
     }
-    // Check for attachment pattern
-    const attachMatch = part.match(/📎 \[Attachment\]\(([^)]+)\)/);
-    if (attachMatch) {
-      const { data } = supabase.storage.from("submissions").getPublicUrl(attachMatch[1]);
-      return (
-        <a key={i} href={data.publicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary underline text-xs">
-          📎 View Attachment
-        </a>
-      );
+  }
+  return parts;
+};
+
+const AttachmentLink = ({ path }: { path: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const handleClick = async () => {
+    const { data, error } = await supabase.storage.from("submissions").createSignedUrl(path, 3600);
+    if (data?.signedUrl) {
+      window.open(data.signedUrl, "_blank");
+    } else {
+      toast.error("Could not open attachment");
     }
-    return <span key={i}>{part}</span>;
-  });
+  };
+  return (
+    <button onClick={handleClick} className="inline-flex items-center gap-1 text-primary underline text-xs hover:text-primary/80">
+      📎 View Attachment
+    </button>
+  );
 };
 
 const DiscussionThreadPage = () => {
@@ -57,17 +88,27 @@ const DiscussionThreadPage = () => {
     },
   });
 
-  const { data: posts, isLoading, refetch } = useQuery({
+  const { data: posts, isLoading } = useQuery({
     queryKey: ["discussion-all-posts", discussionId],
     enabled: !!discussionId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("discussion_posts")
-        .select("*, profiles:author_id(first_name, last_name)")
+        .select("*")
         .eq("discussion_id", discussionId!)
         .order("created_at");
       if (error) throw error;
-      return data;
+
+      if (data && data.length > 0) {
+        const authorIds = [...new Set(data.filter(p => p.author_id).map(p => p.author_id!))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", authorIds);
+        const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+        return data.map(p => ({ ...p, profile: profileMap.get(p.author_id || "") || null }));
+      }
+      return data || [];
     },
   });
 
@@ -145,8 +186,9 @@ const DiscussionThreadPage = () => {
   const nestedPosts = rootPosts.map((p) => ({ ...p, children: getReplies(p.id) }));
 
   const renderPost = (post: any, depth = 0) => {
-    const authorName = post.profiles
-      ? `${post.profiles.first_name || ""} ${post.profiles.last_name || ""}`.trim() || "Anonymous"
+    const profile = post.profile;
+    const authorName = profile
+      ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Anonymous"
       : "Anonymous";
     const isOwn = post.author_id === user?.id;
     const canModerate = isOwn || isAdmin || isCoach;
