@@ -3,11 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Upload, X, FileText, Video, Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface LessonDialogProps {
   open: boolean;
@@ -34,7 +34,6 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
       setDuration(initial?.duration || "");
       setContent(initial?.content || "");
       setUploadedFileName("");
-      // Detect content mode from existing content
       if (initial?.content?.startsWith("http")) {
         setContentMode("url");
       } else if (initial?.content?.startsWith("[uploaded]")) {
@@ -52,8 +51,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
       const path = `lessons/${Date.now()}_${file.name}`;
       const { error } = await supabase.storage.from("submissions").upload(path, file, { upsert: true });
       if (error) throw error;
-      // Store path reference in content
-      const { data } = await supabase.storage.from("submissions").createSignedUrl(path, 31536000); // 1 year
+      const { data } = await supabase.storage.from("submissions").createSignedUrl(path, 31536000);
       if (data?.signedUrl) {
         setContent(data.signedUrl);
         setUploadedFileName(file.name);
@@ -63,6 +61,25 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
       toast.error(e.message);
     }
     setUploading(false);
+  };
+
+  const handleUrlChange = (url: string) => {
+    // Auto-prepend https:// if missing scheme
+    setContent(url);
+  };
+
+  const normalizeUrl = (url: string) => {
+    if (!url) return url;
+    if (url.match(/^https?:\/\//)) return url;
+    return `https://${url}`;
+  };
+
+  const handleSubmit = () => {
+    let finalContent = content;
+    if (contentMode === "url" && content && !content.match(/^https?:\/\//)) {
+      finalContent = `https://${content}`;
+    }
+    onSubmit({ title: title.trim(), type, duration, content: finalContent });
   };
 
   const acceptTypes = type === "video"
@@ -99,7 +116,6 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
             </div>
           </div>
 
-          {/* Content mode selector */}
           <div className="space-y-2">
             <Label>Content Source</Label>
             <div className="flex gap-2">
@@ -124,14 +140,12 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
           {contentMode === "text" && (
             <div className="space-y-2">
               <Label>Content</Label>
-              <Textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Write or paste the lesson content here. Students will be able to read this directly..."
-                rows={8}
-                className="resize-y"
+              <RichTextEditor
+                content={content}
+                onChange={setContent}
+                placeholder="Write or paste the lesson content here..."
+                minHeight="200px"
               />
-              <p className="text-[10px] text-muted-foreground">Supports plain text. URLs will be auto-linked for students.</p>
             </div>
           )}
 
@@ -140,13 +154,12 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
               <Label>URL</Label>
               <Input
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={type === "video" ? "https://www.youtube.com/watch?v=... or video URL" : "https://example.com/article"}
+                onChange={(e) => handleUrlChange(e.target.value)}
+                placeholder={type === "video" ? "youtube.com/watch?v=... or video URL" : "example.com/article"}
               />
               <p className="text-[10px] text-muted-foreground">
-                {type === "video"
-                  ? "YouTube links will be embedded. Other video URLs will be linked."
-                  : "URLs will be clickable for students to open."}
+                URLs without http:// will automatically have https:// added.
+                {type === "video" ? " YouTube links will be embedded." : ""}
               </p>
             </div>
           )}
@@ -154,18 +167,11 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
           {contentMode === "upload" && (
             <div className="space-y-2">
               <Label>Upload {type === "video" ? "Video" : "Document"}</Label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept={acceptTypes}
-                className="hidden"
+              <input ref={fileRef} type="file" accept={acceptTypes} className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) {
-                    if (f.size > 20 * 1024 * 1024) {
-                      toast.error("File must be under 20MB");
-                      return;
-                    }
+                    if (f.size > 20 * 1024 * 1024) { toast.error("File must be under 20MB"); return; }
                     handleFileUpload(f);
                   }
                 }}
@@ -174,27 +180,17 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
                 <div className="flex items-center gap-2 rounded-lg border bg-secondary/30 p-3">
                   {type === "video" ? <Video className="h-4 w-4 text-primary" /> : <FileText className="h-4 w-4 text-primary" />}
                   <span className="text-sm flex-1 truncate">{uploadedFileName}</span>
-                  <button
-                    onClick={() => { setContent(""); setUploadedFileName(""); }}
-                    className="p-1 hover:bg-secondary rounded"
-                  >
+                  <button onClick={() => { setContent(""); setUploadedFileName(""); }} className="p-1 hover:bg-secondary rounded">
                     <X className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading}
-                  className="w-full rounded-xl border-2 border-dashed bg-secondary/20 p-8 text-center hover:bg-secondary/30 transition-colors"
-                >
-                  {uploading ? (
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-                  ) : (
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  className="w-full rounded-xl border-2 border-dashed bg-secondary/20 p-8 text-center hover:bg-secondary/30 transition-colors">
+                  {uploading ? <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /> : (
                     <>
                       <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Click to upload {type === "video" ? "a video (MP4, WebM)" : "a document (PDF, DOCX, PPT)"}
-                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">Click to upload {type === "video" ? "a video (MP4, WebM)" : "a document (PDF, DOCX, PPT)"}</p>
                       <p className="text-[10px] text-muted-foreground mt-1">Max 20MB</p>
                     </>
                   )}
@@ -205,7 +201,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button disabled={!title.trim() || isPending || uploading} onClick={() => onSubmit({ title: title.trim(), type, duration, content })}>
+          <Button disabled={!title.trim() || isPending || uploading} onClick={handleSubmit}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {initial ? "Save" : "Create"}
           </Button>

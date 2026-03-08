@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRole } from "@/hooks/useRole";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  FileText, Brain, CheckCircle2, Loader2, Eye, Send, X, ExternalLink,
+  FileText, Brain, CheckCircle2, Loader2, Eye, Send, X, ExternalLink, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,12 +24,12 @@ const InAppDocViewer = ({ fileUrl, onClose }: { fileUrl: string; onClose: () => 
   const [loading, setLoading] = useState(true);
   const ext = fileUrl.split(".").pop()?.toLowerCase()?.split("?")[0];
 
-  useState(() => {
+  useEffect(() => {
     supabase.storage.from("submissions").createSignedUrl(fileUrl, 3600).then(({ data }) => {
       setUrl(data?.signedUrl || null);
       setLoading(false);
     });
-  });
+  }, [fileUrl]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm" onClick={onClose}>
@@ -58,7 +58,23 @@ const InAppDocViewer = ({ fileUrl, onClose }: { fileUrl: string; onClose: () => 
           {url && ext === "pdf" && (
             <iframe src={url} className="w-full h-[80vh] rounded-lg" title="PDF Viewer" />
           )}
-          {url && !["jpg", "jpeg", "png", "gif", "webp", "pdf"].includes(ext || "") && (
+          {/* DOCX: use Google Docs Viewer */}
+          {url && (ext === "docx" || ext === "doc") && (
+            <iframe
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+              className="w-full h-[80vh] rounded-lg"
+              title="Document Viewer"
+            />
+          )}
+          {/* PPTX */}
+          {url && (ext === "pptx" || ext === "ppt") && (
+            <iframe
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+              className="w-full h-[80vh] rounded-lg"
+              title="Presentation Viewer"
+            />
+          )}
+          {url && !["jpg", "jpeg", "png", "gif", "webp", "pdf", "doc", "docx", "ppt", "pptx"].includes(ext || "") && (
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
               <p className="mt-3 text-muted-foreground">Preview not available for .{ext} files</p>
@@ -85,6 +101,7 @@ const GradingQueuePage = () => {
   const [bulkFeedback, setBulkFeedback] = useState("");
   const [viewingDoc, setViewingDoc] = useState<string | null>(null);
 
+  // Assignment submissions
   const { data: submissions, isLoading } = useQuery({
     queryKey: ["grading-queue"],
     enabled: isCoach || isAdmin,
@@ -110,6 +127,7 @@ const GradingQueuePage = () => {
     },
   });
 
+  // Quiz attempts (completed)
   const { data: quizAttempts } = useQuery({
     queryKey: ["grading-quiz-attempts"],
     enabled: isCoach || isAdmin,
@@ -135,6 +153,48 @@ const GradingQueuePage = () => {
     },
   });
 
+  // SAQ responses pending manual review
+  const { data: saqResponses } = useQuery({
+    queryKey: ["grading-saq"],
+    enabled: isCoach || isAdmin,
+    queryFn: async () => {
+      // Get all quiz_responses that are SAQ (points_earned = 0, is_correct = false) 
+      // and their question is short_answer type
+      const { data: questions, error: qErr } = await supabase
+        .from("quiz_questions")
+        .select("id, question_text, points, quiz_id, quizzes(title, course_id, courses(code))")
+        .eq("question_type", "short_answer");
+      if (qErr) throw qErr;
+      if (!questions?.length) return [];
+
+      const qIds = questions.map(q => q.id);
+      const { data: responses, error: rErr } = await supabase
+        .from("quiz_responses")
+        .select("*, quiz_attempts(student_id, quiz_id, completed_at)")
+        .in("question_id", qIds)
+        .eq("points_earned", 0)
+        .eq("is_correct", false);
+      if (rErr) throw rErr;
+      if (!responses?.length) return [];
+
+      // Get student profiles
+      const studentIds = [...new Set(responses.map((r: any) => r.quiz_attempts?.student_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", studentIds);
+      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      const questionMap = new Map(questions.map(q => [q.id, q]));
+
+      return responses.map((r: any) => ({
+        ...r,
+        question: questionMap.get(r.question_id),
+        profile: profileMap.get(r.quiz_attempts?.student_id) || null,
+      }));
+    },
+  });
+
+  // Grade assignment
   const gradeMutation = useMutation({
     mutationFn: async (params: { id: string; score: number; feedback: string }) => {
       const { error } = await supabase
@@ -147,6 +207,45 @@ const GradingQueuePage = () => {
       qc.invalidateQueries({ queryKey: ["grading-queue"] });
       setSelectedSubmission(null);
       toast.success("Graded successfully");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Grade SAQ response
+  const gradeSAQMutation = useMutation({
+    mutationFn: async (params: { responseId: string; pointsEarned: number; attemptId: string }) => {
+      const { error } = await supabase
+        .from("quiz_responses")
+        .update({ points_earned: params.pointsEarned, is_correct: params.pointsEarned > 0 })
+        .eq("id", params.responseId);
+      if (error) throw error;
+
+      // Update attempt score
+      const { data: allResponses } = await supabase
+        .from("quiz_responses")
+        .select("points_earned")
+        .eq("attempt_id", params.attemptId);
+      if (allResponses) {
+        const totalScore = allResponses.reduce((s, r) => s + (r.points_earned || 0), 0);
+        await supabase.from("quiz_attempts").update({ score: totalScore }).eq("id", params.attemptId);
+      }
+
+      // Notify student
+      const { data: attempt } = await supabase.from("quiz_attempts").select("student_id, quizzes(title)").eq("id", params.attemptId).maybeSingle();
+      if (attempt) {
+        await supabase.from("notifications").insert({
+          user_id: attempt.student_id,
+          title: "Quiz Answer Graded",
+          message: `Your short answer for "${(attempt.quizzes as any)?.title}" has been graded. Points: ${params.pointsEarned}`,
+          type: "grade",
+          link: "/grades",
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["grading-saq"] });
+      qc.invalidateQueries({ queryKey: ["grading-quiz-attempts"] });
+      toast.success("SAQ graded");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -179,6 +278,9 @@ const GradingQueuePage = () => {
     });
   };
 
+  // SAQ grading inline state
+  const [saqScores, setSaqScores] = useState<Record<string, string>>({});
+
   if (!isCoach && !isAdmin) {
     return <div className="py-20 text-center text-muted-foreground">You don't have permission to access this page.</div>;
   }
@@ -190,6 +292,8 @@ const GradingQueuePage = () => {
       </div>
     );
   }
+
+  const pendingSaqCount = saqResponses?.length || 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -203,11 +307,15 @@ const GradingQueuePage = () => {
           <TabsTrigger value="submissions" className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none">
             <FileText className="mr-2 h-4 w-4" /> Submissions ({submissions?.length || 0})
           </TabsTrigger>
+          <TabsTrigger value="saq" className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none">
+            <MessageSquare className="mr-2 h-4 w-4" /> SAQ Review ({pendingSaqCount})
+          </TabsTrigger>
           <TabsTrigger value="quizzes" className="rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none">
             <Brain className="mr-2 h-4 w-4" /> Quiz Results ({quizAttempts?.length || 0})
           </TabsTrigger>
         </TabsList>
 
+        {/* Submissions tab */}
         <TabsContent value="submissions" className="mt-6 space-y-4">
           {selectedIds.size > 0 && (
             <div className="rounded-xl border bg-primary/5 p-4 flex items-center gap-4 flex-wrap">
@@ -261,10 +369,8 @@ const GradingQueuePage = () => {
                           <Eye className="h-4 w-4" /> Review & Grade
                         </button>
                         {sub.file_url && (
-                          <button
-                            onClick={() => setViewingDoc(sub.file_url)}
-                            className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-secondary transition-colors"
-                          >
+                          <button onClick={() => setViewingDoc(sub.file_url)}
+                            className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-secondary transition-colors">
                             <FileText className="h-4 w-4" /> View Document
                           </button>
                         )}
@@ -277,6 +383,81 @@ const GradingQueuePage = () => {
           )}
         </TabsContent>
 
+        {/* SAQ Review tab */}
+        <TabsContent value="saq" className="mt-6 space-y-4">
+          {!saqResponses?.length ? (
+            <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
+              <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
+              <p className="mt-3 text-muted-foreground">No short answer questions pending review! 🎉</p>
+            </div>
+          ) : (
+            saqResponses.map((r: any) => {
+              const question = r.question;
+              const profile = r.profile;
+              const studentName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Student" : "Student";
+              const quiz = question?.quizzes;
+              const maxPts = question?.points || 1;
+
+              // Parse response: text and optional file
+              const responseText = r.response?.split("\n\n📎 ")[0] || r.response || "";
+              const fileMatch = r.response?.match(/📎 (https?:\/\/[^\s]+)/);
+
+              return (
+                <div key={r.id} className="rounded-xl border bg-card p-5 shadow-card">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="secondary" className="text-xs">{quiz?.courses?.code}</Badge>
+                        <span className="text-xs text-muted-foreground">{quiz?.title}</span>
+                      </div>
+                      <h4 className="mt-2 font-medium text-sm">{question?.question_text}</h4>
+                      <p className="text-xs text-muted-foreground mt-1">by {studentName} • {maxPts} pts possible</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-lg border bg-secondary/30 p-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Student Answer</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{responseText || <span className="italic text-muted-foreground">No text answer provided</span>}</p>
+                    {fileMatch && (
+                      <a href={fileMatch[1]} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-primary underline text-xs">
+                        📎 View attached file
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium">Points:</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={maxPts}
+                        value={saqScores[r.id] || ""}
+                        onChange={(e) => setSaqScores(prev => ({ ...prev, [r.id]: e.target.value }))}
+                        placeholder={`0-${maxPts}`}
+                        className="w-20 rounded-lg border bg-background px-2 py-1.5 text-sm"
+                      />
+                      <span className="text-xs text-muted-foreground">/ {maxPts}</span>
+                    </div>
+                    <button
+                      onClick={() => gradeSAQMutation.mutate({
+                        responseId: r.id,
+                        pointsEarned: Number(saqScores[r.id] || 0),
+                        attemptId: r.attempt_id,
+                      })}
+                      disabled={!saqScores[r.id] || gradeSAQMutation.isPending}
+                      className="rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                    >
+                      {gradeSAQMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Grade"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </TabsContent>
+
+        {/* Quiz Results tab */}
         <TabsContent value="quizzes" className="mt-6">
           {!quizAttempts?.length ? (
             <p className="text-center text-muted-foreground py-12">No quiz attempts to review.</p>
@@ -332,10 +513,8 @@ const GradingQueuePage = () => {
               {selectedSubmission.file_url && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Attachment</p>
-                  <button
-                    onClick={() => setViewingDoc(selectedSubmission.file_url)}
-                    className="flex items-center gap-2 rounded-lg border bg-secondary/30 px-4 py-3 text-sm hover:bg-secondary transition-colors w-full"
-                  >
+                  <button onClick={() => setViewingDoc(selectedSubmission.file_url)}
+                    className="flex items-center gap-2 rounded-lg border bg-secondary/30 px-4 py-3 text-sm hover:bg-secondary transition-colors w-full">
                     <FileText className="h-5 w-5 text-primary" />
                     <span className="flex-1 text-left">View attached document in-app</span>
                     <Eye className="h-4 w-4 text-muted-foreground" />

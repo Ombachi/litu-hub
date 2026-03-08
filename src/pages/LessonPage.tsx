@@ -1,31 +1,15 @@
 import { useParams, Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Video, FileText, CheckCircle2, Circle, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Loader2, ExternalLink } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-/** Convert plain URLs in text to clickable links */
-const renderContentWithLinks = (text: string) => {
-  const urlRegex = /(https?:\/\/[^\s<]+)/g;
-  const parts = text.split(urlRegex);
-  return parts.map((part, i) => {
-    if (urlRegex.test(part)) {
-      urlRegex.lastIndex = 0;
-      return (
-        <a
-          key={i}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary underline break-all hover:text-primary/80 inline-flex items-center gap-1"
-        >
-          {part} <ExternalLink className="h-3 w-3 inline shrink-0" />
-        </a>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
+/** Normalize URLs without scheme */
+const ensureScheme = (url: string) => {
+  if (!url) return url;
+  if (url.match(/^https?:\/\//)) return url;
+  return `https://${url}`;
 };
 
 const LessonPage = () => {
@@ -94,10 +78,14 @@ const LessonPage = () => {
   const prevLesson = currentIdx > 0 ? siblings?.[currentIdx - 1] : null;
   const nextLesson = siblings && currentIdx < siblings.length - 1 ? siblings[currentIdx + 1] : null;
 
-  const youtubeMatch = lesson.content?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-  const isVideoUrl = lesson.content?.match(/\.(mp4|webm|ogg)(\?|$)/i) || lesson.content?.includes("supabase.co/storage");
-  const isPdfUrl = lesson.content?.match(/\.pdf(\?|$)/i);
-  const isExternalUrl = lesson.content?.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl;
+  const contentRaw = lesson.content || "";
+  const content = ensureScheme(contentRaw) !== contentRaw ? ensureScheme(contentRaw) : contentRaw;
+
+  const youtubeMatch = content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+  const isVideoUrl = content.match(/\.(mp4|webm|ogg)(\?|$)/i) || content.includes("supabase.co/storage");
+  const isPdfUrl = content.match(/\.pdf(\?|$)/i);
+  const isHtml = content.includes("<") && (content.includes("<p") || content.includes("<h") || content.includes("<ul") || content.includes("<ol") || content.includes("<strong"));
+  const isExternalUrl = content.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isHtml;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -144,29 +132,21 @@ const LessonPage = () => {
       )}
 
       {/* Video file embed */}
-      {isVideoUrl && !youtubeMatch && lesson.content && (
+      {isVideoUrl && !youtubeMatch && content && (
         <div className="rounded-xl overflow-hidden border shadow-card">
-          <video
-            controls
-            className="w-full max-h-[70vh]"
-            src={lesson.content}
-          >
+          <video controls className="w-full max-h-[70vh]" src={content}>
             Your browser does not support the video tag.
           </video>
         </div>
       )}
 
       {/* PDF embed */}
-      {isPdfUrl && lesson.content && (
+      {isPdfUrl && content && (
         <div className="rounded-xl overflow-hidden border shadow-card">
-          <iframe
-            src={lesson.content}
-            className="w-full h-[70vh]"
-            title={lesson.title}
-          />
+          <iframe src={content} className="w-full h-[70vh]" title={lesson.title} />
           <div className="p-3 border-t bg-secondary/20 flex items-center justify-between">
             <span className="text-sm text-muted-foreground">PDF Document</span>
-            <a href={lesson.content} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:text-primary/80">
+            <a href={content} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:text-primary/80">
               Open in new tab <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -174,7 +154,7 @@ const LessonPage = () => {
       )}
 
       {/* External link (non-video, non-pdf) */}
-      {isExternalUrl && lesson.content && (
+      {isExternalUrl && content && (
         <div className="rounded-xl border bg-card p-6 shadow-card">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
@@ -182,32 +162,36 @@ const LessonPage = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">External Resource</p>
-              <a
-                href={lesson.content}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-primary underline break-all hover:text-primary/80"
-              >
-                {lesson.content}
+              <a href={content} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline break-all hover:text-primary/80">
+                {content}
               </a>
             </div>
-            <a
-              href={lesson.content}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 shrink-0"
-            >
+            <a href={content} target="_blank" rel="noopener noreferrer"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 shrink-0">
               Open
             </a>
           </div>
         </div>
       )}
 
-      {/* Text content (not a URL) */}
-      {lesson.content && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isExternalUrl && (
+      {/* Rich HTML content */}
+      {isHtml && (
+        <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
+          <div
+            className="prose prose-sm max-w-none text-foreground overflow-auto max-h-[70vh] break-words
+              [&_a]:text-primary [&_a]:underline [&_a]:cursor-pointer
+              [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs
+              [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm"
+            dangerouslySetInnerHTML={{ __html: content }}
+          />
+        </div>
+      )}
+
+      {/* Plain text (not a URL, not HTML) */}
+      {content && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isExternalUrl && !isHtml && (
         <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
           <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap break-words overflow-auto max-h-[70vh]">
-            {renderContentWithLinks(lesson.content)}
+            {content}
           </div>
         </div>
       )}
