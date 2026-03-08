@@ -214,7 +214,7 @@ const CoursePage = () => {
               const sub = getSubmissionStatus(a.id);
               const status = sub ? (sub.score !== null ? "graded" : "submitted") : (a.due_date && new Date(a.due_date) < new Date() ? "overdue" : "pending");
               return (
-                <Link key={a.id} to={isTutor ? `/grading` : `/assignment/${a.id}`} className="block rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all">
+                <Link key={a.id} to={isTutor ? `/grading-queue` : `/assignment/${a.id}`} className="block rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="font-display font-semibold">{a.title}</h3>

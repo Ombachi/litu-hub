@@ -92,7 +92,7 @@ const InAppDocViewer = ({ fileUrl, onClose }: { fileUrl: string; onClose: () => 
 
 const GradingQueuePage = () => {
   const { user } = useAuth();
-  const { isCoach, isAdmin } = useRole();
+  const { isCoach, isAdmin, role } = useRole();
   const qc = useQueryClient();
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [score, setScore] = useState("");
@@ -102,36 +102,61 @@ const GradingQueuePage = () => {
   const [bulkFeedback, setBulkFeedback] = useState("");
   const [viewingDoc, setViewingDoc] = useState<string | null>(null);
 
-  // Assignment submissions
-  const { data: submissions, isLoading } = useQuery({
-    queryKey: ["grading-queue"],
-    enabled: isCoach || isAdmin,
+  const isTutorRole = role === "tutor" || role === "ta";
+
+  // Get tutor's assigned course IDs
+  const { data: tutorCourseIds } = useQuery({
+    queryKey: ["tutor-course-ids", user?.id],
+    enabled: !!user && isTutorRole,
     queryFn: async () => {
       const { data, error } = await supabase
+        .from("course_tutors")
+        .select("course_id")
+        .eq("tutor_id", user!.id);
+      if (error) throw error;
+      return data?.map(d => d.course_id) || [];
+    },
+  });
+
+  // Assignment submissions - filtered for tutors
+  const { data: submissions, isLoading } = useQuery({
+    queryKey: ["grading-queue", isTutorRole ? tutorCourseIds : "all"],
+    enabled: (isCoach || isAdmin) && (!isTutorRole || !!tutorCourseIds),
+    queryFn: async () => {
+      let query = supabase
         .from("assignment_submissions")
         .select("*, assignments(title, max_score, course_id, courses(code, title))")
         .is("score", null)
         .eq("status", "submitted")
         .order("submitted_at", { ascending: true });
+
+      const { data, error } = await query;
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const studentIds = [...new Set(data.map((s: any) => s.student_id))];
+      // Filter for tutor's courses client-side (assignment_submissions doesn't have course_id directly)
+      let filtered = data || [];
+      if (isTutorRole && tutorCourseIds) {
+        const courseIdSet = new Set(tutorCourseIds);
+        filtered = filtered.filter((s: any) => courseIdSet.has(s.assignments?.course_id));
+      }
+
+      if (filtered.length > 0) {
+        const studentIds = [...new Set(filtered.map((s: any) => s.student_id))];
         const { data: profiles } = await supabase
           .from("profiles")
           .select("user_id, first_name, last_name, email")
           .in("user_id", studentIds);
         const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
-        return data.map((s: any) => ({ ...s, profile: profileMap.get(s.student_id) || null }));
+        return filtered.map((s: any) => ({ ...s, profile: profileMap.get(s.student_id) || null }));
       }
-      return data || [];
+      return filtered;
     },
   });
 
-  // Quiz attempts (completed)
+  // Quiz attempts (completed) - filtered for tutors
   const { data: quizAttempts } = useQuery({
-    queryKey: ["grading-quiz-attempts"],
-    enabled: isCoach || isAdmin,
+    queryKey: ["grading-quiz-attempts", isTutorRole ? tutorCourseIds : "all"],
+    enabled: (isCoach || isAdmin) && (!isTutorRole || !!tutorCourseIds),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quiz_attempts")
@@ -141,32 +166,48 @@ const GradingQueuePage = () => {
         .limit(50);
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const studentIds = [...new Set(data.map((a: any) => a.student_id))];
+      let filtered = data || [];
+      if (isTutorRole && tutorCourseIds) {
+        const courseIdSet = new Set(tutorCourseIds);
+        filtered = filtered.filter((a: any) => courseIdSet.has(a.quizzes?.course_id));
+      }
+
+      if (filtered.length > 0) {
+        const studentIds = [...new Set(filtered.map((a: any) => a.student_id))];
         const { data: profiles } = await supabase
           .from("profiles")
           .select("user_id, first_name, last_name")
           .in("user_id", studentIds);
         const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
-        return data.map((a: any) => ({ ...a, profile: profileMap.get(a.student_id) || null }));
+        return filtered.map((a: any) => ({ ...a, profile: profileMap.get(a.student_id) || null }));
       }
-      return data || [];
+      return filtered;
     },
   });
 
   // SAQ responses pending manual review
   const { data: saqResponses } = useQuery({
-    queryKey: ["grading-saq"],
-    enabled: isCoach || isAdmin,
+    queryKey: ["grading-saq", isTutorRole ? tutorCourseIds : "all"],
+    enabled: (isCoach || isAdmin) && (!isTutorRole || !!tutorCourseIds),
     queryFn: async () => {
       // Get all quiz_responses that are SAQ (points_earned = 0, is_correct = false) 
       // and their question is short_answer type
-      const { data: questions, error: qErr } = await supabase
+      let questions: any[] = [];
+      const { data: allQuestions, error: qErr } = await supabase
         .from("quiz_questions")
         .select("id, question_text, points, quiz_id, quizzes(title, course_id, courses(code))")
         .eq("question_type", "short_answer");
       if (qErr) throw qErr;
-      if (!questions?.length) return [];
+      if (!allQuestions?.length) return [];
+
+      // Filter for tutor's courses
+      if (isTutorRole && tutorCourseIds) {
+        const courseIdSet = new Set(tutorCourseIds);
+        questions = allQuestions.filter((q: any) => courseIdSet.has(q.quizzes?.course_id));
+      } else {
+        questions = allQuestions;
+      }
+      if (!questions.length) return [];
 
       const qIds = questions.map(q => q.id);
       const { data: responses, error: rErr } = await supabase
