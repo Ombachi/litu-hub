@@ -1,11 +1,34 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Loader2, Users, BookOpen, ChevronDown, ChevronRight } from "lucide-react";
+import { Building2, Loader2, Users, BookOpen, ChevronDown, ChevronRight, Upload, X } from "lucide-react";
+import { toast } from "sonner";
 
 const InstitutionsTab = () => {
   const [selectedInst, setSelectedInst] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+
+  const uploadLogo = useMutation({
+    mutationFn: async ({ instId, file }: { instId: string; file: File }) => {
+      setUploading(true);
+      const ext = file.name.split(".").pop();
+      const path = `${instId}/logo.${ext}`;
+      const { error: upErr } = await supabase.storage.from("institution-logos").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("institution-logos").getPublicUrl(path);
+      const { error } = await supabase.from("institutions").update({ logo_url: data.publicUrl }).eq("id", instId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setUploading(false);
+      qc.invalidateQueries({ queryKey: ["institutions"] });
+      toast.success("Logo uploaded!");
+    },
+    onError: (e: any) => { setUploading(false); toast.error(e.message); },
+  });
 
   const { data: institutions, isLoading } = useQuery({
     queryKey: ["institutions"],
@@ -96,8 +119,12 @@ const InstitutionsTab = () => {
                   onClick={() => setSelectedInst(isSelected ? null : inst.id)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: inst.primary_color || "hsl(var(--primary))", opacity: 0.15 }}>
-                      <Building2 className="h-5 w-5 text-primary" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden" style={{ backgroundColor: inst.primary_color || "hsl(var(--primary))", opacity: inst.logo_url ? 1 : 0.15 }}>
+                      {inst.logo_url ? (
+                        <img src={inst.logo_url} alt={inst.name} className="h-10 w-10 object-cover" />
+                      ) : (
+                        <Building2 className="h-5 w-5 text-primary" />
+                      )}
                     </div>
                     <div>
                       <h4 className="font-semibold">{inst.name}</h4>
@@ -109,6 +136,36 @@ const InstitutionsTab = () => {
 
                 {isSelected && (
                   <div className="border-t p-4 space-y-4">
+                    {/* Logo Upload */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-muted-foreground" /> Institution Logo
+                      </h4>
+                      <div className="flex items-center gap-3">
+                        {inst.logo_url ? (
+                          <img src={inst.logo_url} alt="" className="h-16 w-16 rounded-lg object-cover border" />
+                        ) : (
+                          <div className="h-16 w-16 rounded-lg border border-dashed flex items-center justify-center bg-secondary/30">
+                            <Building2 className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div>
+                          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) uploadLogo.mutate({ instId: inst.id, file });
+                          }} />
+                          <button
+                            onClick={() => fileRef.current?.click()}
+                            disabled={uploading}
+                            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+                          >
+                            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                            {inst.logo_url ? "Change Logo" : "Upload Logo"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Members (read-only) */}
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium flex items-center gap-2">
