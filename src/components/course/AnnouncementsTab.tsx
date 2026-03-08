@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Megaphone, Plus, Pin, Trash2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -28,7 +28,7 @@ const AnnouncementsTab = ({ courseId }: AnnouncementsTabProps) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("announcements")
-        .select("*, profiles:author_id(first_name, last_name)")
+        .select("*, profiles:author_id(first_name, last_name, avatar_url)")
         .eq("course_id", courseId)
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false });
@@ -79,6 +79,11 @@ const AnnouncementsTab = ({ courseId }: AnnouncementsTabProps) => {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const getAvatarUrl = (avatarPath: string | null) => {
+    if (!avatarPath) return null;
+    return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/avatars/${avatarPath}`;
+  };
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -138,9 +143,17 @@ const AnnouncementsTab = ({ courseId }: AnnouncementsTabProps) => {
                     {a.pinned && <Badge variant="default" className="text-[10px]"><Pin className="h-2.5 w-2.5 mr-1" />Pinned</Badge>}
                     <h4 className="font-display font-semibold">{a.title}</h4>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {authorName} • {new Date(a.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Avatar className="h-5 w-5">
+                      {author?.avatar_url && <AvatarImage src={getAvatarUrl(author.avatar_url)!} alt="" />}
+                      <AvatarFallback className="bg-primary/10 text-primary text-[8px] font-bold">
+                        {authorName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="text-xs text-muted-foreground">
+                      {authorName} • {new Date(a.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
                 </div>
                 {isCoach && (
                   <div className="flex items-center gap-1 shrink-0">
