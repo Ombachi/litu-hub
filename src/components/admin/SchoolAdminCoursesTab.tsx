@@ -6,7 +6,7 @@ import { useMyInstitution } from "@/hooks/useInstitution";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, X, Loader2, Trash2, BookOpen, UserPlus, Users } from "lucide-react";
+import { Plus, X, Loader2, Trash2, Users, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 const SchoolAdminCoursesTab = () => {
@@ -15,9 +15,19 @@ const SchoolAdminCoursesTab = () => {
   const qc = useQueryClient();
   const institutionId = myInstitution?.id;
 
-  const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "" });
+  const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "", term_id: "" });
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [assignTutorId, setAssignTutorId] = useState("");
+
+  // Terms
+  const { data: terms } = useQuery({
+    queryKey: ["terms"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("terms").select("id, name").order("start_date");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Institution courses
   const { data: courses, isLoading } = useQuery({
@@ -62,12 +72,11 @@ const SchoolAdminCoursesTab = () => {
     },
   });
 
-  // Institution members with tutor role (for assigning)
+  // Institution members with tutor role
   const { data: institutionTutors } = useQuery({
     queryKey: ["inst-tutors", institutionId],
     enabled: !!institutionId,
     queryFn: async () => {
-      // Get institution member user_ids
       const { data: members, error: mErr } = await supabase
         .from("user_institutions")
         .select("user_id")
@@ -75,7 +84,6 @@ const SchoolAdminCoursesTab = () => {
       if (mErr) throw mErr;
       if (!members?.length) return [];
       const userIds = members.map(m => m.user_id);
-      // Get users with tutor role
       const { data: roles, error: rErr } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -94,20 +102,21 @@ const SchoolAdminCoursesTab = () => {
   });
 
   const createCourse = useMutation({
-    mutationFn: async (params: { title: string; code: string; description: string }) => {
+    mutationFn: async (params: { title: string; code: string; description: string; term_id: string }) => {
       const { error } = await supabase.from("courses").insert({
         title: params.title,
         code: params.code,
         description: params.description,
         created_by: user?.id,
         institution_id: institutionId,
+        term_id: params.term_id || null,
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inst-courses-admin"] });
       qc.invalidateQueries({ queryKey: ["courses"] });
-      setCourseForm({ open: false, title: "", code: "", description: "" });
+      setCourseForm({ open: false, title: "", code: "", description: "", term_id: "" });
       toast.success("Course created");
     },
     onError: (e: any) => toast.error(e.message),
@@ -136,7 +145,7 @@ const SchoolAdminCoursesTab = () => {
       qc.invalidateQueries({ queryKey: ["course-tutors"] });
       qc.invalidateQueries({ queryKey: ["course-tutor-profiles"] });
       setAssignTutorId("");
-      toast.success("Tutor assigned to course");
+      toast.success("Tutor assigned — they'll receive a notification");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -162,7 +171,7 @@ const SchoolAdminCoursesTab = () => {
       <div className="flex justify-between items-center">
         <h3 className="font-semibold">{myInstitution?.name} Courses</h3>
         <button
-          onClick={() => setCourseForm({ open: true, title: "", code: "", description: "" })}
+          onClick={() => setCourseForm({ open: true, title: "", code: "", description: "", term_id: "" })}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" /> Create Course
@@ -180,8 +189,16 @@ const SchoolAdminCoursesTab = () => {
             <Input value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} placeholder="e.g. Introduction to Business" />
           </div>
           <Input value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} placeholder="Course description..." />
+          <Select value={courseForm.term_id} onValueChange={(v) => setCourseForm({ ...courseForm, term_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Select a term (optional)" /></SelectTrigger>
+            <SelectContent>
+              {terms?.map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <button
-            onClick={() => createCourse.mutate({ title: courseForm.title, code: courseForm.code, description: courseForm.description })}
+            onClick={() => createCourse.mutate({ title: courseForm.title, code: courseForm.code, description: courseForm.description, term_id: courseForm.term_id })}
             disabled={!courseForm.title.trim() || !courseForm.code.trim() || createCourse.isPending}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
@@ -224,7 +241,6 @@ const SchoolAdminCoursesTab = () => {
                   </div>
                 </div>
 
-                {/* Tutor assignment panel */}
                 {isSelected && (
                   <div className="border-t p-4 space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
@@ -240,7 +256,7 @@ const SchoolAdminCoursesTab = () => {
                             </SelectItem>
                           ))}
                           {!availableTutors.length && (
-                            <div className="px-3 py-2 text-xs text-muted-foreground">No available tutors. Add users with "tutor" role to your institution first.</div>
+                            <div className="px-3 py-2 text-xs text-muted-foreground">No available tutors.</div>
                           )}
                         </SelectContent>
                       </Select>
