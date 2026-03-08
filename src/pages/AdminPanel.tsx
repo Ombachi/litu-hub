@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Users, Shield, BookOpen, ClipboardList, Plus, Trash2, Loader2, Search, X, Save, Calendar, UserPlus,
+  Users, Shield, BookOpen, ClipboardList, Plus, Trash2, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,11 +13,14 @@ import { useRole } from "@/hooks/useRole";
 import { useCourses } from "@/hooks/useData";
 import TermsTab from "@/components/admin/TermsTab";
 import EnrollmentTab from "@/components/admin/EnrollmentTab";
+import InstitutionsTab from "@/components/admin/InstitutionsTab";
+import PlatformDashboard from "@/components/admin/PlatformDashboard";
 
 const ROLES = ["admin", "platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as const;
 
 const AdminPanel = () => {
-  const { isAdmin } = useRole();
+  const { isAdmin, role } = useRole();
+  const isPlatformAdmin = role === "platform_admin" || role === "admin";
   const qc = useQueryClient();
 
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
@@ -111,22 +114,26 @@ const AdminPanel = () => {
   );
   const getUserRole = (userId: string) => allRoles?.find((r) => r.user_id === userId)?.role || "student";
 
+  const tabs = [
+    ...(isPlatformAdmin ? [{ value: "overview", icon: BarChart3, label: "Overview" }] : []),
+    { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
+    ...(isPlatformAdmin ? [{ value: "institutions", icon: Building2, label: "Institutions" }] : []),
+    { value: "terms", icon: Calendar, label: "Terms" },
+    { value: "courses", icon: BookOpen, label: `Courses (${courses?.length || 0})` },
+    { value: "enrollment", icon: UserPlus, label: "Enrollment" },
+    { value: "audit", icon: ClipboardList, label: "Audit Logs" },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="font-display text-3xl font-bold">Admin Panel</h1>
-        <p className="mt-1 text-muted-foreground">Manage users, roles, terms, courses, and enrollments</p>
+        <p className="mt-1 text-muted-foreground">Manage users, roles, institutions, terms, courses, and enrollments</p>
       </div>
 
-      <Tabs defaultValue="users" className="w-full">
+      <Tabs defaultValue={isPlatformAdmin ? "overview" : "users"} className="w-full">
         <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
-          {[
-            { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
-            { value: "terms", icon: Calendar, label: "Terms" },
-            { value: "courses", icon: BookOpen, label: `Courses (${courses?.length || 0})` },
-            { value: "enrollment", icon: UserPlus, label: "Enrollment" },
-            { value: "audit", icon: ClipboardList, label: "Audit Logs" },
-          ].map((tab) => (
+          {tabs.map((tab) => (
             <TabsTrigger
               key={tab.value}
               value={tab.value}
@@ -138,6 +145,13 @@ const AdminPanel = () => {
           ))}
         </TabsList>
 
+        {/* Platform Overview */}
+        {isPlatformAdmin && (
+          <TabsContent value="overview" className="mt-6">
+            <PlatformDashboard />
+          </TabsContent>
+        )}
+
         {/* Users Tab */}
         <TabsContent value="users" className="mt-6 space-y-4">
           <div className="relative">
@@ -147,7 +161,7 @@ const AdminPanel = () => {
           {loadingProfiles ? (
             <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
-            <div className="rounded-xl border bg-card shadow-card overflow-x-auto">
+            <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
               <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b bg-secondary/20 text-xs uppercase tracking-wider text-muted-foreground">
@@ -160,7 +174,7 @@ const AdminPanel = () => {
                 </thead>
                 <tbody>
                   {filteredProfiles?.map((p) => {
-                    const role = getUserRole(p.user_id);
+                    const userRole = getUserRole(p.user_id);
                     const isEditing = editingRole?.userId === p.user_id;
                     return (
                       <tr key={p.id} className="border-b last:border-0 hover:bg-secondary/20 transition-colors">
@@ -184,13 +198,13 @@ const AdminPanel = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <button onClick={() => updateRole.mutate({ userId: p.user_id, role: editingRole.role })} disabled={updateRole.isPending} className="p-1 rounded hover:bg-success/10 text-success">
+                              <button onClick={() => updateRole.mutate({ userId: p.user_id, role: editingRole.role })} disabled={updateRole.isPending} className="p-1 rounded hover:bg-primary/10 text-primary">
                                 <Save className="h-3.5 w-3.5" />
                               </button>
                               <button onClick={() => setEditingRole(null)} className="p-1 rounded hover:bg-secondary"><X className="h-3.5 w-3.5" /></button>
                             </div>
                           ) : (
-                            <Badge variant="secondary" className="text-xs capitalize">{role.replace("_", " ")}</Badge>
+                            <Badge variant="secondary" className="text-xs capitalize">{userRole.replace("_", " ")}</Badge>
                           )}
                         </td>
                         <td className="px-5 py-3 text-sm text-muted-foreground">
@@ -198,7 +212,7 @@ const AdminPanel = () => {
                         </td>
                         <td className="px-5 py-3 text-right">
                           {!isEditing && (
-                            <button onClick={() => setEditingRole({ userId: p.user_id, role })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors" title="Change role">
+                            <button onClick={() => setEditingRole({ userId: p.user_id, role: userRole })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors" title="Change role">
                               <Shield className="h-4 w-4" />
                             </button>
                           )}
@@ -212,6 +226,13 @@ const AdminPanel = () => {
           )}
         </TabsContent>
 
+        {/* Institutions Tab */}
+        {isPlatformAdmin && (
+          <TabsContent value="institutions" className="mt-6">
+            <InstitutionsTab />
+          </TabsContent>
+        )}
+
         {/* Terms Tab */}
         <TabsContent value="terms" className="mt-6">
           <TermsTab />
@@ -220,24 +241,20 @@ const AdminPanel = () => {
         {/* Courses Tab */}
         <TabsContent value="courses" className="mt-6 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="font-display font-semibold">All Courses</h3>
+            <h3 className="font-semibold">All Courses</h3>
             <button onClick={() => setCourseForm({ open: true, title: "", code: "", description: "" })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
               <Plus className="h-4 w-4" /> Create Course
             </button>
           </div>
           {courseForm.open && (
-            <div className="rounded-xl border bg-card p-5 shadow-card space-y-3">
+            <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="font-display font-semibold">New Course</h4>
+                <h4 className="font-semibold">New Course</h4>
                 <button onClick={() => setCourseForm({ ...courseForm, open: false })} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Input value={courseForm.code} onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })} placeholder="e.g. BUS101" />
-                </div>
-                <div className="space-y-1">
-                  <Input value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} placeholder="e.g. Introduction to Business" />
-                </div>
+                <Input value={courseForm.code} onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })} placeholder="e.g. BUS101" />
+                <Input value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} placeholder="e.g. Introduction to Business" />
               </div>
               <Input value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} placeholder="Course description..." />
               <button
@@ -253,11 +270,11 @@ const AdminPanel = () => {
             <p className="text-center text-muted-foreground py-12">No courses yet.</p>
           ) : (
             courses.map((c) => (
-              <div key={c.id} className="rounded-xl border bg-card p-5 shadow-card flex items-center justify-between">
+              <div key={c.id} className="rounded-xl border bg-card p-5 shadow-sm flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-3 w-3 rounded-full" style={{ background: c.color || "hsl(var(--primary))" }} />
                   <div>
-                    <h4 className="font-display font-semibold">{c.code} — {c.title}</h4>
+                    <h4 className="font-semibold">{c.code} — {c.title}</h4>
                     <p className="text-sm text-muted-foreground">{c.description || "No description"}</p>
                   </div>
                 </div>
@@ -281,7 +298,7 @@ const AdminPanel = () => {
           ) : !auditLogs?.length ? (
             <p className="text-center text-muted-foreground py-12">No audit logs yet.</p>
           ) : (
-            <div className="rounded-xl border bg-card shadow-card overflow-x-auto">
+            <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
               <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="border-b bg-secondary/20 text-xs uppercase tracking-wider text-muted-foreground">
