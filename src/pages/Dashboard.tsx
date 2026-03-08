@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
+import { useRole } from "@/hooks/useRole";
 import { Badge } from "@/components/ui/badge";
 import {
   BookOpen,
@@ -26,6 +27,13 @@ const badges = [
 ];
 
 const Dashboard = () => {
+  const { role } = useRole();
+
+  // Redirect non-student roles to their primary page
+  if (role === "platform_admin" || role === "admin") return <Navigate to="/admin" replace />;
+  if (role === "school_admin") return <Navigate to="/admin" replace />;
+  if (role === "parent") return <Navigate to="/parent" replace />;
+
   const { data: courses, isLoading: loadingCourses } = useCourses();
   const { data: enrollments, isLoading: loadingEnrollments } = useEnrollments();
   const { data: assignments } = useAssignments();

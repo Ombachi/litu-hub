@@ -47,7 +47,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
     : user?.email || 'User';
 
-  const navItems = allNavItems.filter((item) => !item.roles || item.roles.includes(role));
+  const navItems = allNavItems.filter((item) => item.roles.includes(role));
 
   return (
     <div className="flex min-h-screen">
