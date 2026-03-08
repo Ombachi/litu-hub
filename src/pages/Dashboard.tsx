@@ -28,17 +28,16 @@ const badges = [
 
 const Dashboard = () => {
   const { role } = useRole();
-
-  // Redirect non-student roles to their primary page
-  if (role === "platform_admin" || role === "admin") return <Navigate to="/admin" replace />;
-  if (role === "school_admin") return <Navigate to="/admin" replace />;
-  if (role === "parent") return <Navigate to="/parent" replace />;
-
   const { data: courses, isLoading: loadingCourses } = useCourses();
   const { data: enrollments, isLoading: loadingEnrollments } = useEnrollments();
   const { data: assignments } = useAssignments();
   const { data: profile } = useProfile();
   const enrollMutation = useEnroll();
+
+  // Redirect non-student roles to their primary page (after all hooks)
+  if (role === "platform_admin" || role === "admin") return <Navigate to="/admin" replace />;
+  if (role === "school_admin") return <Navigate to="/admin" replace />;
+  if (role === "parent") return <Navigate to="/parent" replace />;
 
   const enrolledCourseIds = new Set(enrollments?.map((e) => e.course_id) || []);
   const enrolledCourses = courses?.filter((c) => enrolledCourseIds.has(c.id)) || [];
