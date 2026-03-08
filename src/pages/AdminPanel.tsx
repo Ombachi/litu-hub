@@ -216,13 +216,32 @@ const AdminPanel = () => {
   const platformAdminIds = new Set(
     allRoles?.filter(r => r.role === 'admin' || r.role === 'platform_admin').map(r => r.user_id) || []
   );
+  // Build a map of userId -> institution name for platform admin
+  const userInstMap = new Map<string, string>();
+  allUserInstitutions?.forEach(ui => {
+    userInstMap.set(ui.user_id, (ui.institutions as any)?.name || "Unknown");
+  });
+
   const visibleProfiles = isSchoolAdmin
     ? profiles?.filter(p => institutionMemberIds.has(p.user_id))
     : profiles?.filter(p => !platformAdminIds.has(p.user_id));
 
-  const filteredProfiles = visibleProfiles?.filter((p) =>
+  // Platform admin: apply institution filter
+  const instFilteredProfiles = isPlatformAdmin && instFilter !== "all"
+    ? visibleProfiles?.filter(p => {
+        if (instFilter === "unassigned") return !userInstMap.has(p.user_id);
+        return userInstMap.get(p.user_id) === instFilter;
+      })
+    : visibleProfiles;
+
+  const filteredProfiles = instFilteredProfiles?.filter((p) =>
     `${p.first_name} ${p.last_name} ${p.email}`.toLowerCase().includes(userSearch.toLowerCase())
   );
+
+  // School admin: users not yet in institution (for adding)
+  const nonMemberProfiles = isSchoolAdmin
+    ? profiles?.filter(p => !institutionMemberIds.has(p.user_id))
+    : [];
   const getUserRole = (userId: string) => allRoles?.find((r) => r.user_id === userId)?.role || "student";
 
   // Display courses: institution-scoped for school admin, all for platform admin
