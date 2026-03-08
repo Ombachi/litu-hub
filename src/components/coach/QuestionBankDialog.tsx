@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Trash2, Eye } from "lucide-react";
 
 interface QuestionData {
@@ -41,7 +42,7 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
   const [questionText, setQuestionText] = useState("");
   const [questionType, setQuestionType] = useState("multiple_choice");
   const [options, setOptions] = useState<string[]>(["", "", "", ""]);
-  const [correctAnswer, setCorrectAnswer] = useState("");
+  const [correctAnswers, setCorrectAnswers] = useState<Set<string>>(new Set());
   const [explanation, setExplanation] = useState("");
   const [points, setPoints] = useState(1);
   const [difficulty, setDifficulty] = useState("medium");
@@ -56,11 +57,12 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
       setOptions(
         Array.isArray(initial?.options) && initial.options.length > 0
           ? initial.options
-          : questionType === "true_false"
-          ? ["True", "False"]
           : ["", "", "", ""]
       );
-      setCorrectAnswer(initial?.correct_answer || "");
+      // Parse correct_answer — may be comma-separated for multiple correct
+      const ca: string = initial?.correct_answer || "";
+      const caSet = new Set<string>(ca.split("|||").filter(Boolean));
+      setCorrectAnswers(caSet);
       setExplanation(initial?.explanation || "");
       setPoints(initial?.points ?? 1);
       setDifficulty(initial?.difficulty || "medium");
@@ -75,6 +77,7 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
       setOptions(["True", "False"]);
     } else if (questionType === "short_answer") {
       setOptions([]);
+      setCorrectAnswers(new Set()); // SAQ has no correct answer
     } else if (questionType === "matching") {
       if (options.length < 4) setOptions(["", "", "", ""]);
     } else {
@@ -83,19 +86,48 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
   }, [questionType]);
 
   const addOption = () => setOptions([...options, ""]);
-  const removeOption = (i: number) => setOptions(options.filter((_, idx) => idx !== i));
+  const removeOption = (i: number) => {
+    const removed = options[i];
+    setOptions(options.filter((_, idx) => idx !== i));
+    if (correctAnswers.has(removed)) {
+      const next = new Set(correctAnswers);
+      next.delete(removed);
+      setCorrectAnswers(next);
+    }
+  };
   const updateOption = (i: number, val: string) => {
+    const oldVal = options[i];
     const next = [...options];
     next[i] = val;
     setOptions(next);
+    // Update correct answers if this option was marked correct
+    if (correctAnswers.has(oldVal)) {
+      const nextCA = new Set(correctAnswers);
+      nextCA.delete(oldVal);
+      if (val) nextCA.add(val);
+      setCorrectAnswers(nextCA);
+    }
+  };
+
+  const toggleCorrect = (opt: string) => {
+    const next = new Set(correctAnswers);
+    if (next.has(opt)) {
+      next.delete(opt);
+    } else {
+      next.add(opt);
+    }
+    setCorrectAnswers(next);
   };
 
   const handleSubmit = () => {
+    const correctAnswer = questionType === "short_answer"
+      ? "" // No correct answer for SAQ
+      : Array.from(correctAnswers).join("|||");
     onSubmit({
       question_text: questionText.trim(),
       question_type: questionType,
       options: options.filter((o) => o.trim()),
-      correct_answer: correctAnswer.trim(),
+      correct_answer: correctAnswer,
       explanation,
       points,
       difficulty,
@@ -103,6 +135,10 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
       pool_name: poolName,
     });
   };
+
+  const isValid = questionText.trim() && (
+    questionType === "short_answer" || correctAnswers.size > 0
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -112,7 +148,6 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
         </DialogHeader>
 
         {preview ? (
-          /* Preview mode */
           <div className="space-y-4 py-2">
             <div className="rounded-xl border bg-secondary/20 p-6">
               <div className="flex items-center gap-2 mb-3">
@@ -128,17 +163,17 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
                     <div
                       key={opt}
                       className={`rounded-lg border p-3 text-sm ${
-                        opt === correctAnswer ? "border-success bg-success/10 font-medium" : ""
+                        correctAnswers.has(opt) ? "border-success bg-success/10 font-medium" : ""
                       }`}
                     >
-                      {opt === correctAnswer && "✓ "}{opt}
+                      {correctAnswers.has(opt) && "✓ "}{opt}
                     </div>
                   ))}
                 </div>
               )}
               {questionType === "short_answer" && (
-                <div className="mt-4 rounded-lg border border-success bg-success/10 p-3 text-sm">
-                  ✓ Expected: {correctAnswer}
+                <div className="mt-4 rounded-lg border border-muted bg-muted/10 p-3 text-sm text-muted-foreground italic">
+                  📝 This is a short answer question — graded manually by the tutor.
                 </div>
               )}
               {explanation && (
@@ -148,9 +183,7 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
             <Button variant="outline" onClick={() => setPreview(false)}>Back to Edit</Button>
           </div>
         ) : (
-          /* Edit mode */
           <div className="space-y-4 py-2">
-            {/* Metadata row */}
             <div className="grid grid-cols-4 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Type</Label>
@@ -186,7 +219,7 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
 
             <div className="space-y-1">
               <Label className="text-xs">Competency Tag</Label>
-              <Input value={competencyTag} onChange={(e) => setCompetencyTag(e.target.value)} placeholder="e.g. Critical Thinking, Data Analysis" className="h-9 text-xs" />
+              <Input value={competencyTag} onChange={(e) => setCompetencyTag(e.target.value)} placeholder="e.g. Critical Thinking" className="h-9 text-xs" />
             </div>
 
             <div className="space-y-1">
@@ -194,21 +227,18 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
               <Textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Enter the question..." rows={3} />
             </div>
 
-            {/* Options (for MCQ, T/F, Matching) */}
+            {/* Options for MCQ, T/F, Matching */}
             {questionType !== "short_answer" && (
               <div className="space-y-2">
                 <Label className="text-xs">
-                  {questionType === "matching" ? "Matching Pairs (A→1 format)" : "Answer Options"}
+                  {questionType === "matching" ? "Matching Pairs (A→1 format)" : "Answer Options"} — check all correct answers
                 </Label>
                 {options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="correct"
-                      checked={correctAnswer === opt && opt !== ""}
-                      onChange={() => setCorrectAnswer(opt)}
-                      className="h-4 w-4"
-                      disabled={questionType === "true_false" && opt === ""}
+                    <Checkbox
+                      checked={correctAnswers.has(opt) && opt !== ""}
+                      onCheckedChange={() => { if (opt.trim()) toggleCorrect(opt); }}
+                      disabled={opt.trim() === ""}
                     />
                     <Input
                       value={opt}
@@ -229,14 +259,18 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
                     <Plus className="h-3 w-3" /> Add Option
                   </button>
                 )}
-                <p className="text-[10px] text-muted-foreground">Select the radio button next to the correct answer</p>
+                <p className="text-[10px] text-muted-foreground">
+                  ✅ Check the box(es) next to the correct answer(s). You can select multiple correct answers.
+                </p>
               </div>
             )}
 
             {questionType === "short_answer" && (
-              <div className="space-y-1">
-                <Label>Correct Answer</Label>
-                <Input value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)} placeholder="Expected answer" />
+              <div className="rounded-lg border border-muted bg-muted/10 p-4 space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">📝 Short Answer Question</p>
+                <p className="text-xs text-muted-foreground">
+                  Students will type or upload their answer. This question type is <strong>manually graded</strong> by the tutor — no auto-grading applies.
+                </p>
               </div>
             )}
 
@@ -253,7 +287,7 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
           </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
-            disabled={!questionText.trim() || !correctAnswer.trim() || isPending}
+            disabled={!isValid || isPending}
             onClick={handleSubmit}
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

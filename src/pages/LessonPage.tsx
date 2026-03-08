@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Video, FileText, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { ArrowLeft, Video, FileText, CheckCircle2, Circle, Loader2, ExternalLink } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ const renderContentWithLinks = (text: string) => {
   const parts = text.split(urlRegex);
   return parts.map((part, i) => {
     if (urlRegex.test(part)) {
-      // Reset lastIndex since we reuse the regex
       urlRegex.lastIndex = 0;
       return (
         <a
@@ -19,9 +18,9 @@ const renderContentWithLinks = (text: string) => {
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary underline break-all hover:text-primary/80"
+          className="text-primary underline break-all hover:text-primary/80 inline-flex items-center gap-1"
         >
-          {part}
+          {part} <ExternalLink className="h-3 w-3 inline shrink-0" />
         </a>
       );
     }
@@ -96,6 +95,9 @@ const LessonPage = () => {
   const nextLesson = siblings && currentIdx < siblings.length - 1 ? siblings[currentIdx + 1] : null;
 
   const youtubeMatch = lesson.content?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+  const isVideoUrl = lesson.content?.match(/\.(mp4|webm|ogg)(\?|$)/i) || lesson.content?.includes("supabase.co/storage");
+  const isPdfUrl = lesson.content?.match(/\.pdf(\?|$)/i);
+  const isExternalUrl = lesson.content?.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -128,6 +130,7 @@ const LessonPage = () => {
         </div>
       </div>
 
+      {/* YouTube embed */}
       {youtubeMatch && (
         <div className="rounded-xl overflow-hidden border shadow-card aspect-video">
           <iframe
@@ -140,7 +143,68 @@ const LessonPage = () => {
         </div>
       )}
 
-      {lesson.content && !youtubeMatch && (
+      {/* Video file embed */}
+      {isVideoUrl && !youtubeMatch && lesson.content && (
+        <div className="rounded-xl overflow-hidden border shadow-card">
+          <video
+            controls
+            className="w-full max-h-[70vh]"
+            src={lesson.content}
+          >
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      )}
+
+      {/* PDF embed */}
+      {isPdfUrl && lesson.content && (
+        <div className="rounded-xl overflow-hidden border shadow-card">
+          <iframe
+            src={lesson.content}
+            className="w-full h-[70vh]"
+            title={lesson.title}
+          />
+          <div className="p-3 border-t bg-secondary/20 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">PDF Document</span>
+            <a href={lesson.content} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:text-primary/80">
+              Open in new tab <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* External link (non-video, non-pdf) */}
+      {isExternalUrl && lesson.content && (
+        <div className="rounded-xl border bg-card p-6 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <ExternalLink className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">External Resource</p>
+              <a
+                href={lesson.content}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary underline break-all hover:text-primary/80"
+              >
+                {lesson.content}
+              </a>
+            </div>
+            <a
+              href={lesson.content}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 shrink-0"
+            >
+              Open
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Text content (not a URL) */}
+      {lesson.content && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isExternalUrl && (
         <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
           <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap break-words overflow-auto max-h-[70vh]">
             {renderContentWithLinks(lesson.content)}

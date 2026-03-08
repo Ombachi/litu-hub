@@ -5,7 +5,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  FileText, Brain, CheckCircle2, Loader2, Eye, Send, X,
+  FileText, Brain, CheckCircle2, Loader2, Eye, Send, X, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,61 @@ const FEEDBACK_TEMPLATES = [
   "Great effort, but some key points were missed. See comments below.",
 ];
 
+/* ─── In-app document viewer ─── */
+const InAppDocViewer = ({ fileUrl, onClose }: { fileUrl: string; onClose: () => void }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const ext = fileUrl.split(".").pop()?.toLowerCase()?.split("?")[0];
+
+  useState(() => {
+    supabase.storage.from("submissions").createSignedUrl(fileUrl, 3600).then(({ data }) => {
+      setUrl(data?.signedUrl || null);
+      setLoading(false);
+    });
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-5xl max-h-[95vh] rounded-xl border bg-card shadow-elevated flex flex-col animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="font-display font-bold text-sm">Document Viewer</h3>
+          <div className="flex items-center gap-2">
+            {url && (
+              <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                <ExternalLink className="h-3.5 w-3.5" /> Open in new tab
+              </a>
+            )}
+            <button onClick={onClose} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto p-2 min-h-[60vh]">
+          {loading && (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+          {!loading && !url && <p className="text-center text-destructive py-8">Could not load document</p>}
+          {url && ["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "") && (
+            <img src={url} alt="Submission" className="max-w-full mx-auto rounded-lg" />
+          )}
+          {url && ext === "pdf" && (
+            <iframe src={url} className="w-full h-[80vh] rounded-lg" title="PDF Viewer" />
+          )}
+          {url && !["jpg", "jpeg", "png", "gif", "webp", "pdf"].includes(ext || "") && (
+            <div className="text-center py-12">
+              <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+              <p className="mt-3 text-muted-foreground">Preview not available for .{ext} files</p>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-primary underline text-sm">
+                <ExternalLink className="h-3.5 w-3.5" /> Download file
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const GradingQueuePage = () => {
   const { user } = useAuth();
   const { isCoach, isAdmin } = useRole();
@@ -28,8 +83,8 @@ const GradingQueuePage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkScore, setBulkScore] = useState("");
   const [bulkFeedback, setBulkFeedback] = useState("");
+  const [viewingDoc, setViewingDoc] = useState<string | null>(null);
 
-  // Fetch all ungraded submissions — use separate profile query to avoid FK issues
   const { data: submissions, isLoading } = useQuery({
     queryKey: ["grading-queue"],
     enabled: isCoach || isAdmin,
@@ -42,7 +97,6 @@ const GradingQueuePage = () => {
         .order("submitted_at", { ascending: true });
       if (error) throw error;
 
-      // Fetch profiles for the student_ids
       if (data && data.length > 0) {
         const studentIds = [...new Set(data.map((s: any) => s.student_id))];
         const { data: profiles } = await supabase
@@ -123,45 +177,6 @@ const GradingQueuePage = () => {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  };
-
-  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
-
-  const getSignedUrl = async (fileUrl: string) => {
-    if (signedUrls[fileUrl]) return signedUrls[fileUrl];
-    const { data, error } = await supabase.storage.from("submissions").createSignedUrl(fileUrl, 3600);
-    if (data?.signedUrl) {
-      setSignedUrls(prev => ({ ...prev, [fileUrl]: data.signedUrl }));
-      return data.signedUrl;
-    }
-    return null;
-  };
-
-  const FilePreview = ({ fileUrl }: { fileUrl: string }) => {
-    const [url, setUrl] = useState<string | null>(signedUrls[fileUrl] || null);
-    const [loading, setLoading] = useState(!url);
-    const ext = fileUrl.split(".").pop()?.toLowerCase();
-
-    useState(() => {
-      if (!url) {
-        getSignedUrl(fileUrl).then(u => { setUrl(u); setLoading(false); });
-      }
-    });
-
-    if (loading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading preview...</div>;
-    if (!url) return <p className="text-sm text-destructive">Could not load file</p>;
-
-    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "")) {
-      return <img src={url} alt="Submission" className="max-w-full rounded-lg border" />;
-    }
-    if (ext === "pdf") {
-      return <iframe src={url} className="w-full h-[500px] rounded-lg border" title="PDF Preview" />;
-    }
-    return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary underline text-sm">
-        <FileText className="h-4 w-4" /> Download file ({ext})
-      </a>
-    );
   };
 
   if (!isCoach && !isAdmin) {
@@ -245,6 +260,14 @@ const GradingQueuePage = () => {
                         >
                           <Eye className="h-4 w-4" /> Review & Grade
                         </button>
+                        {sub.file_url && (
+                          <button
+                            onClick={() => setViewingDoc(sub.file_url)}
+                            className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-secondary transition-colors"
+                          >
+                            <FileText className="h-4 w-4" /> View Document
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -290,6 +313,9 @@ const GradingQueuePage = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Document Viewer Modal */}
+      {viewingDoc && <InAppDocViewer fileUrl={viewingDoc} onClose={() => setViewingDoc(null)} />}
+
       {/* Grading Modal */}
       {selectedSubmission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm" onClick={() => setSelectedSubmission(null)}>
@@ -306,7 +332,14 @@ const GradingQueuePage = () => {
               {selectedSubmission.file_url && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Attachment</p>
-                  <FilePreview fileUrl={selectedSubmission.file_url} />
+                  <button
+                    onClick={() => setViewingDoc(selectedSubmission.file_url)}
+                    className="flex items-center gap-2 rounded-lg border bg-secondary/30 px-4 py-3 text-sm hover:bg-secondary transition-colors w-full"
+                  >
+                    <FileText className="h-5 w-5 text-primary" />
+                    <span className="flex-1 text-left">View attached document in-app</span>
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  </button>
                 </div>
               )}
               {selectedSubmission.content && (
