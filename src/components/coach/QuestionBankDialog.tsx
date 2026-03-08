@@ -60,8 +60,8 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
           : ["", "", "", ""]
       );
       // Parse correct_answer — may be comma-separated for multiple correct
-      const ca = initial?.correct_answer || "";
-      const caSet = new Set(ca.split("|||").filter(Boolean));
+      const ca: string = initial?.correct_answer || "";
+      const caSet = new Set<string>(ca.split("|||").filter(Boolean));
       setCorrectAnswers(caSet);
       setExplanation(initial?.explanation || "");
       setPoints(initial?.points ?? 1);
