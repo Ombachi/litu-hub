@@ -65,19 +65,19 @@ const SchoolAdminsTab = () => {
     },
   });
 
-  // All profiles (for promoting to school_admin) — exclude platform admins
+  // All profiles (for promoting to school_admin) — exclude platform admins, students, and parents
   const { data: allProfiles } = useQuery({
     queryKey: ["all-profiles-for-promote"],
     queryFn: async () => {
-      // Get platform admin user IDs to exclude
-      const { data: adminRoles } = await supabase
+      // Get user IDs to exclude: platform admins, students, parents
+      const { data: excludeRoles } = await supabase
         .from("user_roles")
-        .select("user_id")
-        .in("role", ["admin", "platform_admin"] as any);
-      const adminIds = new Set(adminRoles?.map(r => r.user_id) || []);
+        .select("user_id, role")
+        .in("role", ["admin", "platform_admin", "student", "parent"] as any);
+      const excludeIds = new Set(excludeRoles?.map(r => r.user_id) || []);
       const { data, error } = await supabase.from("profiles").select("user_id, first_name, last_name, email").order("first_name");
       if (error) throw error;
-      return data?.filter(p => !adminIds.has(p.user_id)) || [];
+      return data?.filter(p => !excludeIds.has(p.user_id)) || [];
     },
   });
 

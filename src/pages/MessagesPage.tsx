@@ -22,18 +22,23 @@ const MessagesPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all users (profiles) that can be messaged
+  // Fetch all users (profiles) that can be messaged, with their roles
   const { data: allUsers } = useQuery({
     queryKey: ["message-users"],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: profilesData, error } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name, email, avatar_url")
         .neq("user_id", user!.id)
         .order("first_name");
       if (error) throw error;
-      return data;
+      // Fetch roles for all users to display alongside
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+      const roleMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
+      return profilesData?.map(p => ({ ...p, role: roleMap.get(p.user_id) || "student" })) || [];
     },
   });
 
@@ -158,7 +163,7 @@ const MessagesPage = () => {
   const selectedUser = selectedUserId ? getUserProfile(selectedUserId) : null;
 
   const filteredUsers = allUsers?.filter((u) =>
-    `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())
+    `${u.first_name} ${u.last_name} ${u.email} ${u.role}`.toLowerCase().includes(userSearch.toLowerCase())
   );
 
   const getAvatarUrl = (avatarPath: string | null) => {
@@ -213,7 +218,10 @@ const MessagesPage = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{u.first_name} {u.last_name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{u.first_name} {u.last_name}</p>
+                    <Badge variant="secondary" className="text-[10px] capitalize shrink-0">{(u as any).role?.replace("_", " ")}</Badge>
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 </div>
               </button>
