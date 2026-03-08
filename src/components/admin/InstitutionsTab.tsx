@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 const InstitutionsTab = () => {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ open: false, name: "", slug: "" });
+  const [form, setForm] = useState({ open: false, name: "", slug: "", primary_color: "hsl(152, 45%, 22%)" });
   const [selectedInst, setSelectedInst] = useState<string | null>(null);
   const [assignUserId, setAssignUserId] = useState("");
   const [assignCourseId, setAssignCourseId] = useState("");
@@ -68,13 +68,13 @@ const InstitutionsTab = () => {
   });
 
   const createInstitution = useMutation({
-    mutationFn: async (params: { name: string; slug: string }) => {
-      const { error } = await supabase.from("institutions").insert(params);
+    mutationFn: async (params: { name: string; slug: string; primary_color: string }) => {
+      const { error } = await supabase.from("institutions").insert(params as any);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["institutions"] });
-      setForm({ open: false, name: "", slug: "" });
+      setForm({ open: false, name: "", slug: "", primary_color: "hsl(152, 45%, 22%)" });
       toast.success("Institution created");
     },
     onError: (e: any) => toast.error(e.message),
@@ -155,7 +155,7 @@ const InstitutionsTab = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold">Institutions</h3>
-        <button onClick={() => setForm({ open: true, name: "", slug: "" })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+        <button onClick={() => setForm({ open: true, name: "", slug: "", primary_color: "hsl(152, 45%, 22%)" })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
           <Plus className="h-4 w-4" /> New Institution
         </button>
       </div>
@@ -166,12 +166,16 @@ const InstitutionsTab = () => {
             <h4 className="font-semibold">Create Institution</h4>
             <button onClick={() => setForm({ ...form, open: false })} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") })} placeholder="Institution name" />
             <Input value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} placeholder="slug (e.g. university-of-nairobi)" />
+            <div className="flex items-center gap-2">
+              <Input type="color" value={form.primary_color.startsWith("hsl") ? "#276749" : form.primary_color} onChange={e => setForm({ ...form, primary_color: e.target.value })} className="w-12 h-9 p-1 cursor-pointer" />
+              <span className="text-xs text-muted-foreground">Brand color</span>
+            </div>
           </div>
           <button
-            onClick={() => createInstitution.mutate({ name: form.name, slug: form.slug })}
+            onClick={() => createInstitution.mutate({ name: form.name, slug: form.slug, primary_color: form.primary_color })}
             disabled={!form.name.trim() || !form.slug.trim() || createInstitution.isPending}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
