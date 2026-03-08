@@ -48,12 +48,12 @@ const CoachStudio = () => {
         .select("course_id")
         .eq("tutor_id", user!.id);
       if (error) throw error;
-      return new Set(data.map(d => d.course_id));
+      return data?.map(d => d.course_id) || [];
     },
   });
 
   const courses = isTutorRole
-    ? allCourses?.filter(c => tutorCourseIds?.has(c.id))
+    ? allCourses?.filter(c => (tutorCourseIds ?? []).includes(c.id))
     : allCourses;
   const isLoading = loadingAllCourses || (isTutorRole && loadingTutorCourses);
 
