@@ -115,6 +115,43 @@ const AdminPanel = () => {
   const [userSearch, setUserSearch] = useState("");
   const [editingRole, setEditingRole] = useState<{ userId: string; role: string } | null>(null);
   const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "" });
+  const [instFilter, setInstFilter] = useState<string>("all");
+  const [addUserToInstId, setAddUserToInstId] = useState("");
+
+  // School admin: add user to institution
+  const addUserToInstitution = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.from("user_institutions").insert({
+        user_id: userId,
+        institution_id: myInstitution!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inst-members-admin"] });
+      qc.invalidateQueries({ queryKey: ["inst-members"] });
+      setAddUserToInstId("");
+      toast.success("User added to institution");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const removeUserFromInstitution = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("user_institutions")
+        .delete()
+        .eq("user_id", userId)
+        .eq("institution_id", myInstitution!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inst-members-admin"] });
+      qc.invalidateQueries({ queryKey: ["inst-members"] });
+      toast.success("User removed from institution");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const updateRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
