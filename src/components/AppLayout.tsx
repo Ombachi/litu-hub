@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, FileText, Brain, MessageSquare, GraduationCap,
-  TrendingUp, Calendar, Menu, X, Search, LogOut, ClipboardCheck, User, Settings, Users,
+  TrendingUp, Calendar, Menu, X, Search, LogOut, ClipboardCheck, User, Settings, Users, Mail,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
@@ -17,6 +17,7 @@ const allNavItems = [
   { to: "/quizzes", icon: Brain, label: "Quizzes", roles: null },
   { to: "/grades", icon: TrendingUp, label: "Grades", roles: null },
   { to: "/calendar", icon: Calendar, label: "Calendar", roles: null },
+  { to: "/messages", icon: Mail, label: "Messages", roles: null },
   { to: "/discussions", icon: MessageSquare, label: "Discussions", roles: null },
   { to: "/parent", icon: Users, label: "Parent Portal", roles: ["parent"] as string[] },
   { to: "/grading-queue", icon: ClipboardCheck, label: "Grading Queue", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta"] as string[] },

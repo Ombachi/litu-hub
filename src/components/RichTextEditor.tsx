@@ -29,6 +29,10 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
       StarterKit.configure({
         codeBlock: { HTMLAttributes: { class: "rounded-lg bg-muted p-3 font-mono text-sm" } },
         heading: { levels: [2, 3] },
+        bulletList: { HTMLAttributes: { class: "list-disc pl-5 space-y-1" } },
+        orderedList: { HTMLAttributes: { class: "list-decimal pl-5 space-y-1" } },
+        blockquote: { HTMLAttributes: { class: "border-l-4 border-primary/50 pl-4 italic text-muted-foreground" } },
+        listItem: { HTMLAttributes: { class: "pl-1" } },
       }),
       Underline,
       Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline cursor-pointer" } }),
@@ -36,7 +40,7 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
     content,
     editorProps: {
       attributes: {
-        class: `prose prose-sm max-w-none focus:outline-none text-foreground`,
+        class: `prose prose-sm max-w-none focus:outline-none text-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground`,
         style: `min-height: ${minHeight}`,
       },
     },
@@ -107,3 +111,4 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
 };
 
 export default RichTextEditor;
+

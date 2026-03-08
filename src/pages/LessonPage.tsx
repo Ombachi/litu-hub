@@ -82,10 +82,14 @@ const LessonPage = () => {
   const content = ensureScheme(contentRaw) !== contentRaw ? ensureScheme(contentRaw) : contentRaw;
 
   const youtubeMatch = content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-  const isVideoUrl = content.match(/\.(mp4|webm|ogg)(\?|$)/i) || content.includes("supabase.co/storage");
-  const isPdfUrl = content.match(/\.pdf(\?|$)/i);
-  const isHtml = content.includes("<") && (content.includes("<p") || content.includes("<h") || content.includes("<ul") || content.includes("<ol") || content.includes("<strong"));
-  const isExternalUrl = content.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isHtml;
+  
+  // Detect file extension from URL (handle signed URLs with query params)
+  const urlExt = content.match(/\.(\w+)(\?|$)/)?.[1]?.toLowerCase();
+  const isDocUrl = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt"].includes(urlExt || "");
+  const isVideoUrl = ["mp4", "webm", "ogg", "mov", "avi"].includes(urlExt || "");
+  const isPdfUrl = urlExt === "pdf";
+  const isHtml = content.includes("<") && (content.includes("<p") || content.includes("<h") || content.includes("<ul") || content.includes("<ol") || content.includes("<strong") || content.includes("<li") || content.includes("<blockquote"));
+  const isExternalUrl = content.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isDocUrl && !isHtml;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -134,9 +138,38 @@ const LessonPage = () => {
       {/* Video file embed */}
       {isVideoUrl && !youtubeMatch && content && (
         <div className="rounded-xl overflow-hidden border shadow-card">
-          <video controls className="w-full max-h-[70vh]" src={content}>
+          <video 
+            controls 
+            playsInline
+            preload="auto"
+            className="w-full max-h-[70vh] bg-black"
+          >
+            <source src={content} type={`video/${urlExt === "mov" ? "quicktime" : urlExt}`} />
             Your browser does not support the video tag.
           </video>
+          <div className="p-3 border-t bg-secondary/20 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Video</span>
+            <a href={content} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:text-primary/80">
+              Open in new tab <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Document embed (DOCX, PPT, etc.) via Google Docs Viewer */}
+      {isDocUrl && !isPdfUrl && content && (
+        <div className="rounded-xl overflow-hidden border shadow-card">
+          <iframe
+            src={`https://docs.google.com/gview?url=${encodeURIComponent(content)}&embedded=true`}
+            className="w-full h-[70vh]"
+            title={lesson.title}
+          />
+          <div className="p-3 border-t bg-secondary/20 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Document ({urlExt?.toUpperCase()})</span>
+            <a href={content} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:text-primary/80">
+              Open in new tab <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
       )}
 
@@ -188,7 +221,7 @@ const LessonPage = () => {
       )}
 
       {/* Plain text (not a URL, not HTML) */}
-      {content && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isExternalUrl && !isHtml && (
+      {content && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isDocUrl && !isExternalUrl && !isHtml && (
         <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
           <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap break-words overflow-auto max-h-[70vh]">
             {content}

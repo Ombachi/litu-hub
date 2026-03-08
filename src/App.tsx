@@ -23,6 +23,7 @@ import GradingQueuePage from "./pages/GradingQueuePage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminPanel from "./pages/AdminPanel";
 import ParentPortal from "./pages/ParentPortal";
+import MessagesPage from "./pages/MessagesPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +55,7 @@ const App = () => (
                         <Route path="/grades" element={<GradesPage />} />
                         <Route path="/calendar" element={<CalendarPage />} />
                         <Route path="/lesson/:lessonId" element={<LessonPage />} />
+                        <Route path="/messages" element={<MessagesPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route
                           path="/parent"
