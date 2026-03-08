@@ -254,6 +254,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          institution_id: string | null
           term_id: string | null
           title: string
           updated_at: string
@@ -265,6 +266,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          institution_id?: string | null
           term_id?: string | null
           title: string
           updated_at?: string
@@ -276,11 +278,19 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          institution_id?: string | null
           term_id?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "courses_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "courses_term_id_fkey"
             columns: ["term_id"]
@@ -475,6 +485,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      institutions: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          slug?: string
+        }
+        Relationships: []
       }
       lesson_completions: {
         Row: {
@@ -869,6 +903,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_institutions: {
+        Row: {
+          created_at: string
+          id: string
+          institution_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          institution_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          institution_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_institutions_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -917,6 +980,10 @@ export type Database = {
         Returns: boolean
       }
       is_tutor_or_ta: {
+        Args: { _course_id: string; _user_id: string }
+        Returns: boolean
+      }
+      school_admin_can_access_course: {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
       }
