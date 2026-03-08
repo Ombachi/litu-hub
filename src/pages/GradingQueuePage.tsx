@@ -187,8 +187,8 @@ const GradingQueuePage = () => {
 
   // SAQ responses pending manual review
   const { data: saqResponses } = useQuery({
-    queryKey: ["grading-saq"],
-    enabled: isCoach || isAdmin,
+    queryKey: ["grading-saq", isTutorRole ? tutorCourseIds : "all"],
+    enabled: (isCoach || isAdmin) && (!isTutorRole || !!tutorCourseIds),
     queryFn: async () => {
       // Get all quiz_responses that are SAQ (points_earned = 0, is_correct = false) 
       // and their question is short_answer type
