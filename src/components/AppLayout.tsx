@@ -12,13 +12,13 @@ import NotificationBell from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const allNavItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "tutor", "ta"] as string[] },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "ta"] as string[] },
   { to: "/assignments", icon: FileText, label: "Assignments", roles: ["student", "ta"] as string[] },
   { to: "/quizzes", icon: Brain, label: "Quizzes", roles: ["student", "ta"] as string[] },
   { to: "/grades", icon: TrendingUp, label: "Grades", roles: ["student", "ta"] as string[] },
   { to: "/calendar", icon: Calendar, label: "Calendar", roles: ["student", "ta"] as string[] },
-  { to: "/messages", icon: Mail, label: "Messages", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta", "student"] as string[] },
-  { to: "/discussions", icon: MessageSquare, label: "Discussions", roles: ["student", "tutor", "ta"] as string[] },
+  { to: "/messages", icon: Mail, label: "Messages", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as string[] },
+  { to: "/discussions", icon: MessageSquare, label: "Discussions", roles: ["student", "ta"] as string[] },
   { to: "/analytics", icon: TrendingUp, label: "Analytics", roles: ["tutor", "ta"] as string[] },
   { to: "/parent", icon: Users, label: "Parent Portal", roles: ["parent"] as string[] },
   { to: "/grading-queue", icon: ClipboardCheck, label: "Grading Queue", roles: ["tutor", "ta"] as string[] },
