@@ -1,0 +1,1 @@
+ALTER TABLE public.institutions ADD COLUMN IF NOT EXISTS primary_color text DEFAULT 'hsl(152, 45%, 22%)';
