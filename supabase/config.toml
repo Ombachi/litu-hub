@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.ai-grading-feedback]
 verify_jwt = false
+
+[functions.ai-content-generate]
+verify_jwt = false
