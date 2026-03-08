@@ -121,9 +121,9 @@ const PlatformAdminDashboard = () => {
         <h2 className="font-display text-xl font-bold">Quick Actions</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { label: "Manage Institutions", desc: "Create and configure institutions", icon: Building2, to: "/admin" },
-            { label: "School Admins", desc: "Assign school administrators", icon: Shield, to: "/admin" },
-            { label: "User Management", desc: "View and manage all users", icon: Users, to: "/admin" },
+            { label: "Manage Institutions", desc: "Create and configure institutions", icon: Building2, to: "/admin?tab=institutions" },
+            { label: "School Admins", desc: "Assign school administrators", icon: Shield, to: "/admin?tab=school-admins" },
+            { label: "User Management", desc: "View and manage all users", icon: Users, to: "/admin?tab=users" },
           ].map((action) => (
             <Link
               key={action.label}
@@ -285,9 +285,9 @@ const SchoolAdminDashboardPage = () => {
         <h2 className="font-display text-xl font-bold">Quick Actions</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { label: "Manage Enrollment", desc: "Enroll or remove students", icon: UserPlus, to: "/admin" },
-            { label: "Course Management", desc: "Create and configure courses", icon: BookOpen, to: "/admin" },
-            { label: "User Management", desc: "Add or manage team members", icon: Users, to: "/admin" },
+            { label: "Manage Enrollment", desc: "Enroll or remove students", icon: UserPlus, to: "/admin?tab=enrollment" },
+            { label: "Course Management", desc: "Create and configure courses", icon: BookOpen, to: "/admin?tab=courses" },
+            { label: "User Management", desc: "Add or manage team members", icon: Users, to: "/admin?tab=users" },
           ].map((action) => (
             <Link
               key={action.label}

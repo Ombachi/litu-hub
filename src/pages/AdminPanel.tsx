@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -272,7 +273,10 @@ const AdminPanel = () => {
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ];
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
   const defaultTab = isPlatformAdmin ? "overview" : "dashboard";
+  const activeTab = tabParam && tabs.some(t => t.value === tabParam) ? tabParam : defaultTab;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -287,7 +291,7 @@ const AdminPanel = () => {
         </p>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full">
         <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
           {tabs.map((tab) => (
             <TabsTrigger
