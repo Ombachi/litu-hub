@@ -1,6 +1,10 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAssignments, useQuizzes } from "@/hooks/useData";
+import { useAuth } from "@/hooks/useAuth";
+import { useRole } from "@/hooks/useRole";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft, ChevronRight, FileText, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,30 +23,51 @@ interface CalendarEvent {
 const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  // Fetch ALL assignments and quizzes (no courseId filter) to capture everything
   const { data: assignments } = useAssignments();
   const { data: quizzes } = useQuizzes();
+  const { user } = useAuth();
+  const { role } = useRole();
   const navigate = useNavigate();
+
+  const isTutorRole = role === "tutor" || role === "ta";
+
+  // Get tutor's assigned course IDs
+  const { data: tutorCourseIds } = useQuery({
+    queryKey: ["tutor-course-ids", user?.id],
+    enabled: !!user && isTutorRole,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("course_tutors")
+        .select("course_id")
+        .eq("tutor_id", user!.id);
+      if (error) throw error;
+      return data?.map(d => d.course_id) || [];
+    },
+  });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   const events = useMemo<CalendarEvent[]>(() => {
     const items: CalendarEvent[] = [];
+    const courseFilter = isTutorRole && tutorCourseIds ? new Set(tutorCourseIds) : null;
+
     assignments?.forEach((a: any) => {
+      if (courseFilter && !courseFilter.has(a.course_id)) return;
       if (a.due_date) items.push({ id: a.id, title: a.title, date: new Date(a.due_date), type: "assignment", courseCode: a.courses?.code, courseId: a.course_id });
     });
     quizzes?.forEach((q: any) => {
+      if (courseFilter && !courseFilter.has(q.course_id)) return;
       if (q.due_date) items.push({ id: q.id, title: q.title, date: new Date(q.due_date), type: "quiz", courseCode: q.courses?.code, courseId: q.course_id });
     });
-    // Also include quizzes/assignments with created_at if no due_date (so they appear somewhere)
     quizzes?.forEach((q: any) => {
+      if (courseFilter && !courseFilter.has(q.course_id)) return;
       if (!q.due_date && q.created_at) {
         items.push({ id: q.id + "-created", title: q.title + " (no due date)", date: new Date(q.created_at), type: "quiz", courseCode: q.courses?.code, courseId: q.course_id });
       }
     });
     return items;
-  }, [assignments, quizzes]);
+  }, [assignments, quizzes, isTutorRole, tutorCourseIds]);
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -60,6 +85,11 @@ const CalendarPage = () => {
     : [];
 
   const handleEventClick = (event: CalendarEvent) => {
+    if (isTutorRole) {
+      // Tutors go to Coach Studio for the course instead of answering
+      navigate(`/coach-studio?course=${event.courseId}`);
+      return;
+    }
     if (event.type === "assignment") {
       navigate(`/assignment/${event.id}`);
     } else {
@@ -72,7 +102,9 @@ const CalendarPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="font-display text-3xl font-bold">Calendar</h1>
-        <p className="mt-1 text-muted-foreground">Track all due dates and deadlines</p>
+        <p className="mt-1 text-muted-foreground">
+          {isTutorRole ? "Due dates for your assigned courses" : "Track all due dates and deadlines"}
+        </p>
       </div>
 
       <div className="rounded-xl border bg-card shadow-card overflow-hidden">
@@ -156,10 +188,13 @@ const CalendarPage = () => {
                   ) : (
                     <Brain className="h-5 w-5 text-chart-2" />
                   )}
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium">{e.title}</p>
                     <p className="text-xs text-muted-foreground">{e.courseCode} • {e.type}</p>
                   </div>
+                  {isTutorRole && (
+                    <span className="text-xs text-primary font-medium">Manage →</span>
+                  )}
                 </button>
               ))}
             </div>
