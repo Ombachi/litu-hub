@@ -13,6 +13,7 @@ export function useRole() {
     role: currentRole,
     isLoading,
     isAdmin: ADMIN_ROLES.includes(currentRole),
+    isSchoolAdmin: currentRole === "school_admin",
     isCoach: COACH_ROLES.includes(currentRole),
     isStudent: currentRole === "student",
     isParent: currentRole === "parent",

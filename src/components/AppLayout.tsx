@@ -23,7 +23,7 @@ const allNavItems = [
   { to: "/parent", icon: Users, label: "Parent Portal", roles: ["parent"] as string[] },
   { to: "/grading-queue", icon: ClipboardCheck, label: "Grading Queue", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta"] as string[] },
   { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta"] as string[] },
-  { to: "/admin", icon: Settings, label: "Admin Panel", roles: ["admin", "platform_admin"] as string[] },
+  { to: "/admin", icon: Settings, label: "Admin Panel", roles: ["admin", "platform_admin", "school_admin"] as string[] },
 ];
 
 interface AppLayoutProps { children: React.ReactNode; }
