@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, FileText, Brain, MessageSquare, GraduationCap,
-  TrendingUp, Calendar, Menu, X, Search, LogOut, ClipboardCheck, User,
+  TrendingUp, Calendar, Menu, X, Search, LogOut, ClipboardCheck, User, Settings,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
@@ -19,7 +19,7 @@ const allNavItems = [
   { to: "/discussions", icon: MessageSquare, label: "Discussions", roles: null },
   { to: "/grading-queue", icon: ClipboardCheck, label: "Grading Queue", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta"] as string[] },
   { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta"] as string[] },
-  { to: "/admin", icon: LayoutDashboard, label: "Admin Panel", roles: ["admin", "platform_admin"] as string[] },
+  { to: "/admin", icon: Settings, label: "Admin Panel", roles: ["admin", "platform_admin"] as string[] },
 ];
 
 interface AppLayoutProps { children: React.ReactNode; }
