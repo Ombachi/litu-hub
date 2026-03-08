@@ -64,6 +64,7 @@ export function useEnroll() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["enrollments"] });
+      qc.invalidateQueries({ queryKey: ["courses"] });
     },
   });
 }
