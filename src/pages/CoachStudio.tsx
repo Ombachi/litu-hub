@@ -373,15 +373,53 @@ const CoachStudio = () => {
                 </div>
               ) : (
                 quizzes.map((q) => (
-                  <div key={q.id} className="rounded-xl border bg-card p-5 shadow-card flex items-center justify-between">
-                    <div>
-                      <h4 className="font-display font-semibold">{q.title}</h4>
-                      <p className="text-sm text-muted-foreground">{q.time_limit} min • {q.max_attempts} attempts max</p>
+                  <div key={q.id} className="rounded-xl border bg-card p-5 shadow-card">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-display font-semibold">{q.title}</h4>
+                        <p className="text-sm text-muted-foreground">{q.time_limit} min • {q.max_attempts} attempts max</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { setSelectedQuizId(q.id); }}
+                          className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors"
+                        >
+                          <HelpCircle className="h-3.5 w-3.5" /> Manage Questions
+                        </button>
+                        <button onClick={() => setQuizDialog({ open: true, editing: q })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors"><Edit className="h-4 w-4" /></button>
+                        <button onClick={() => setDeleteDialog({ open: true, type: "quiz", id: q.id, name: q.title })} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"><Trash2 className="h-4 w-4" /></button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setQuizDialog({ open: true, editing: q })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors"><Edit className="h-4 w-4" /></button>
-                      <button onClick={() => setDeleteDialog({ open: true, type: "quiz", id: q.id, name: q.title })} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"><Trash2 className="h-4 w-4" /></button>
-                    </div>
+                    {/* Inline questions for selected quiz */}
+                    {activeQuizId === q.id && questions && (
+                      <div className="mt-4 border-t pt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">{questions.length} question(s)</span>
+                          <button
+                            onClick={() => setQuestionDialog({ open: true, editing: null })}
+                            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                          >
+                            <Plus className="h-3 w-3" /> Add Question
+                          </button>
+                        </div>
+                        {questions.map((qq: any, i: number) => (
+                          <div key={qq.id} className="rounded-lg border bg-secondary/20 p-3 flex items-start gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-[10px] font-bold shrink-0">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm">{qq.question_text}</p>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                <Badge variant="secondary" className="text-[10px] capitalize">{qq.question_type?.replace("_", " ")}</Badge>
+                                <Badge variant="outline" className="text-[10px]">{qq.points} pts</Badge>
+                                {qq.correct_answer && <Badge variant="outline" className="text-[10px] text-success">✓ {qq.correct_answer}</Badge>}
+                              </div>
+                            </div>
+                            <button onClick={() => setQuestionDialog({ open: true, editing: qq })} className="p-1 hover:bg-secondary rounded"><Edit className="h-3 w-3" /></button>
+                            <button onClick={() => setDeleteDialog({ open: true, type: "question", id: qq.id, name: qq.question_text.slice(0, 30) })} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        ))}
+                        {questions.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No questions yet. Click "Add Question" above.</p>}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
