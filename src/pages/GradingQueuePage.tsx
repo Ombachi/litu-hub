@@ -153,10 +153,10 @@ const GradingQueuePage = () => {
     },
   });
 
-  // Quiz attempts (completed)
+  // Quiz attempts (completed) - filtered for tutors
   const { data: quizAttempts } = useQuery({
-    queryKey: ["grading-quiz-attempts"],
-    enabled: isCoach || isAdmin,
+    queryKey: ["grading-quiz-attempts", isTutorRole ? tutorCourseIds : "all"],
+    enabled: (isCoach || isAdmin) && (!isTutorRole || !!tutorCourseIds),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quiz_attempts")
@@ -166,16 +166,22 @@ const GradingQueuePage = () => {
         .limit(50);
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const studentIds = [...new Set(data.map((a: any) => a.student_id))];
+      let filtered = data || [];
+      if (isTutorRole && tutorCourseIds) {
+        const courseIdSet = new Set(tutorCourseIds);
+        filtered = filtered.filter((a: any) => courseIdSet.has(a.quizzes?.course_id));
+      }
+
+      if (filtered.length > 0) {
+        const studentIds = [...new Set(filtered.map((a: any) => a.student_id))];
         const { data: profiles } = await supabase
           .from("profiles")
           .select("user_id, first_name, last_name")
           .in("user_id", studentIds);
         const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
-        return data.map((a: any) => ({ ...a, profile: profileMap.get(a.student_id) || null }));
+        return filtered.map((a: any) => ({ ...a, profile: profileMap.get(a.student_id) || null }));
       }
-      return data || [];
+      return filtered;
     },
   });
 
