@@ -10,22 +10,27 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
+import { useMyInstitution } from "@/hooks/useInstitution";
 import { useCourses } from "@/hooks/useData";
 import TermsTab from "@/components/admin/TermsTab";
 import EnrollmentTab from "@/components/admin/EnrollmentTab";
 import InstitutionsTab from "@/components/admin/InstitutionsTab";
 import PlatformDashboard from "@/components/admin/PlatformDashboard";
+import SchoolAdminsTab from "@/components/admin/SchoolAdminsTab";
+import SchoolAdminDashboard from "@/components/admin/SchoolAdminDashboard";
 
 const ROLES = ["admin", "platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as const;
 
 const AdminPanel = () => {
   const { isAdmin, role } = useRole();
   const isPlatformAdmin = role === "platform_admin" || role === "admin";
+  const isSchoolAdmin = role === "school_admin";
+  const { data: myInstitution } = useMyInstitution();
   const qc = useQueryClient();
 
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
     queryKey: ["admin-profiles"],
-    enabled: isAdmin,
+    enabled: isAdmin || isSchoolAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       if (error) throw error;
@@ -35,7 +40,7 @@ const AdminPanel = () => {
 
   const { data: allRoles } = useQuery({
     queryKey: ["admin-roles"],
-    enabled: isAdmin,
+    enabled: isAdmin || isSchoolAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.from("user_roles").select("*");
       if (error) throw error;
@@ -45,9 +50,38 @@ const AdminPanel = () => {
 
   const { data: courses } = useCourses();
 
+  // For school admin: get institution-scoped courses
+  const { data: institutionCourses } = useQuery({
+    queryKey: ["inst-courses-admin", myInstitution?.id],
+    enabled: isSchoolAdmin && !!myInstitution?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*, terms(name)")
+        .eq("institution_id", myInstitution!.id)
+        .order("code");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Institution members for school admin
+  const { data: institutionMembers } = useQuery({
+    queryKey: ["inst-members-admin", myInstitution?.id],
+    enabled: isSchoolAdmin && !!myInstitution?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_institutions")
+        .select("user_id")
+        .eq("institution_id", myInstitution!.id);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: auditLogs, isLoading: loadingLogs } = useQuery({
     queryKey: ["audit-logs"],
-    enabled: isAdmin,
+    enabled: isAdmin || isSchoolAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
@@ -82,11 +116,17 @@ const AdminPanel = () => {
   const createCourse = useMutation({
     mutationFn: async (params: { title: string; code: string; description: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("courses").insert({ title: params.title, code: params.code, description: params.description, created_by: user?.id });
+      const insertData: any = { title: params.title, code: params.code, description: params.description, created_by: user?.id };
+      // School admin auto-assigns institution
+      if (isSchoolAdmin && myInstitution?.id) {
+        insertData.institution_id = myInstitution.id;
+      }
+      const { error } = await supabase.from("courses").insert(insertData);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["courses"] });
+      qc.invalidateQueries({ queryKey: ["inst-courses-admin"] });
       setCourseForm({ open: false, title: "", code: "", description: "" });
       toast.success("Course created");
     },
@@ -100,38 +140,70 @@ const AdminPanel = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["courses"] });
+      qc.invalidateQueries({ queryKey: ["inst-courses-admin"] });
       toast.success("Course deleted");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSchoolAdmin) {
     return <div className="py-20 text-center text-muted-foreground">Admin access required.</div>;
   }
 
-  const filteredProfiles = profiles?.filter((p) =>
+  // For school admin, filter profiles to institution members
+  const institutionMemberIds = new Set(institutionMembers?.map(m => m.user_id) || []);
+  const visibleProfiles = isSchoolAdmin
+    ? profiles?.filter(p => institutionMemberIds.has(p.user_id))
+    : profiles;
+
+  const filteredProfiles = visibleProfiles?.filter((p) =>
     `${p.first_name} ${p.last_name} ${p.email}`.toLowerCase().includes(userSearch.toLowerCase())
   );
   const getUserRole = (userId: string) => allRoles?.find((r) => r.user_id === userId)?.role || "student";
 
-  const tabs = [
-    ...(isPlatformAdmin ? [{ value: "overview", icon: BarChart3, label: "Overview" }] : []),
-    { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
-    ...(isPlatformAdmin ? [{ value: "institutions", icon: Building2, label: "Institutions" }] : []),
-    { value: "terms", icon: Calendar, label: "Terms" },
-    { value: "courses", icon: BookOpen, label: `Courses (${courses?.length || 0})` },
-    { value: "enrollment", icon: UserPlus, label: "Enrollment" },
-    { value: "audit", icon: ClipboardList, label: "Audit Logs" },
-  ];
+  // Display courses: institution-scoped for school admin, all for platform admin
+  const displayCourses = isSchoolAdmin ? institutionCourses : courses;
+
+  // Roles school admins can assign (limited)
+  const allowedRoles = isSchoolAdmin
+    ? (["tutor", "ta", "student", "parent"] as const)
+    : ROLES;
+
+  // Build tabs based on role
+  const tabs = isPlatformAdmin
+    ? [
+        { value: "overview", icon: BarChart3, label: "Overview" },
+        { value: "institutions", icon: Building2, label: "Institutions" },
+        { value: "school-admins", icon: Shield, label: "School Admins" },
+        { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
+        { value: "audit", icon: ClipboardList, label: "Audit Logs" },
+      ]
+    : [
+        // School admin tabs
+        { value: "dashboard", icon: BarChart3, label: "Dashboard" },
+        { value: "courses", icon: BookOpen, label: `Courses (${displayCourses?.length || 0})` },
+        { value: "enrollment", icon: UserPlus, label: "Enrollment" },
+        { value: "terms", icon: Calendar, label: "Terms" },
+        { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
+        { value: "audit", icon: ClipboardList, label: "Audit Logs" },
+      ];
+
+  const defaultTab = isPlatformAdmin ? "overview" : "dashboard";
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="font-display text-3xl font-bold">Admin Panel</h1>
-        <p className="mt-1 text-muted-foreground">Manage users, roles, institutions, terms, courses, and enrollments</p>
+        <h1 className="font-display text-3xl font-bold">
+          {isPlatformAdmin ? "Platform Admin" : "Admin Panel"}
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          {isPlatformAdmin
+            ? "Manage institutions, school admins, and platform-wide settings"
+            : `Manage ${myInstitution?.name || "your institution"}'s courses, users, and enrollment`}
+        </p>
       </div>
 
-      <Tabs defaultValue={isPlatformAdmin ? "overview" : "users"} className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
           {tabs.map((tab) => (
             <TabsTrigger
@@ -145,14 +217,35 @@ const AdminPanel = () => {
           ))}
         </TabsList>
 
-        {/* Platform Overview */}
+        {/* Platform Admin: Overview */}
         {isPlatformAdmin && (
           <TabsContent value="overview" className="mt-6">
             <PlatformDashboard />
           </TabsContent>
         )}
 
-        {/* Users Tab */}
+        {/* Platform Admin: Institutions */}
+        {isPlatformAdmin && (
+          <TabsContent value="institutions" className="mt-6">
+            <InstitutionsTab />
+          </TabsContent>
+        )}
+
+        {/* Platform Admin: School Admins */}
+        {isPlatformAdmin && (
+          <TabsContent value="school-admins" className="mt-6">
+            <SchoolAdminsTab />
+          </TabsContent>
+        )}
+
+        {/* School Admin: Dashboard */}
+        {isSchoolAdmin && (
+          <TabsContent value="dashboard" className="mt-6">
+            <SchoolAdminDashboard />
+          </TabsContent>
+        )}
+
+        {/* Users Tab (both roles) */}
         <TabsContent value="users" className="mt-6 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -193,7 +286,7 @@ const AdminPanel = () => {
                               <Select value={editingRole.role} onValueChange={(v) => setEditingRole({ ...editingRole, role: v })}>
                                 <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  {ROLES.map((r) => (
+                                  {allowedRoles.map((r) => (
                                     <SelectItem key={r} value={r} className="text-xs capitalize">{r.replace("_", " ")}</SelectItem>
                                   ))}
                                 </SelectContent>
@@ -226,72 +319,71 @@ const AdminPanel = () => {
           )}
         </TabsContent>
 
-        {/* Institutions Tab */}
-        {isPlatformAdmin && (
-          <TabsContent value="institutions" className="mt-6">
-            <InstitutionsTab />
+        {/* Terms Tab (school admin) */}
+        {isSchoolAdmin && (
+          <TabsContent value="terms" className="mt-6">
+            <TermsTab />
           </TabsContent>
         )}
 
-        {/* Terms Tab */}
-        <TabsContent value="terms" className="mt-6">
-          <TermsTab />
-        </TabsContent>
-
-        {/* Courses Tab */}
-        <TabsContent value="courses" className="mt-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="font-semibold">All Courses</h3>
-            <button onClick={() => setCourseForm({ open: true, title: "", code: "", description: "" })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-              <Plus className="h-4 w-4" /> Create Course
-            </button>
-          </div>
-          {courseForm.open && (
-            <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">New Course</h4>
-                <button onClick={() => setCourseForm({ ...courseForm, open: false })} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input value={courseForm.code} onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })} placeholder="e.g. BUS101" />
-                <Input value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} placeholder="e.g. Introduction to Business" />
-              </div>
-              <Input value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} placeholder="Course description..." />
-              <button
-                onClick={() => createCourse.mutate({ title: courseForm.title, code: courseForm.code, description: courseForm.description })}
-                disabled={!courseForm.title.trim() || !courseForm.code.trim() || createCourse.isPending}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {createCourse.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Create Course
+        {/* Courses Tab (school admin) */}
+        {isSchoolAdmin && (
+          <TabsContent value="courses" className="mt-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">{myInstitution?.name} Courses</h3>
+              <button onClick={() => setCourseForm({ open: true, title: "", code: "", description: "" })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                <Plus className="h-4 w-4" /> Create Course
               </button>
             </div>
-          )}
-          {!courses?.length ? (
-            <p className="text-center text-muted-foreground py-12">No courses yet.</p>
-          ) : (
-            courses.map((c) => (
-              <div key={c.id} className="rounded-xl border bg-card p-5 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 rounded-full" style={{ background: c.color || "hsl(var(--primary))" }} />
-                  <div>
-                    <h4 className="font-semibold">{c.code} — {c.title}</h4>
-                    <p className="text-sm text-muted-foreground">{c.description || "No description"}</p>
-                  </div>
+            {courseForm.open && (
+              <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">New Course</h4>
+                  <button onClick={() => setCourseForm({ ...courseForm, open: false })} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
                 </div>
-                <button onClick={() => { if (confirm(`Delete "${c.code}"?`)) deleteCourse.mutate(c.id); }} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
-                  <Trash2 className="h-4 w-4" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input value={courseForm.code} onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })} placeholder="e.g. BUS101" />
+                  <Input value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} placeholder="e.g. Introduction to Business" />
+                </div>
+                <Input value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} placeholder="Course description..." />
+                <button
+                  onClick={() => createCourse.mutate({ title: courseForm.title, code: courseForm.code, description: courseForm.description })}
+                  disabled={!courseForm.title.trim() || !courseForm.code.trim() || createCourse.isPending}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {createCourse.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Create Course
                 </button>
               </div>
-            ))
-          )}
-        </TabsContent>
+            )}
+            {!displayCourses?.length ? (
+              <p className="text-center text-muted-foreground py-12">No courses yet.</p>
+            ) : (
+              displayCourses.map((c) => (
+                <div key={c.id} className="rounded-xl border bg-card p-5 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full" style={{ background: c.color || "hsl(var(--primary))" }} />
+                    <div>
+                      <h4 className="font-semibold">{c.code} — {c.title}</h4>
+                      <p className="text-sm text-muted-foreground">{c.description || "No description"}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { if (confirm(`Delete "${c.code}"?`)) deleteCourse.mutate(c.id); }} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </TabsContent>
+        )}
 
-        {/* Enrollment Tab */}
-        <TabsContent value="enrollment" className="mt-6">
-          <EnrollmentTab />
-        </TabsContent>
+        {/* Enrollment Tab (school admin) */}
+        {isSchoolAdmin && (
+          <TabsContent value="enrollment" className="mt-6">
+            <EnrollmentTab />
+          </TabsContent>
+        )}
 
-        {/* Audit Logs Tab */}
+        {/* Audit Logs Tab (both roles) */}
         <TabsContent value="audit" className="mt-6">
           {loadingLogs ? (
             <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
