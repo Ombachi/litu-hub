@@ -33,12 +33,13 @@ const MessagesPage = () => {
         .neq("user_id", user!.id)
         .order("first_name");
       if (error) throw error;
-      // Fetch roles for all users to display alongside
+      // Fetch roles - RLS may restrict visibility, so we use what we can get
       const { data: rolesData } = await supabase
         .from("user_roles")
         .select("user_id, role");
-      const roleMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
-      return profilesData?.map(p => ({ ...p, role: roleMap.get(p.user_id) || "student" })) || [];
+      const roleMap = new Map<string, string>();
+      rolesData?.forEach(r => roleMap.set(r.user_id, r.role));
+      return profilesData?.map(p => ({ ...p, role: roleMap.get(p.user_id) || null })) || [];
     },
   });
 
