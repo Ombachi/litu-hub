@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.seed-dev-data]
 verify_jwt = false
+
+[functions.ai-grading-feedback]
+verify_jwt = false
