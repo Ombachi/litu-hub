@@ -32,10 +32,11 @@ const TutorAnalytics = () => {
     },
   });
 
+  const ids = tutorCourseIds ?? [];
   const myCourses = useMemo(() => {
-    if (!allCourses || !tutorCourseIds) return [];
-    return allCourses.filter(c => tutorCourseIds.includes(c.id));
-  }, [allCourses, tutorCourseIds]);
+    if (!allCourses || ids.length === 0) return [];
+    return allCourses.filter(c => ids.includes(c.id));
+  }, [allCourses, ids]);
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const activeCourseId = selectedCourseId || myCourses[0]?.id || "";
