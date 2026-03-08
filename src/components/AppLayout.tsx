@@ -12,7 +12,7 @@ import NotificationBell from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const allNavItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "tutor", "ta"] as string[] },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "tutor", "ta", "school_admin", "admin", "platform_admin", "parent"] as string[] },
   { to: "/assignments", icon: FileText, label: "Assignments", roles: ["student", "ta"] as string[] },
   { to: "/quizzes", icon: Brain, label: "Quizzes", roles: ["student", "ta"] as string[] },
   { to: "/grades", icon: TrendingUp, label: "Grades", roles: ["student", "ta"] as string[] },
