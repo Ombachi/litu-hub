@@ -115,7 +115,7 @@ const AdminPanel = () => {
 
   const [userSearch, setUserSearch] = useState("");
   const [editingRole, setEditingRole] = useState<{ userId: string; role: string } | null>(null);
-  const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "" });
+  const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "" }); // kept for potential future use
   const [instFilter, setInstFilter] = useState<string>("all");
   const [addUserToInstId, setAddUserToInstId] = useState("");
 
