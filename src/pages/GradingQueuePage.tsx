@@ -192,12 +192,22 @@ const GradingQueuePage = () => {
     queryFn: async () => {
       // Get all quiz_responses that are SAQ (points_earned = 0, is_correct = false) 
       // and their question is short_answer type
-      const { data: questions, error: qErr } = await supabase
+      let questions: any[] = [];
+      const { data: allQuestions, error: qErr } = await supabase
         .from("quiz_questions")
         .select("id, question_text, points, quiz_id, quizzes(title, course_id, courses(code))")
         .eq("question_type", "short_answer");
       if (qErr) throw qErr;
-      if (!questions?.length) return [];
+      if (!allQuestions?.length) return [];
+
+      // Filter for tutor's courses
+      if (isTutorRole && tutorCourseIds) {
+        const courseIdSet = new Set(tutorCourseIds);
+        questions = allQuestions.filter((q: any) => courseIdSet.has(q.quizzes?.course_id));
+      } else {
+        questions = allQuestions;
+      }
+      if (!questions.length) return [];
 
       const qIds = questions.map(q => q.id);
       const { data: responses, error: rErr } = await supabase
