@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   BookOpen, FileText, Brain, MessageSquare, ChevronDown, ChevronRight,
   CheckCircle2, Circle, Video, FileText as Reading, Activity, Clock,
-  Upload, Pin, Loader2, Megaphone, FolderOpen, Lock,
+  Upload, Pin, Loader2, Megaphone, FolderOpen, Lock, Users,
 } from "lucide-react";
 import { useCourse, useModules, useAssignments, useQuizzes, useDiscussions, useMySubmissions } from "@/hooks/useData";
 import { useLessonCompletions } from "@/hooks/useLessonCompletions";
@@ -25,7 +25,8 @@ const CoursePage = () => {
   const { data: discussions } = useDiscussions(courseId);
   const { data: submissions } = useMySubmissions();
   const { data: completions } = useLessonCompletions();
-  const { isCoach } = useRole();
+  const { isCoach, role } = useRole();
+  const isTutor = role === "tutor" || role === "ta";
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
 
   const completedLessonIds = new Set(completions?.map(c => c.lesson_id) || []);
@@ -68,8 +69,8 @@ const CoursePage = () => {
 
   // Check if a module is unlocked (all lessons in previous modules must be completed)
   const isModuleUnlocked = (moduleIndex: number): boolean => {
-    if (isCoach) return true; // Coaches always see everything
-    if (moduleIndex === 0) return true; // First module always unlocked
+    if (isCoach) return true;
+    if (moduleIndex === 0) return true;
     const prevModule = modules?.[moduleIndex - 1];
     if (!prevModule) return true;
     const prevLessons = (prevModule.lessons as any[]) || [];
@@ -89,14 +90,23 @@ const CoursePage = () => {
         <div className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
             <div>
-              <Badge variant="secondary" className="text-xs">{course.code}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">{course.code}</Badge>
+                {isTutor && (
+                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                    <Users className="h-3 w-3" /> Instructor View
+                  </Badge>
+                )}
+              </div>
               <h1 className="mt-2 font-display text-2xl font-bold">{course.title}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{course.terms?.name || "—"}</p>
             </div>
-            <div className="text-right">
-              <p className="text-3xl font-display font-bold text-primary">{progressPct}%</p>
-              <Progress value={progressPct} className="mt-2 h-2 w-32" />
-            </div>
+            {!isTutor && (
+              <div className="text-right">
+                <p className="text-3xl font-display font-bold text-primary">{progressPct}%</p>
+                <Progress value={progressPct} className="mt-2 h-2 w-32" />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -151,11 +161,11 @@ const CoursePage = () => {
                       <div>
                         <p className="font-display font-semibold">{mod.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {!unlocked ? "Complete previous module to unlock" : `${completed}/${lessons.length} lessons complete`}
+                          {!unlocked ? "Complete previous module to unlock" : isTutor ? `${lessons.length} lessons` : `${completed}/${lessons.length} lessons complete`}
                         </p>
                       </div>
                     </div>
-                    <Progress value={lessons.length ? (completed / lessons.length) * 100 : 0} className="h-1.5 w-20" />
+                    {!isTutor && <Progress value={lessons.length ? (completed / lessons.length) * 100 : 0} className="h-1.5 w-20" />}
                   </button>
                   {isExpanded && unlocked && (
                     <div className="border-t">
@@ -167,7 +177,9 @@ const CoursePage = () => {
                             to={`/lesson/${lesson.id}`}
                             className="flex items-center gap-3 px-6 py-3 hover:bg-secondary/20 transition-colors"
                           >
-                            {lessonDone ? (
+                            {isTutor ? (
+                              <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+                            ) : lessonDone ? (
                               <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                             ) : (
                               <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -188,7 +200,7 @@ const CoursePage = () => {
           )}
         </TabsContent>
 
-        {/* Announcements Tab - read-only for students, managed from Coach Studio */}
+        {/* Announcements Tab */}
         <TabsContent value="announcements" className="mt-6">
           {courseId && <AnnouncementsTab courseId={courseId} />}
         </TabsContent>
@@ -202,7 +214,7 @@ const CoursePage = () => {
               const sub = getSubmissionStatus(a.id);
               const status = sub ? (sub.score !== null ? "graded" : "submitted") : (a.due_date && new Date(a.due_date) < new Date() ? "overdue" : "pending");
               return (
-                <Link key={a.id} to={`/assignment/${a.id}`} className="block rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all">
+                <Link key={a.id} to={isTutor ? `/grading` : `/assignment/${a.id}`} className="block rounded-xl border bg-card p-5 shadow-card hover:shadow-elevated transition-all">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="font-display font-semibold">{a.title}</h3>
@@ -211,15 +223,21 @@ const CoursePage = () => {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <Badge variant={status === "graded" ? "default" : status === "overdue" ? "destructive" : "secondary"} className="capitalize">
-                        {status}
-                      </Badge>
-                      {sub?.score !== undefined && sub?.score !== null && (
-                        <p className="mt-2 text-lg font-display font-bold text-primary">{sub.score}/{a.max_score}</p>
+                      {isTutor ? (
+                        <Badge variant="secondary">View Submissions</Badge>
+                      ) : (
+                        <>
+                          <Badge variant={status === "graded" ? "default" : status === "overdue" ? "destructive" : "secondary"} className="capitalize">
+                            {status}
+                          </Badge>
+                          {sub?.score !== undefined && sub?.score !== null && (
+                            <p className="mt-2 text-lg font-display font-bold text-primary">{sub.score}/{a.max_score}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
-                  {status === "pending" && (
+                  {!isTutor && status === "pending" && (
                     <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
                       <Upload className="h-4 w-4" /> Submit Work
                     </span>
@@ -246,12 +264,16 @@ const CoursePage = () => {
                       <span>{q.max_attempts} attempts max</span>
                     </div>
                   </div>
-                  <Link
-                    to={`/quizzes?take=${q.id}`}
-                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    <Brain className="h-4 w-4" /> Take Quiz
-                  </Link>
+                  {isTutor ? (
+                    <Badge variant="secondary">Quiz Overview</Badge>
+                  ) : (
+                    <Link
+                      to={`/quizzes?take=${q.id}`}
+                      className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <Brain className="h-4 w-4" /> Take Quiz
+                    </Link>
+                  )}
                 </div>
               </div>
             ))

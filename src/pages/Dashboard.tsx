@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { useCourses, useEnrollments, useAssignments, useEnroll } from "@/hooks/useData";
 import { useProfile } from "@/hooks/useData";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const badges = [
@@ -25,6 +28,123 @@ const badges = [
   { name: "Early Bird", icon: "🌅", earned: true },
   { name: "Consistent", icon: "🔥", earned: true },
 ];
+
+const TutorDashboard = () => {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+
+  // Get courses assigned to this tutor
+  const { data: tutorCourses, isLoading } = useQuery({
+    queryKey: ["tutor-courses", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data: links, error: lErr } = await supabase
+        .from("course_tutors")
+        .select("course_id")
+        .eq("tutor_id", user!.id);
+      if (lErr) throw lErr;
+      if (!links?.length) return [];
+      const courseIds = links.map(l => l.course_id);
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*, terms(name)")
+        .in("id", courseIds)
+        .order("code");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const firstName = profile?.first_name || "Tutor";
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      <div>
+        <h1 className="font-display text-3xl font-bold tracking-tight">
+          Welcome, {firstName}! 👋
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          Here are the courses you're teaching
+        </p>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {[
+          { label: "Assigned Courses", value: tutorCourses?.length || 0, icon: BookOpen, color: "text-primary" },
+          { label: "Manage Content", value: "→", icon: Brain, color: "text-accent" },
+          { label: "View Analytics", value: "→", icon: TrendingUp, color: "text-info" },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-xl border bg-card p-4 shadow-card transition-all hover:shadow-elevated"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              </div>
+              <div>
+                <p className="text-2xl font-display font-bold">{stat.value}</p>
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Course Cards */}
+      <div className="space-y-4">
+        <h2 className="font-display text-xl font-bold">My Courses</h2>
+        {!tutorCourses?.length ? (
+          <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
+            <BookOpen className="mx-auto h-10 w-10 text-muted-foreground" />
+            <p className="mt-3 text-muted-foreground">No courses assigned yet. Your school admin will assign courses to you.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {tutorCourses.map((course) => (
+              <Link
+                key={course.id}
+                to={`/course/${course.id}`}
+                className="group rounded-xl border bg-card overflow-hidden shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
+              >
+                <div className="h-2" style={{ background: course.color || "hsl(var(--primary))" }} />
+                <div className="p-5">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs font-medium">{course.code}</Badge>
+                    <Badge variant="outline" className="text-[10px] flex items-center gap-1">
+                      <Users className="h-3 w-3" /> Instructor
+                    </Badge>
+                  </div>
+                  <h3 className="mt-3 font-display font-semibold leading-tight group-hover:text-primary transition-colors">
+                    {course.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> {course.terms?.name || "—"}
+                    </span>
+                    <span className="flex items-center gap-1 text-primary font-medium">
+                      Manage <ArrowRight className="h-3 w-3" />
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const { role } = useRole();
@@ -38,7 +158,7 @@ const Dashboard = () => {
   if (role === "platform_admin" || role === "admin") return <Navigate to="/admin" replace />;
   if (role === "school_admin") return <Navigate to="/admin" replace />;
   if (role === "parent") return <Navigate to="/parent" replace />;
-  if (role === "tutor") return <Navigate to="/analytics" replace />;
+  if (role === "tutor") return <TutorDashboard />;
 
   const enrolledCourseIds = new Set(enrollments?.map((e) => e.course_id) || []);
   const enrolledCourses = courses?.filter((c) => enrolledCourseIds.has(c.id)) || [];
@@ -115,7 +235,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              {enrolledCourses.map((course, i) => (
+              {enrolledCourses.map((course) => (
                 <Link
                   key={course.id}
                   to={`/course/${course.id}`}
