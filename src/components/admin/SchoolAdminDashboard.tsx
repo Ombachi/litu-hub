@@ -64,19 +64,35 @@ const SchoolAdminDashboard = () => {
     },
   });
 
-  // Institution members
-  const { data: members } = useQuery({
-    queryKey: ["inst-members", institutionId],
+  // Institution members - fetch user_ids first, then profiles separately (no FK join)
+  const { data: memberLinks } = useQuery({
+    queryKey: ["inst-member-links", institutionId],
     enabled: !!institutionId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_institutions")
-        .select("user_id, profiles:user_id(first_name, last_name, email)")
+        .select("user_id")
         .eq("institution_id", institutionId!);
       if (error) throw error;
       return data;
     },
   });
+
+  const { data: memberProfiles } = useQuery({
+    queryKey: ["inst-member-profiles", institutionId],
+    enabled: !!memberLinks?.length,
+    queryFn: async () => {
+      const userIds = memberLinks!.map(m => m.user_id);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", userIds);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const members = memberLinks;
 
   // Member roles
   const { data: memberRoles } = useQuery({
@@ -93,20 +109,39 @@ const SchoolAdminDashboard = () => {
     },
   });
 
-  // Course tutors
-  const { data: courseTutors } = useQuery({
-    queryKey: ["inst-course-tutors", institutionId],
+  // Course tutors - fetch separately to avoid FK join issues
+  const { data: courseTutorLinks } = useQuery({
+    queryKey: ["inst-course-tutor-links", institutionId],
     enabled: !!courses?.length,
     queryFn: async () => {
       const courseIds = courses!.map(c => c.id);
       const { data, error } = await supabase
         .from("course_tutors")
-        .select("course_id, tutor_id, profiles:tutor_id(first_name, last_name, email)")
+        .select("course_id, tutor_id")
         .in("course_id", courseIds);
       if (error) throw error;
       return data;
     },
   });
+
+  const { data: tutorProfiles } = useQuery({
+    queryKey: ["inst-tutor-profiles", institutionId],
+    enabled: !!courseTutorLinks?.length,
+    queryFn: async () => {
+      const tutorIds = [...new Set(courseTutorLinks!.map(ct => ct.tutor_id))];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", tutorIds);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const courseTutors = courseTutorLinks?.map(ct => ({
+    ...ct,
+    profiles: tutorProfiles?.find(p => p.user_id === ct.tutor_id) || null,
+  }));
 
   // Submissions for institution courses
   const { data: submissions } = useQuery({
