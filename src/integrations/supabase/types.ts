@@ -282,6 +282,47 @@ export type Database = {
           },
         ]
       }
+      enrollment_requests: {
+        Row: {
+          course_id: string
+          id: string
+          requested_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_email: string
+          student_id: string | null
+        }
+        Insert: {
+          course_id: string
+          id?: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_email?: string
+          student_id?: string | null
+        }
+        Update: {
+          course_id?: string
+          id?: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_email?: string
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_requests_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollments: {
         Row: {
           course_id: string
@@ -420,6 +461,27 @@ export type Database = {
           title?: string
           type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      parent_student_links: {
+        Row: {
+          created_at: string
+          id: string
+          parent_id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parent_id: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parent_id?: string
+          student_id?: string
         }
         Relationships: []
       }

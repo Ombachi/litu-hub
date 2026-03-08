@@ -1,17 +1,20 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  Trophy, TrendingUp, BookOpen, FileText, Brain, CheckCircle2, Clock, XCircle, Loader2, BarChart3, ChevronDown, ChevronRight, MessageSquare,
+  Trophy, TrendingUp, BookOpen, FileText, Brain, CheckCircle2, Clock, XCircle, Loader2, BarChart3, ChevronDown, ChevronRight, MessageSquare, Download,
 } from "lucide-react";
 import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts } from "@/hooks/useData";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const gradeScale = [
-  { min: 90, letter: "A", color: "text-emerald-600" },
-  { min: 80, letter: "B", color: "text-blue-600" },
-  { min: 70, letter: "C", color: "text-amber-600" },
-  { min: 60, letter: "D", color: "text-orange-600" },
+  { min: 90, letter: "A", color: "text-success" },
+  { min: 80, letter: "B", color: "text-info" },
+  { min: 70, letter: "C", color: "text-accent" },
+  { min: 60, letter: "D", color: "text-warning" },
   { min: 0, letter: "F", color: "text-destructive" },
 ];
 
@@ -45,40 +48,26 @@ const GradesPage = () => {
 
   const courseGrades = useMemo(() => {
     if (!enrollments || !allAssignments || !submissions || !quizAttempts) return [];
-
     return enrollments.map((enrollment) => {
       const course = enrollment.courses as any;
       if (!course) return null;
-
       const courseAssignments = allAssignments.filter((a: any) => a.course_id === course.id);
       const gradedSubs = courseAssignments.map((a: any) => {
         const sub = submissions.find((s) => s.assignment_id === a.id);
         const rubric = Array.isArray(a.rubric_criteria) ? a.rubric_criteria : [];
         return { assignment: a, submission: sub || null, rubric };
       });
-
       const gradedAssignments = gradedSubs.filter((g) => g.submission?.score !== null && g.submission?.score !== undefined);
       const assignmentEarned = gradedAssignments.reduce((s, g) => s + (g.submission!.score || 0), 0);
       const assignmentMax = gradedAssignments.reduce((s, g) => s + g.assignment.max_score, 0);
-
-      const totalEarned = assignmentEarned;
-      const totalMax = assignmentMax;
-      const pct = totalMax > 0 ? Math.round((totalEarned / totalMax) * 100) : null;
-
+      const pct = assignmentMax > 0 ? Math.round((assignmentEarned / assignmentMax) * 100) : null;
       return {
-        courseId: course.id,
-        code: course.code,
-        title: course.title,
-        color: course.color,
-        term: course.terms?.name || "—",
-        pct,
+        courseId: course.id, code: course.code, title: course.title, color: course.color,
+        term: course.terms?.name || "—", pct,
         gpa: pct !== null ? pctToGpa(pct) : null,
         grade: pct !== null ? getLetterGrade(pct) : null,
-        assignmentDetails: gradedSubs,
-        totalAssignments: courseAssignments.length,
-        gradedCount: gradedAssignments.length,
-        earned: totalEarned,
-        max: totalMax,
+        assignmentDetails: gradedSubs, totalAssignments: courseAssignments.length,
+        gradedCount: gradedAssignments.length, earned: assignmentEarned, max: assignmentMax,
       };
     }).filter(Boolean) as any[];
   }, [enrollments, allAssignments, submissions, quizAttempts]);
@@ -94,23 +83,76 @@ const GradesPage = () => {
     return quizAttempts.filter((a) => a.status === "completed").sort((a, b) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime());
   }, [quizAttempts]);
 
+  const exportCSV = useCallback(() => {
+    const rows = [["Course", "Code", "Term", "Grade", "Percentage", "GPA", "Points Earned", "Points Possible"]];
+    courseGrades.forEach((cg) => {
+      rows.push([cg.title, cg.code, cg.term, cg.grade?.letter || "N/A", cg.pct !== null ? `${cg.pct}%` : "N/A", cg.gpa?.toFixed(2) || "N/A", String(cg.earned), String(cg.max)]);
+    });
+    if (overallGpa !== null) rows.push(["", "", "", "", "", `Overall GPA: ${overallGpa.toFixed(2)}`, "", ""]);
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "grade_report.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV downloaded");
+  }, [courseGrades, overallGpa]);
+
+  const exportPDF = useCallback(() => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Grade Report", 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-KE")}`, 14, 30);
+    if (overallGpa !== null) {
+      doc.text(`Overall GPA: ${overallGpa.toFixed(2)}`, 14, 36);
+    }
+
+    const tableData = courseGrades.map((cg) => [
+      cg.code, cg.title, cg.term, cg.grade?.letter || "N/A",
+      cg.pct !== null ? `${cg.pct}%` : "N/A", cg.gpa?.toFixed(2) || "N/A",
+      `${cg.earned}/${cg.max}`,
+    ]);
+
+    autoTable(doc, {
+      startY: 42,
+      head: [["Code", "Course", "Term", "Grade", "%", "GPA", "Points"]],
+      body: tableData,
+      theme: "striped",
+      headStyles: { fillColor: [34, 87, 58] },
+    });
+
+    doc.save("grade_report.pdf");
+    toast.success("PDF downloaded");
+  }, [courseGrades, overallGpa]);
+
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Grades & Progress</h1>
-        <p className="mt-1 text-muted-foreground">Track your academic performance across all courses</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Grades & Progress</h1>
+          <p className="mt-1 text-muted-foreground">Track your academic performance across all courses</p>
+        </div>
+        {courseGrades.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button onClick={exportCSV} className="flex items-center gap-2 rounded-lg border bg-secondary/50 px-3 py-2 text-sm hover:bg-secondary transition-colors">
+              <Download className="h-4 w-4" /> CSV
+            </button>
+            <button onClick={exportPDF} className="flex items-center gap-2 rounded-lg border bg-secondary/50 px-3 py-2 text-sm hover:bg-secondary transition-colors">
+              <Download className="h-4 w-4" /> PDF
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <div className="rounded-xl border bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -135,8 +177,8 @@ const GradesPage = () => {
         </div>
         <div className="rounded-xl border bg-card p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+              <TrendingUp className="h-5 w-5 text-success" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Quizzes Completed</p>
@@ -146,11 +188,10 @@ const GradesPage = () => {
         </div>
       </div>
 
-      {/* Per-Course Grades with expandable rubric breakdown */}
+      {/* Per-Course Grades */}
       <div className="space-y-4">
         <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          Course Grades
+          <BarChart3 className="h-5 w-5 text-primary" /> Course Grades
         </h2>
         {!courseGrades.length ? (
           <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
@@ -165,13 +206,14 @@ const GradesPage = () => {
                 <button
                   onClick={() => setExpandedCourse(isExpanded ? null : cg.courseId)}
                   className="flex items-center gap-4 p-5 w-full text-left border-b bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                  aria-expanded={isExpanded}
                 >
                   {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                   <div className="h-3 w-3 rounded-full shrink-0" style={{ background: cg.color || "hsl(var(--primary))" }} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display font-semibold">{cg.code}</h3>
-                      <span className="text-sm text-muted-foreground">— {cg.title}</span>
+                      <span className="text-sm text-muted-foreground hidden sm:inline">— {cg.title}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{cg.term}</p>
                   </div>
@@ -182,7 +224,7 @@ const GradesPage = () => {
                           <p className={`font-display text-2xl font-bold ${cg.grade.color}`}>{cg.grade.letter}</p>
                           <p className="text-xs text-muted-foreground">{cg.pct}%</p>
                         </div>
-                        <Badge variant="secondary" className="font-mono">{cg.gpa?.toFixed(1)} GPA</Badge>
+                        <Badge variant="secondary" className="font-mono hidden sm:inline-flex">{cg.gpa?.toFixed(1)} GPA</Badge>
                       </div>
                     ) : (
                       <Badge variant="outline">No grades yet</Badge>
@@ -207,30 +249,13 @@ const GradesPage = () => {
 
                       return (
                         <div key={a.id} className="rounded-lg border overflow-hidden">
-                          <Link
-                            to={`/assignment/${a.id}`}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
-                          >
-                            {isGraded ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                            ) : isSubmitted ? (
-                              <Clock className="h-4 w-4 text-amber-500 shrink-0" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-                            )}
+                          <Link to={`/assignment/${a.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors">
+                            {isGraded ? <CheckCircle2 className="h-4 w-4 text-success shrink-0" /> : isSubmitted ? <Clock className="h-4 w-4 text-warning shrink-0" /> : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />}
                             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="flex-1 text-sm">{a.title}</span>
-                            <Badge variant="secondary" className="text-[10px] uppercase">{a.type}</Badge>
-                            {isGraded ? (
-                              <span className="text-sm font-medium tabular-nums">{sub.score}/{a.max_score}</span>
-                            ) : isSubmitted ? (
-                              <span className="text-xs text-amber-600">Pending</span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Not submitted</span>
-                            )}
+                            <span className="flex-1 text-sm truncate">{a.title}</span>
+                            <Badge variant="secondary" className="text-[10px] uppercase hidden sm:inline-flex">{a.type}</Badge>
+                            {isGraded ? <span className="text-sm font-medium tabular-nums">{sub.score}/{a.max_score}</span> : isSubmitted ? <span className="text-xs text-warning">Pending</span> : <span className="text-xs text-muted-foreground">Not submitted</span>}
                           </Link>
-
-                          {/* Rubric breakdown + tutor feedback */}
                           {isGraded && (rubric.length > 0 || sub?.feedback) && (
                             <div className="border-t bg-secondary/10 px-4 py-3 space-y-2">
                               {rubric.length > 0 && (
@@ -239,8 +264,7 @@ const GradesPage = () => {
                                   <div className="grid gap-1 sm:grid-cols-2">
                                     {rubric.map((r: any) => (
                                       <div key={r.name} className="flex items-center justify-between bg-background rounded px-3 py-1.5 text-xs">
-                                        <span>{r.name}</span>
-                                        <span className="font-medium">{r.maxPoints} pts</span>
+                                        <span>{r.name}</span><span className="font-medium">{r.maxPoints} pts</span>
                                       </div>
                                     ))}
                                   </div>
@@ -270,8 +294,7 @@ const GradesPage = () => {
       {/* Quiz Scores */}
       <div className="space-y-4">
         <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-          <Brain className="h-5 w-5 text-primary" />
-          Quiz Scores
+          <Brain className="h-5 w-5 text-primary" /> Quiz Scores
         </h2>
         {!completedQuizzes.length ? (
           <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
@@ -279,8 +302,8 @@ const GradesPage = () => {
             <p className="mt-3 text-muted-foreground">Complete quizzes to see your scores here.</p>
           </div>
         ) : (
-          <div className="rounded-xl border bg-card shadow-card overflow-hidden">
-            <table className="w-full">
+          <div className="rounded-xl border bg-card shadow-card overflow-x-auto">
+            <table className="w-full min-w-[400px]">
               <thead>
                 <tr className="border-b bg-secondary/20 text-xs uppercase tracking-wider text-muted-foreground">
                   <th className="px-5 py-3 text-left font-medium">Quiz</th>
