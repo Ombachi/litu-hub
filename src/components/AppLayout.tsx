@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import ScientificCalculator from "@/components/ScientificCalculator";
+import StudyAssistant from "@/components/StudyAssistant";
 
 const allNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "tutor", "ta", "school_admin", "admin", "platform_admin", "parent"] as string[] },
@@ -152,6 +153,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       </div>
       {/* Scientific calculator for tutors and students */}
       {["student", "tutor", "ta"].includes(role) && <ScientificCalculator />}
+      {/* AI Study Assistant for students */}
+      {["student", "ta"].includes(role) && <StudyAssistant />}
     </div>
   );
 };

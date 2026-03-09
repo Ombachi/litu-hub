@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.ai-content-generate]
 verify_jwt = false
+
+[functions.study-assistant]
+verify_jwt = false
