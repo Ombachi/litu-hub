@@ -6,7 +6,7 @@ import { useMyInstitution } from "@/hooks/useInstitution";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, X, Loader2, Trash2, Users, UserPlus } from "lucide-react";
+import { Plus, X, Loader2, Trash2, Users, UserPlus, Edit } from "lucide-react";
 import { toast } from "sonner";
 
 const SchoolAdminCoursesTab = () => {
@@ -101,23 +101,33 @@ const SchoolAdminCoursesTab = () => {
     },
   });
 
-  const createCourse = useMutation({
-    mutationFn: async (params: { title: string; code: string; description: string; term_id: string }) => {
-      const { error } = await supabase.from("courses").insert({
-        title: params.title,
-        code: params.code,
-        description: params.description,
-        created_by: user?.id,
-        institution_id: institutionId,
-        term_id: params.term_id || null,
-      } as any);
-      if (error) throw error;
+  const upsertCourse = useMutation({
+    mutationFn: async (params: { title: string; code: string; description: string; term_id: string; id?: string }) => {
+      if (params.id) {
+        const { error } = await supabase.from("courses").update({
+          title: params.title,
+          code: params.code,
+          description: params.description,
+          term_id: params.term_id || null,
+        }).eq("id", params.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("courses").insert({
+          title: params.title,
+          code: params.code,
+          description: params.description,
+          created_by: user?.id,
+          institution_id: institutionId,
+          term_id: params.term_id || null,
+        } as any);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inst-courses-admin"] });
       qc.invalidateQueries({ queryKey: ["courses"] });
-      setCourseForm({ open: false, title: "", code: "", description: "", term_id: "" });
-      toast.success("Course created");
+      setCourseForm({ open: false, title: "", code: "", description: "", term_id: "", editId: null });
+      toast.success(courseForm.editId ? "Course updated" : "Course created");
     },
     onError: (e: any) => toast.error(e.message),
   });
