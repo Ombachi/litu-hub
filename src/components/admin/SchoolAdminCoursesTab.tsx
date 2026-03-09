@@ -15,7 +15,7 @@ const SchoolAdminCoursesTab = () => {
   const qc = useQueryClient();
   const institutionId = myInstitution?.id;
 
-  const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "", term_id: "" });
+  const [courseForm, setCourseForm] = useState({ open: false, title: "", code: "", description: "", term_id: "", editId: null as string | null });
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [assignTutorId, setAssignTutorId] = useState("");
 

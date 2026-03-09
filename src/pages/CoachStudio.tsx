@@ -184,7 +184,7 @@ const CoachStudio = () => {
 
   const handleAssignmentSubmit = async (data: { title: string; description: string; type: string; due_date: string; max_score: number }) => {
     try {
-      if (assignmentDialog.editing) {
+      if (assignmentDialog.editing && !assignmentDialog.editing._aiPrefill) {
         await updateAssignment.mutateAsync({ id: assignmentDialog.editing.id, ...data, due_date: data.due_date || undefined });
         toast.success("Assignment updated");
       } else {
@@ -377,18 +377,15 @@ const CoachStudio = () => {
               <div className="flex justify-between items-center gap-2 flex-wrap">
                 <h3 className="font-display font-semibold">Course Assignments</h3>
                 <div className="flex items-center gap-2">
-                  <AIGenerateButton
-                    type="assignment"
-                    courseTitle={selectedCourse?.title || ""}
-                    courseCode={selectedCourse?.code || ""}
-                    onAcceptAssignment={(data) => {
-                      setAssignmentDialog({ open: true, editing: null });
-                      // Small delay to let dialog open, then we'll set values via initial prop workaround
-                      setTimeout(() => {
-                        setAssignmentDialog({ open: true, editing: { ...data, due_date: "", allow_late_submissions: true, late_penalty_percent: 0, grace_period_hours: 0 } });
-                      }, 50);
-                    }}
-                  />
+                    <AIGenerateButton
+                      type="assignment"
+                      courseTitle={selectedCourse?.title || ""}
+                      courseCode={selectedCourse?.code || ""}
+                      onAcceptAssignment={(data) => {
+                        // Use _aiPrefill flag to indicate this is a new assignment prefilled by AI, not an edit
+                        setAssignmentDialog({ open: true, editing: { ...data, _aiPrefill: true, due_date: "", allow_late_submissions: true, late_penalty_percent: 0, grace_period_hours: 0 } });
+                      }}
+                    />
                   <button onClick={() => setAssignmentDialog({ open: true, editing: null })} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                     <Plus className="h-4 w-4" /> Create Assignment
                   </button>

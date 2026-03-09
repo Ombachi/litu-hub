@@ -32,12 +32,24 @@ const AnnouncementsTab = ({ courseId, isManaging = false }: AnnouncementsTabProp
     queryFn: async () => {
       const { data, error } = await supabase
         .from("announcements")
-        .select("*, profiles:author_id(first_name, last_name, avatar_url)")
+        .select("*")
         .eq("course_id", courseId)
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      // Fetch author profiles separately
+      if (data?.length) {
+        const authorIds = [...new Set(data.map(a => a.author_id).filter(Boolean))];
+        if (authorIds.length) {
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("user_id, first_name, last_name, avatar_url")
+            .in("user_id", authorIds);
+          const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+          return data.map(a => ({ ...a, profiles: profileMap.get(a.author_id!) || null }));
+        }
+      }
+      return data?.map(a => ({ ...a, profiles: null })) || [];
     },
   });
 
