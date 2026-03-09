@@ -3,7 +3,7 @@ import { MessageCircle, X, Send, Loader2, Trash2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import { useEnrolledCourses } from "@/hooks/useData";
+import { useCourses } from "@/hooks/useData";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -73,7 +73,7 @@ const StudyAssistant = () => {
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const { data: courses } = useEnrolledCourses();
+  const { data: courses } = useCourses();
 
   const courseContext = courses
     ?.map((c: any) => `${c.code}: ${c.title}`)
