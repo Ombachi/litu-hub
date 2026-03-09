@@ -243,6 +243,13 @@ const SchoolAdminCoursesTab = () => {
                       <Badge variant="secondary" className="text-[10px]">{(c as any).terms.name}</Badge>
                     )}
                     <button
+                      onClick={(e) => { e.stopPropagation(); setCourseForm({ open: true, title: c.title, code: c.code, description: c.description || "", term_id: c.term_id || "", editId: c.id }); }}
+                      className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${c.code}"?`)) deleteCourse.mutate(c.id); }}
                       className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
                     >
