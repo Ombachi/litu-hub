@@ -181,7 +181,7 @@ const SchoolAdminCoursesTab = () => {
       <div className="flex justify-between items-center">
         <h3 className="font-semibold">{myInstitution?.name} Courses</h3>
         <button
-          onClick={() => setCourseForm({ open: true, title: "", code: "", description: "", term_id: "" })}
+          onClick={() => setCourseForm({ open: true, title: "", code: "", description: "", term_id: "", editId: null })}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" /> Create Course
@@ -191,7 +191,7 @@ const SchoolAdminCoursesTab = () => {
       {courseForm.open && (
         <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-semibold">New Course</h4>
+            <h4 className="font-semibold">{courseForm.editId ? "Edit Course" : "New Course"}</h4>
             <button onClick={() => setCourseForm({ ...courseForm, open: false })} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -208,11 +208,11 @@ const SchoolAdminCoursesTab = () => {
             </SelectContent>
           </Select>
           <button
-            onClick={() => createCourse.mutate({ title: courseForm.title, code: courseForm.code, description: courseForm.description, term_id: courseForm.term_id })}
-            disabled={!courseForm.title.trim() || !courseForm.code.trim() || createCourse.isPending}
+            onClick={() => upsertCourse.mutate({ title: courseForm.title, code: courseForm.code, description: courseForm.description, term_id: courseForm.term_id, id: courseForm.editId || undefined })}
+            disabled={!courseForm.title.trim() || !courseForm.code.trim() || upsertCourse.isPending}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
-            {createCourse.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Create Course
+            {upsertCourse.isPending && <Loader2 className="h-4 w-4 animate-spin" />} {courseForm.editId ? "Save" : "Create Course"}
           </button>
         </div>
       )}
