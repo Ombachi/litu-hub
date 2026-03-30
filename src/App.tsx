@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,29 +9,43 @@ import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleGuard from "./components/RoleGuard";
 import AppLayout from "./components/AppLayout";
-import Dashboard from "./pages/Dashboard";
-import CoursePage from "./pages/CoursePage";
-import AssignmentsPage from "./pages/AssignmentsPage";
-import AssignmentDetailPage from "./pages/AssignmentDetailPage";
-import QuizzesPage from "./pages/QuizzesPage";
-import DiscussionsPage from "./pages/DiscussionsPage";
-import DiscussionThreadPage from "./pages/DiscussionThreadPage";
-import CoachStudio from "./pages/CoachStudio";
-import GradesPage from "./pages/GradesPage";
-import CalendarPage from "./pages/CalendarPage";
-import LessonPage from "./pages/LessonPage";
-import GradingQueuePage from "./pages/GradingQueuePage";
-import ProfilePage from "./pages/ProfilePage";
-import AdminPanel from "./pages/AdminPanel";
-import ParentPortal from "./pages/ParentPortal";
-import MessagesPage from "./pages/MessagesPage";
-import AuthPage from "./pages/AuthPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { DashboardSkeleton, ListPageSkeleton, DetailPageSkeleton, GradingQueueSkeleton } from "./components/PageSkeleton";
 
-const queryClient = new QueryClient();
+// Lazy-loaded route components
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const CoursePage = lazy(() => import("./pages/CoursePage"));
+const AssignmentsPage = lazy(() => import("./pages/AssignmentsPage"));
+const AssignmentDetailPage = lazy(() => import("./pages/AssignmentDetailPage"));
+const QuizzesPage = lazy(() => import("./pages/QuizzesPage"));
+const DiscussionsPage = lazy(() => import("./pages/DiscussionsPage"));
+const DiscussionThreadPage = lazy(() => import("./pages/DiscussionThreadPage"));
+const CoachStudio = lazy(() => import("./pages/CoachStudio"));
+const GradesPage = lazy(() => import("./pages/GradesPage"));
+const CalendarPage = lazy(() => import("./pages/CalendarPage"));
+const LessonPage = lazy(() => import("./pages/LessonPage"));
+const GradingQueuePage = lazy(() => import("./pages/GradingQueuePage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const ParentPortal = lazy(() => import("./pages/ParentPortal"));
+const MessagesPage = lazy(() => import("./pages/MessagesPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const PageFallback = () => <DashboardSkeleton />;
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -41,62 +56,64 @@ const App = () => (
         <AuthProvider>
           <BrowserRouter>
             <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth" element={<Suspense fallback={<PageFallback />}><AuthPage /></Suspense>} />
+              <Route path="/forgot-password" element={<Suspense fallback={<PageFallback />}><ForgotPasswordPage /></Suspense>} />
+              <Route path="/reset-password" element={<Suspense fallback={<PageFallback />}><ResetPasswordPage /></Suspense>} />
               <Route
                 path="/*"
                 element={
                   <ProtectedRoute>
                     <AppLayout>
-                      <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/course/:courseId" element={<CoursePage />} />
-                        <Route path="/assignments" element={<AssignmentsPage />} />
-                        <Route path="/assignment/:assignmentId" element={<AssignmentDetailPage />} />
-                        <Route path="/quizzes" element={<QuizzesPage />} />
-                        <Route path="/discussions" element={<DiscussionsPage />} />
-                        <Route path="/discussion/:discussionId" element={<DiscussionThreadPage />} />
-                        <Route path="/grades" element={<GradesPage />} />
-                        <Route path="/calendar" element={<CalendarPage />} />
-                        <Route path="/lesson/:lessonId" element={<LessonPage />} />
-                        <Route path="/messages" element={<MessagesPage />} />
-                        <Route path="/analytics" element={<AnalyticsPage />} />
-                        <Route path="/profile" element={<ProfilePage />} />
-                        <Route
-                          path="/parent"
-                          element={
-                            <RoleGuard allowedRoles={["parent"]}>
-                              <ParentPortal />
-                            </RoleGuard>
-                          }
-                        />
-                        <Route
-                          path="/coach-studio"
-                          element={
-                            <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
-                              <CoachStudio />
-                            </RoleGuard>
-                          }
-                        />
-                        <Route
-                          path="/admin"
-                          element={
-                            <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin"]}>
-                              <AdminPanel />
-                            </RoleGuard>
-                          }
-                        />
-                        <Route
-                          path="/grading-queue"
-                          element={
-                            <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
-                              <GradingQueuePage />
-                            </RoleGuard>
-                          }
-                        />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
+                      <ErrorBoundary>
+                        <Routes>
+                          <Route path="/" element={<Suspense fallback={<DashboardSkeleton />}><Dashboard /></Suspense>} />
+                          <Route path="/course/:courseId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><CoursePage /></Suspense></ErrorBoundary>} />
+                          <Route path="/assignments" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><AssignmentsPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/assignment/:assignmentId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><AssignmentDetailPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/quizzes" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><QuizzesPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/discussions" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><DiscussionsPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/discussion/:discussionId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><DiscussionThreadPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/grades" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><GradesPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/calendar" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><CalendarPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/lesson/:lessonId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><LessonPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/messages" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><MessagesPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/analytics" element={<ErrorBoundary><Suspense fallback={<DashboardSkeleton />}><AnalyticsPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/profile" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><ProfilePage /></Suspense></ErrorBoundary>} />
+                          <Route
+                            path="/parent"
+                            element={
+                              <RoleGuard allowedRoles={["parent"]}>
+                                <ErrorBoundary><Suspense fallback={<DashboardSkeleton />}><ParentPortal /></Suspense></ErrorBoundary>
+                              </RoleGuard>
+                            }
+                          />
+                          <Route
+                            path="/coach-studio"
+                            element={
+                              <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
+                                <ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><CoachStudio /></Suspense></ErrorBoundary>
+                              </RoleGuard>
+                            }
+                          />
+                          <Route
+                            path="/admin"
+                            element={
+                              <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin"]}>
+                                <ErrorBoundary><Suspense fallback={<DashboardSkeleton />}><AdminPanel /></Suspense></ErrorBoundary>
+                              </RoleGuard>
+                            }
+                          />
+                          <Route
+                            path="/grading-queue"
+                            element={
+                              <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
+                                <ErrorBoundary><Suspense fallback={<GradingQueueSkeleton />}><GradingQueuePage /></Suspense></ErrorBoundary>
+                              </RoleGuard>
+                            }
+                          />
+                          <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />
+                        </Routes>
+                      </ErrorBoundary>
                     </AppLayout>
                   </ProtectedRoute>
                 }

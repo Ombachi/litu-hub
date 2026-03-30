@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import type { Tables } from "@/integrations/supabase/types";
 
 // ---- Courses ----
 export function useCourses() {
@@ -87,14 +86,18 @@ export function useModules(courseId: string | undefined) {
   });
 }
 
-// ---- Assignments ----
-export function useAssignments(courseId?: string) {
+// ---- Assignments (with pagination) ----
+export function useAssignments(courseId?: string, page = 0, pageSize = 50) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["assignments", courseId, user?.id],
+    queryKey: ["assignments", courseId, user?.id, page],
     enabled: !!user,
     queryFn: async () => {
-      let query = supabase.from("assignments").select("*, courses(code, title)").order("due_date");
+      let query = supabase
+        .from("assignments")
+        .select("*, courses(code, title)")
+        .order("due_date")
+        .range(page * pageSize, (page + 1) * pageSize - 1);
       if (courseId) query = query.eq("course_id", courseId);
       const { data, error } = await query;
       if (error) throw error;
@@ -138,12 +141,16 @@ export function useSubmitAssignment() {
   });
 }
 
-// ---- Quizzes ----
-export function useQuizzes(courseId?: string) {
+// ---- Quizzes (with pagination) ----
+export function useQuizzes(courseId?: string, page = 0, pageSize = 50) {
   return useQuery({
-    queryKey: ["quizzes", courseId],
+    queryKey: ["quizzes", courseId, page],
     queryFn: async () => {
-      let query = supabase.from("quizzes").select("*, courses(code, title)").order("due_date");
+      let query = supabase
+        .from("quizzes")
+        .select("*, courses(code, title)")
+        .order("due_date")
+        .range(page * pageSize, (page + 1) * pageSize - 1);
       if (courseId) query = query.eq("course_id", courseId);
       const { data, error } = await query;
       if (error) throw error;
@@ -213,13 +220,11 @@ export function useSubmitQuizResponses() {
       attemptId: string;
       responses: { question_id: string; response: string; is_correct: boolean; points_earned: number }[];
     }) => {
-      // Insert all responses
       const { error: respError } = await supabase.from("quiz_responses").insert(
         params.responses.map((r) => ({ attempt_id: params.attemptId, ...r }))
       );
       if (respError) throw respError;
 
-      // Calculate score and complete attempt
       const totalPoints = params.responses.reduce((s, r) => s + r.points_earned, 0);
       const { error: attemptError } = await supabase
         .from("quiz_attempts")
@@ -233,12 +238,17 @@ export function useSubmitQuizResponses() {
   });
 }
 
-// ---- Discussions ----
-export function useDiscussions(courseId?: string) {
+// ---- Discussions (with pagination) ----
+export function useDiscussions(courseId?: string, page = 0, pageSize = 50) {
   return useQuery({
-    queryKey: ["discussions", courseId],
+    queryKey: ["discussions", courseId, page],
     queryFn: async () => {
-      let query = supabase.from("discussions").select("*, courses(code, title), discussion_posts(id)").order("pinned", { ascending: false }).order("created_at", { ascending: false });
+      let query = supabase
+        .from("discussions")
+        .select("*, courses(code, title), discussion_posts(id)")
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
       if (courseId) query = query.eq("course_id", courseId);
       const { data, error } = await query;
       if (error) throw error;

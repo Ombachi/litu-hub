@@ -22,7 +22,19 @@ export function useUpdateModule() {
       const { error } = await supabase.from("modules").update(rest).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["modules"] }),
+    onMutate: async (params) => {
+      await qc.cancelQueries({ queryKey: ["modules"] });
+      const prev = qc.getQueriesData({ queryKey: ["modules"] });
+      qc.setQueriesData({ queryKey: ["modules"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((m: any) => m.id === params.id ? { ...m, ...params } : m);
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["modules"] }),
   });
 }
 
@@ -33,7 +45,19 @@ export function useDeleteModule() {
       const { error } = await supabase.from("modules").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["modules"] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["modules"] });
+      const prev = qc.getQueriesData({ queryKey: ["modules"] });
+      qc.setQueriesData({ queryKey: ["modules"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((m: any) => m.id !== id);
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["modules"] }),
   });
 }
 
@@ -58,7 +82,7 @@ export function useUpdateLesson() {
       const { error } = await supabase.from("lessons").update(rest).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["modules"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["modules"] }),
   });
 }
 
@@ -69,7 +93,7 @@ export function useDeleteLesson() {
       const { error } = await supabase.from("lessons").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["modules"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["modules"] }),
   });
 }
 
@@ -94,7 +118,19 @@ export function useUpdateAssignment() {
       const { error } = await supabase.from("assignments").update(rest).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["assignments"] }),
+    onMutate: async (params) => {
+      await qc.cancelQueries({ queryKey: ["assignments"] });
+      const prev = qc.getQueriesData({ queryKey: ["assignments"] });
+      qc.setQueriesData({ queryKey: ["assignments"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((a: any) => a.id === params.id ? { ...a, ...params } : a);
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["assignments"] }),
   });
 }
 
@@ -105,7 +141,19 @@ export function useDeleteAssignment() {
       const { error } = await supabase.from("assignments").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["assignments"] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["assignments"] });
+      const prev = qc.getQueriesData({ queryKey: ["assignments"] });
+      qc.setQueriesData({ queryKey: ["assignments"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((a: any) => a.id !== id);
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["assignments"] }),
   });
 }
 
@@ -130,7 +178,19 @@ export function useUpdateQuiz() {
       const { error } = await supabase.from("quizzes").update(rest).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quizzes"] }),
+    onMutate: async (params) => {
+      await qc.cancelQueries({ queryKey: ["quizzes"] });
+      const prev = qc.getQueriesData({ queryKey: ["quizzes"] });
+      qc.setQueriesData({ queryKey: ["quizzes"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((q: any) => q.id === params.id ? { ...q, ...params } : q);
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["quizzes"] }),
   });
 }
 
@@ -141,7 +201,19 @@ export function useDeleteQuiz() {
       const { error } = await supabase.from("quizzes").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quizzes"] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["quizzes"] });
+      const prev = qc.getQueriesData({ queryKey: ["quizzes"] });
+      qc.setQueriesData({ queryKey: ["quizzes"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((q: any) => q.id !== id);
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["quizzes"] }),
   });
 }
 
@@ -166,7 +238,7 @@ export function useUpdateQuizQuestion() {
       const { error } = await supabase.from("quiz_questions").update(rest).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quiz-questions"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["quiz-questions"] }),
   });
 }
 
@@ -177,6 +249,18 @@ export function useDeleteQuizQuestion() {
       const { error } = await supabase.from("quiz_questions").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quiz-questions"] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["quiz-questions"] });
+      const prev = qc.getQueriesData({ queryKey: ["quiz-questions"] });
+      qc.setQueriesData({ queryKey: ["quiz-questions"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((q: any) => q.id !== id);
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["quiz-questions"] }),
   });
 }
