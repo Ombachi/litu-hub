@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Trash2, Eye } from "lucide-react";
+import { questionSchema } from "@/lib/validations";
 
 interface QuestionData {
   question_text: string;
