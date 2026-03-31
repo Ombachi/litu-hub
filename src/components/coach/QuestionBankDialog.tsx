@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Trash2, Eye } from "lucide-react";
+import { questionSchema } from "@/lib/validations";
 
 interface QuestionData {
   question_text: string;
@@ -119,21 +120,32 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
     setCorrectAnswers(next);
   };
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const handleSubmit = () => {
     const correctAnswer = questionType === "short_answer"
-      ? "" // No correct answer for SAQ
+      ? ""
       : Array.from(correctAnswers).join("|||");
-    onSubmit({
+    const formData = {
       question_text: questionText.trim(),
-      question_type: questionType,
+      question_type: questionType as "multiple_choice" | "true_false" | "short_answer" | "matching",
       options: options.filter((o) => o.trim()),
       correct_answer: correctAnswer,
       explanation,
       points,
-      difficulty,
+      difficulty: difficulty as "easy" | "medium" | "hard",
       competency_tag: competencyTag,
       pool_name: poolName,
-    });
+    };
+    const result = questionSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((e) => { fieldErrors[e.path[0] as string] = e.message; });
+      setErrors(fieldErrors);
+      return;
+    }
+    setErrors({});
+    onSubmit(formData);
   };
 
   const isValid = questionText.trim() && (
@@ -225,6 +237,8 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
             <div className="space-y-1">
               <Label>Question</Label>
               <Textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Enter the question..." rows={3} />
+              {errors.question_text && <p className="text-xs text-destructive">{errors.question_text}</p>}
+              {errors.correct_answer && <p className="text-xs text-destructive">{errors.correct_answer}</p>}
             </div>
 
             {/* Options for MCQ, T/F, Matching */}

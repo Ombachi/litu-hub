@@ -8,6 +8,7 @@ import { Loader2, Upload, X, FileText, Video, Link as LinkIcon } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
+import { lessonSchema } from "@/lib/validations";
 
 interface LessonDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
   const [contentMode, setContentMode] = useState<"text" | "url" | "upload">("text");
   const [uploading, setUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -79,7 +81,15 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
     if (contentMode === "url" && content && !content.match(/^https?:\/\//)) {
       finalContent = `https://${content}`;
     }
-    onSubmit({ title: title.trim(), type, duration, content: finalContent });
+    const result = lessonSchema.safeParse({ title, type, duration, content: finalContent });
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((e) => { fieldErrors[e.path[0] as string] = e.message; });
+      setErrors(fieldErrors);
+      return;
+    }
+    setErrors({});
+    onSubmit({ title: result.data.title, type: result.data.type, duration: result.data.duration || "", content: finalContent });
   };
 
   const acceptTypes = type === "video"
@@ -96,6 +106,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
           <div className="space-y-2">
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Lesson title" />
+            {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
