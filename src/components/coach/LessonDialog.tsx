@@ -106,6 +106,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
           <div className="space-y-2">
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Lesson title" />
+            {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
