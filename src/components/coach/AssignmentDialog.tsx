@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
+import { assignmentSchema } from "@/lib/validations";
 
 interface AssignmentDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ const AssignmentDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: 
   const [allowLate, setAllowLate] = useState(true);
   const [latePenalty, setLatePenalty] = useState(0);
   const [gracePeriod, setGracePeriod] = useState(0);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open) {
@@ -36,8 +38,31 @@ const AssignmentDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: 
       setAllowLate(initial?.allow_late_submissions ?? true);
       setLatePenalty(initial?.late_penalty_percent ?? 0);
       setGracePeriod(initial?.grace_period_hours ?? 0);
+      setErrors({});
     }
   }, [open, initial]);
+
+  const handleSubmit = () => {
+    const result = assignmentSchema.safeParse({
+      title, description, type, due_date: dueDate, max_score: maxScore,
+      allow_late_submissions: allowLate, late_penalty_percent: latePenalty, grace_period_hours: gracePeriod,
+    });
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((e) => { fieldErrors[e.path[0] as string] = e.message; });
+      setErrors(fieldErrors);
+      return;
+    }
+    setErrors({});
+    onSubmit({
+      title: result.data.title, description: result.data.description || "", type: result.data.type,
+      due_date: dueDate ? new Date(dueDate).toISOString() : "",
+      max_score: result.data.max_score,
+      allow_late_submissions: result.data.allow_late_submissions,
+      late_penalty_percent: result.data.late_penalty_percent,
+      grace_period_hours: result.data.grace_period_hours,
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,10 +74,12 @@ const AssignmentDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: 
           <div className="space-y-2">
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Assignment title" />
+            {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Instructions..." rows={3} />
+            {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -70,14 +97,13 @@ const AssignmentDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: 
             <div className="space-y-2">
               <Label>Max Score</Label>
               <Input type="number" value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} min={1} />
+              {errors.max_score && <p className="text-xs text-destructive">{errors.max_score}</p>}
             </div>
             <div className="space-y-2">
               <Label>Due Date</Label>
               <Input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
-
-          {/* Late Submission Policy */}
           <div className="rounded-lg border bg-secondary/20 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Allow Late Submissions</Label>
@@ -88,11 +114,13 @@ const AssignmentDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: 
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Grace Period (hours)</Label>
                   <Input type="number" value={gracePeriod} onChange={(e) => setGracePeriod(Number(e.target.value))} min={0} placeholder="0" />
+                  {errors.grace_period_hours && <p className="text-[10px] text-destructive">{errors.grace_period_hours}</p>}
                   <p className="text-[10px] text-muted-foreground">No penalty during this time</p>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Late Penalty (%)</Label>
                   <Input type="number" value={latePenalty} onChange={(e) => setLatePenalty(Number(e.target.value))} min={0} max={100} placeholder="0" />
+                  {errors.late_penalty_percent && <p className="text-[10px] text-destructive">{errors.late_penalty_percent}</p>}
                   <p className="text-[10px] text-muted-foreground">% deducted per day late</p>
                 </div>
               </div>
@@ -101,14 +129,7 @@ const AssignmentDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button disabled={!title.trim() || isPending} onClick={() => onSubmit({
-            title: title.trim(), description, type,
-            due_date: dueDate ? new Date(dueDate).toISOString() : "",
-            max_score: maxScore,
-            allow_late_submissions: allowLate,
-            late_penalty_percent: latePenalty,
-            grace_period_hours: gracePeriod,
-          })}>
+          <Button disabled={isPending} onClick={handleSubmit}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {initial ? "Save" : "Create"}
           </Button>
