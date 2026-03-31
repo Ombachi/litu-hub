@@ -8,6 +8,7 @@ import { Loader2, Upload, X, FileText, Video, Link as LinkIcon } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
+import { lessonSchema } from "@/lib/validations";
 
 interface LessonDialogProps {
   open: boolean;
