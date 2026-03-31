@@ -237,6 +237,8 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
             <div className="space-y-1">
               <Label>Question</Label>
               <Textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Enter the question..." rows={3} />
+              {errors.question_text && <p className="text-xs text-destructive">{errors.question_text}</p>}
+              {errors.correct_answer && <p className="text-xs text-destructive">{errors.correct_answer}</p>}
             </div>
 
             {/* Options for MCQ, T/F, Matching */}
