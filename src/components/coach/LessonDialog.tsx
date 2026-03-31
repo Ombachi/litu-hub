@@ -81,7 +81,15 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
     if (contentMode === "url" && content && !content.match(/^https?:\/\//)) {
       finalContent = `https://${content}`;
     }
-    onSubmit({ title: title.trim(), type, duration, content: finalContent });
+    const result = lessonSchema.safeParse({ title, type, duration, content: finalContent });
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((e) => { fieldErrors[e.path[0] as string] = e.message; });
+      setErrors(fieldErrors);
+      return;
+    }
+    setErrors({});
+    onSubmit({ title: result.data.title, type: result.data.type, duration: result.data.duration || "", content: finalContent });
   };
 
   const acceptTypes = type === "video"
