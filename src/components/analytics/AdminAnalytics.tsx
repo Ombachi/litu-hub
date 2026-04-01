@@ -3,18 +3,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Users, BookOpen, FileText, Brain, TrendingUp, AlertTriangle, GraduationCap, BarChart3, Download } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { exportCSV, exportPDF } from "@/lib/exportReports";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
 } from "recharts";
-
-const COLORS = [
-  "hsl(152, 45%, 40%)", "hsl(210, 60%, 50%)", "hsl(340, 55%, 50%)",
-  "hsl(45, 80%, 50%)", "hsl(270, 50%, 55%)", "hsl(180, 45%, 45%)",
-];
 
 interface AdminAnalyticsProps {
   institutionScoped?: boolean;
