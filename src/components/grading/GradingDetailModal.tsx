@@ -80,7 +80,9 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
           {submission.content && (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Submission Content</p>
-              <div className="rounded-lg border bg-secondary/30 p-4 text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto break-words">{submission.content}</div>
+              <div className="rounded-lg border-2 border-primary/20 bg-secondary/40 p-5 text-sm leading-relaxed whitespace-pre-wrap max-h-[400px] overflow-y-auto break-words font-medium">
+                {submission.content}
+              </div>
             </div>
           )}
 

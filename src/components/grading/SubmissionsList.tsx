@@ -67,7 +67,12 @@ const SubmissionsList = ({ submissions, selectedIds, toggleSelect, onReview, onV
                   </div>
                   <Badge variant="secondary">/{assignment?.max_score} pts</Badge>
                 </div>
-                {sub.content && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{sub.content}</p>}
+                {sub.content && (
+                  <div className="mt-3 rounded-lg border border-primary/10 bg-secondary/30 p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Student Response</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{sub.content}</p>
+                  </div>
+                )}
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     onClick={() => onReview(sub)}
