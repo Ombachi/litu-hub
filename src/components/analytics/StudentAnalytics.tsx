@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts } from "@/hooks/useData";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp, BookOpen, Brain, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +18,29 @@ const COLORS = [
 
 const StudentAnalytics = () => {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const { data: enrollments, isLoading } = useEnrollments();
   const { data: allAssignments } = useAssignments();
   const { data: submissions } = useMySubmissions();
   const { data: quizAttempts } = useMyQuizAttempts();
+
+  // Real-time: refresh when own submissions or quiz attempts change
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("student-analytics-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "assignment_submissions", filter: `student_id=eq.${user.id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["my-submissions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_attempts", filter: `student_id=eq.${user.id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["quiz-attempts"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "lesson_completions", filter: `student_id=eq.${user.id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["my-lesson-completions"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, qc]);
 
   const { data: lessonCompletions } = useQuery({
     queryKey: ["my-lesson-completions", user?.id],
