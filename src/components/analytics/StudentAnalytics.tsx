@@ -1,7 +1,7 @@
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts } from "@/hooks/useData";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp, BookOpen, Brain, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -51,26 +51,6 @@ const StudentAnalytics = () => {
       return data;
     },
   });
-
-  // Real-time subscriptions for live updates
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("student-analytics-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "assignment_submissions" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["my-submissions"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_attempts" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["my-quiz-attempts"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "lesson_completions" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["my-lesson-completions"] });
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [queryClient]);
 
   if (isLoading) {
     return (

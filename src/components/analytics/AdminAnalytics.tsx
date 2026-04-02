@@ -1,6 +1,6 @@
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Users, BookOpen, FileText, Brain, TrendingUp, AlertTriangle, GraduationCap, BarChart3, Download } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -147,33 +147,6 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
       return data;
     },
   });
-
-  // Real-time subscriptions for live chart updates
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("analytics-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "assignment_submissions" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["analytics-submissions"] });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "quiz_attempts" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["analytics-quiz-attempts"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
