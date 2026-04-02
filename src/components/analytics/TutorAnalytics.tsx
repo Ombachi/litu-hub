@@ -147,6 +147,29 @@ const TutorAnalytics = () => {
     },
   });
 
+  // Real-time subscriptions for live updates
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("tutor-analytics-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "assignment_submissions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["course-submissions-analytics"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_attempts" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["course-quiz-attempts-analytics"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "lesson_completions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["course-lesson-completions-analytics"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "enrollments" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["course-enrollments"] });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   if (loadingCourses) {
     return (
       <div className="flex items-center justify-center py-20">
