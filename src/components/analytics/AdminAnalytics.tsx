@@ -16,6 +16,24 @@ interface AdminAnalyticsProps {
 
 const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
   const { user } = useAuth();
+  const qc = useQueryClient();
+
+  // Real-time: refresh analytics when submissions or quiz attempts change
+  useEffect(() => {
+    const channel = supabase
+      .channel("analytics-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "assignment_submissions" }, () => {
+        qc.invalidateQueries({ queryKey: ["analytics-submissions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_attempts" }, () => {
+        qc.invalidateQueries({ queryKey: ["analytics-quiz-attempts"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "enrollments" }, () => {
+        qc.invalidateQueries({ queryKey: ["analytics-enrollments"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
 
   // Get institution ID for school admins
   const { data: userInstitutionId } = useQuery({
