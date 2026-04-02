@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts } from "@/hooks/useData";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp, BookOpen, Brain, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
