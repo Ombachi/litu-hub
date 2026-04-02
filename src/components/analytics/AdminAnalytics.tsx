@@ -148,6 +148,33 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
     },
   });
 
+  // Real-time subscriptions for live chart updates
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("analytics-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "assignment_submissions" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["analytics-submissions"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "quiz_attempts" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["analytics-quiz-attempts"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
