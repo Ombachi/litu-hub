@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,18 +18,18 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  // Real-time: refresh analytics when submissions or quiz attempts change
+  // Real-time: refresh analytics when underlying data changes
   useEffect(() => {
     const channel = supabase
       .channel("analytics-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "assignment_submissions" }, () => {
-        qc.invalidateQueries({ queryKey: ["analytics-submissions"] });
+        qc.invalidateQueries({ queryKey: ["admin-analytics"] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "quiz_attempts" }, () => {
-        qc.invalidateQueries({ queryKey: ["analytics-quiz-attempts"] });
+        qc.invalidateQueries({ queryKey: ["admin-analytics"] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "enrollments" }, () => {
-        qc.invalidateQueries({ queryKey: ["analytics-enrollments"] });
+        qc.invalidateQueries({ queryKey: ["admin-analytics"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -50,114 +50,71 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
     },
   });
 
-  // Courses (all or institution-scoped)
-  const { data: courses, isLoading } = useQuery({
-    queryKey: ["analytics-courses", institutionScoped, userInstitutionId],
-    enabled: !institutionScoped || !!userInstitutionId,
+  const scopeId = institutionScoped ? userInstitutionId ?? null : null;
+  const ready = !institutionScoped || !!userInstitutionId;
+
+  // Server-aggregated summary
+  const { data: summary, isLoading } = useQuery({
+    queryKey: ["admin-analytics", "summary", scopeId],
+    enabled: ready,
     queryFn: async () => {
-      let query = supabase.from("courses").select("*, terms(name)").order("code");
-      if (institutionScoped && userInstitutionId) {
-        query = query.eq("institution_id", userInstitutionId);
-      }
-      const { data, error } = await query;
+      const { data, error } = await supabase.rpc("get_admin_analytics_summary", { _institution_id: scopeId });
       if (error) throw error;
-      return data;
+      return data as Record<string, number>;
     },
   });
 
-  const courseIds = useMemo(() => courses?.map(c => c.id) || [], [courses]);
-
-  // Enrollments
-  const { data: enrollments } = useQuery({
-    queryKey: ["analytics-enrollments", courseIds],
-    enabled: courseIds.length > 0,
+  // Server-aggregated per-course stats
+  const { data: courseStats = [] } = useQuery({
+    queryKey: ["admin-analytics", "course-stats", scopeId],
+    enabled: ready,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("enrollments")
-        .select("student_id, course_id")
-        .in("course_id", courseIds);
+      const { data, error } = await supabase.rpc("get_admin_course_stats", { _institution_id: scopeId });
       if (error) throw error;
-      return data;
+      return (data || []).map((r: any) => ({
+        name: r.code,
+        title: r.title,
+        term: r.term_name,
+        students: Number(r.students),
+        assignments: Number(r.assignments),
+        submissions: Number(r.submissions),
+        avg: Number(r.avg_score),
+        quizAvg: Number(r.quiz_avg),
+        submissionRate: Number(r.submission_rate),
+      }));
     },
   });
 
-  // Assignments
-  const { data: assignments } = useQuery({
-    queryKey: ["analytics-assignments", courseIds],
-    enabled: courseIds.length > 0,
+  // Grade distribution
+  const { data: gradeDistribution = [] } = useQuery({
+    queryKey: ["admin-analytics", "grade-dist", scopeId],
+    enabled: ready,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assignments")
-        .select("id, course_id, title, max_score")
-        .in("course_id", courseIds);
+      const { data, error } = await supabase.rpc("get_admin_grade_distribution", { _institution_id: scopeId });
       if (error) throw error;
-      return data;
+      const order = ["90-100", "80-89", "70-79", "60-69", "<60"];
+      const map = new Map((data || []).map((r: any) => [r.range, Number(r.count)]));
+      return order.map(range => ({ range, count: map.get(range) || 0 }));
     },
   });
 
-  const assignmentIds = useMemo(() => assignments?.map(a => a.id) || [], [assignments]);
-
-  // Submissions
-  const { data: submissions } = useQuery({
-    queryKey: ["analytics-submissions", assignmentIds],
-    enabled: assignmentIds.length > 0,
+  // Submission timeline
+  const { data: submissionTimeline = [] } = useQuery({
+    queryKey: ["admin-analytics", "timeline", scopeId],
+    enabled: ready,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assignment_submissions")
-        .select("id, assignment_id, student_id, score, status, submitted_at")
-        .in("assignment_id", assignmentIds);
+      const { data, error } = await supabase.rpc("get_admin_submission_timeline", { _institution_id: scopeId });
       if (error) throw error;
-      return data;
+      return (data || []).map((r: any) => ({
+        date: new Date(r.day).toLocaleDateString("en-KE", { month: "short", day: "numeric" }),
+        count: Number(r.count),
+      }));
     },
   });
 
-  // Quizzes
-  const { data: quizzes } = useQuery({
-    queryKey: ["analytics-quizzes", courseIds],
-    enabled: courseIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("quizzes")
-        .select("id, course_id, title")
-        .in("course_id", courseIds);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const quizIds = useMemo(() => quizzes?.map(q => q.id) || [], [quizzes]);
-
-  const { data: quizAttempts } = useQuery({
-    queryKey: ["analytics-quiz-attempts", quizIds],
-    enabled: quizIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("quiz_attempts")
-        .select("id, quiz_id, student_id, score, status, completed_at")
-        .in("quiz_id", quizIds)
-        .eq("status", "completed");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Tutors
-  const { data: courseTutors } = useQuery({
-    queryKey: ["analytics-course-tutors", courseIds],
-    enabled: courseIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("course_tutors")
-        .select("course_id, tutor_id")
-        .in("course_id", courseIds);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Institutions (platform admin only)
+  // Institutions (platform admin only) — small table, OK to fetch directly
   const { data: institutions } = useQuery({
-    queryKey: ["analytics-institutions"],
+    queryKey: ["analytics-institutions-list"],
     enabled: !institutionScoped,
     queryFn: async () => {
       const { data, error } = await supabase.from("institutions").select("id, name, slug");
@@ -166,92 +123,42 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
     },
   });
 
-  if (isLoading) {
+  const { data: institutionCourseCounts } = useQuery({
+    queryKey: ["analytics-institutions-counts"],
+    enabled: !institutionScoped && !!institutions?.length,
+    queryFn: async () => {
+      const { data: courses, error } = await supabase
+        .from("courses")
+        .select("id, institution_id");
+      if (error) throw error;
+      const { data: enrolls, error: e2 } = await supabase
+        .from("enrollments")
+        .select("student_id, course_id");
+      if (e2) throw e2;
+      return { courses: courses || [], enrollments: enrolls || [] };
+    },
+  });
+
+  if (isLoading || !summary) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  // Compute metrics
-  const totalCourses = courses?.length || 0;
-  const uniqueStudentIds = new Set(enrollments?.map(e => e.student_id) || []);
-  const totalStudents = uniqueStudentIds.size;
-  const uniqueTutorIds = new Set(courseTutors?.map(ct => ct.tutor_id) || []);
-  const totalTutors = uniqueTutorIds.size;
-  const totalAssignments = assignments?.length || 0;
-  const totalSubmissions = submissions?.length || 0;
-  const gradedSubmissions = submissions?.filter(s => s.score !== null) || [];
-  const ungradedSubmissions = submissions?.filter(s => s.score === null) || [];
-  const totalQuizzes = quizzes?.length || 0;
-  const completedQuizAttempts = quizAttempts?.length || 0;
-
-  const overallAssignmentAvg = gradedSubmissions.length > 0
-    ? Math.round(gradedSubmissions.reduce((s, g) => s + (g.score || 0), 0) / gradedSubmissions.length)
-    : 0;
-
-  const overallQuizAvg = completedQuizAttempts > 0
-    ? Math.round((quizAttempts || []).reduce((s, a) => s + (a.score || 0), 0) / completedQuizAttempts)
-    : 0;
-
-  // Per-course stats
-  const courseStats = (courses || []).map(course => {
-    const courseEnrollments = enrollments?.filter(e => e.course_id === course.id) || [];
-    const courseAssignments = assignments?.filter(a => a.course_id === course.id) || [];
-    const courseAssignmentIds = courseAssignments.map(a => a.id);
-    const courseSubs = submissions?.filter(s => courseAssignmentIds.includes(s.assignment_id)) || [];
-    const graded = courseSubs.filter(s => s.score !== null);
-    const avg = graded.length > 0 ? Math.round(graded.reduce((s, g) => s + (g.score || 0), 0) / graded.length) : 0;
-    const submissionRate = courseEnrollments.length > 0 && courseAssignments.length > 0
-      ? Math.round((courseSubs.length / (courseEnrollments.length * courseAssignments.length)) * 100)
-      : 0;
-    const courseQuizzes = quizzes?.filter(q => q.course_id === course.id) || [];
-    const courseQuizIds = courseQuizzes.map(q => q.id);
-    const courseQuizAttempts = quizAttempts?.filter(a => courseQuizIds.includes(a.quiz_id)) || [];
-    const quizAvg = courseQuizAttempts.length > 0
-      ? Math.round(courseQuizAttempts.reduce((s, a) => s + (a.score || 0), 0) / courseQuizAttempts.length)
-      : 0;
-
-    return {
-      name: course.code,
-      title: course.title,
-      students: courseEnrollments.length,
-      assignments: courseAssignments.length,
-      submissions: courseSubs.length,
-      avg,
-      quizAvg,
-      submissionRate,
-      term: (course.terms as any)?.name || "—",
-    };
-  });
-
-  // Grade distribution across all graded submissions
-  const gradeDistribution = [
-    { range: "90-100", count: gradedSubmissions.filter(s => (s.score || 0) >= 90).length },
-    { range: "80-89", count: gradedSubmissions.filter(s => (s.score || 0) >= 80 && (s.score || 0) < 90).length },
-    { range: "70-79", count: gradedSubmissions.filter(s => (s.score || 0) >= 70 && (s.score || 0) < 80).length },
-    { range: "60-69", count: gradedSubmissions.filter(s => (s.score || 0) >= 60 && (s.score || 0) < 70).length },
-    { range: "<60", count: gradedSubmissions.filter(s => (s.score || 0) < 60).length },
-  ];
+  const totalCourses = Number(summary.total_courses || 0);
+  const totalStudents = Number(summary.total_students || 0);
+  const totalTutors = Number(summary.total_tutors || 0);
+  const totalAssignments = Number(summary.total_assignments || 0);
+  const totalQuizzes = Number(summary.total_quizzes || 0);
+  const totalSubmissions = Number(summary.total_submissions || 0);
+  const gradedCount = Number(summary.graded_submissions || 0);
+  const ungradedCount = Number(summary.ungraded_submissions || 0);
+  const overallAssignmentAvg = Number(summary.avg_assignment_score || 0);
+  const overallQuizAvg = Number(summary.avg_quiz_score || 0);
 
   const submissionPie = [
-    { name: "Graded", value: gradedSubmissions.length, color: "hsl(152, 45%, 40%)" },
-    { name: "Ungraded", value: ungradedSubmissions.length, color: "hsl(45, 80%, 50%)" },
+    { name: "Graded", value: gradedCount, color: "hsl(152, 45%, 40%)" },
+    { name: "Ungraded", value: ungradedCount, color: "hsl(45, 80%, 50%)" },
     { name: "Missing", value: Math.max(0, totalStudents * totalAssignments - totalSubmissions), color: "hsl(0, 60%, 55%)" },
   ].filter(d => d.value > 0);
-
-  // Submissions over time (last 30 days)
-  const submissionTimeline = useMemo(() => {
-    if (!submissions?.length) return [];
-    const now = new Date();
-    const days: { date: string; count: number }[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      const label = d.toLocaleDateString("en-KE", { month: "short", day: "numeric" });
-      const count = submissions.filter(s => s.submitted_at?.startsWith(key)).length;
-      days.push({ date: label, count });
-    }
-    return days;
-  }, [submissions]);
 
   return (
     <>
@@ -261,7 +168,7 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
           { label: "Total Courses", value: totalCourses, icon: BookOpen, color: "text-primary" },
           { label: "Students", value: totalStudents, icon: Users, color: "text-accent" },
           { label: "Tutors", value: totalTutors, icon: GraduationCap, color: "text-info" },
-          { label: "Ungraded", value: ungradedSubmissions.length, icon: AlertTriangle, color: "text-destructive" },
+          { label: "Ungraded", value: ungradedCount, icon: AlertTriangle, color: "text-destructive" },
         ].map(stat => (
           <div key={stat.label} className="rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-center gap-3">
@@ -326,7 +233,7 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" /> Grade Distribution
           </h3>
-          {gradedSubmissions.length === 0 ? (
+          {gradedCount === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No graded submissions yet</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
@@ -442,28 +349,26 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
                 </tr>
               </thead>
               <tbody>
-                {courseStats
-                  .sort((a, b) => b.students - a.students)
-                  .map(c => (
-                    <tr key={c.name} className="border-b last:border-0 hover:bg-secondary/30 transition-colors">
-                      <td className="py-2.5 pr-4">
-                        <p className="font-medium">{c.name}</p>
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.title}</p>
-                      </td>
-                      <td className="py-2.5 px-2 text-xs text-muted-foreground">{c.term}</td>
-                      <td className="text-center py-2.5 px-2">{c.students}</td>
-                      <td className="text-center py-2.5 px-2">{c.assignments}</td>
-                      <td className="text-center py-2.5 px-2">{c.submissions}</td>
-                      <td className="text-center py-2.5 px-2 font-medium">{c.avg > 0 ? `${c.avg}%` : "—"}</td>
-                      <td className="text-center py-2.5 px-2">{c.quizAvg > 0 ? `${c.quizAvg}` : "—"}</td>
-                      <td className="text-center py-2.5 pl-2">
-                        <div className="flex items-center gap-2 justify-center">
-                          <Progress value={c.submissionRate} className="h-1.5 w-16" />
-                          <span className="text-xs">{c.submissionRate}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                {courseStats.map(c => (
+                  <tr key={c.name} className="border-b last:border-0 hover:bg-secondary/30 transition-colors">
+                    <td className="py-2.5 pr-4">
+                      <p className="font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.title}</p>
+                    </td>
+                    <td className="py-2.5 px-2 text-xs text-muted-foreground">{c.term}</td>
+                    <td className="text-center py-2.5 px-2">{c.students}</td>
+                    <td className="text-center py-2.5 px-2">{c.assignments}</td>
+                    <td className="text-center py-2.5 px-2">{c.submissions}</td>
+                    <td className="text-center py-2.5 px-2 font-medium">{c.avg > 0 ? `${c.avg}%` : "—"}</td>
+                    <td className="text-center py-2.5 px-2">{c.quizAvg > 0 ? `${c.quizAvg}` : "—"}</td>
+                    <td className="text-center py-2.5 pl-2">
+                      <div className="flex items-center gap-2 justify-center">
+                        <Progress value={c.submissionRate} className="h-1.5 w-16" />
+                        <span className="text-xs">{c.submissionRate}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -478,9 +383,11 @@ const AdminAnalytics = ({ institutionScoped = false }: AdminAnalyticsProps) => {
           </h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {institutions.map(inst => {
-              const instCourses = courses?.filter(c => c.institution_id === inst.id) || [];
+              const instCourses = institutionCourseCounts?.courses.filter(c => c.institution_id === inst.id) || [];
               const instCourseIds = instCourses.map(c => c.id);
-              const instStudents = new Set(enrollments?.filter(e => instCourseIds.includes(e.course_id)).map(e => e.student_id) || []).size;
+              const instStudents = new Set(
+                institutionCourseCounts?.enrollments.filter(e => instCourseIds.includes(e.course_id)).map(e => e.student_id) || []
+              ).size;
               return (
                 <div key={inst.id} className="rounded-lg border bg-secondary/20 p-4">
                   <p className="font-semibold text-sm">{inst.name}</p>
