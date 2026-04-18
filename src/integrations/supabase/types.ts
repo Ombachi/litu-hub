@@ -966,7 +966,41 @@ export type Database = {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
       }
+      cleanup_old_notifications: { Args: never; Returns: number }
       expire_stale_quiz_attempts: { Args: never; Returns: undefined }
+      get_admin_analytics_summary: {
+        Args: { _institution_id?: string }
+        Returns: Json
+      }
+      get_admin_course_stats: {
+        Args: { _institution_id?: string }
+        Returns: {
+          assignments: number
+          avg_score: number
+          code: string
+          course_id: string
+          quiz_avg: number
+          students: number
+          submission_rate: number
+          submissions: number
+          term_name: string
+          title: string
+        }[]
+      }
+      get_admin_grade_distribution: {
+        Args: { _institution_id?: string }
+        Returns: {
+          count: number
+          range: string
+        }[]
+      }
+      get_admin_submission_timeline: {
+        Args: { _institution_id?: string }
+        Returns: {
+          count: number
+          day: string
+        }[]
+      }
       get_user_institution_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
