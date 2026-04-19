@@ -1001,6 +1001,63 @@ export type Database = {
           day: string
         }[]
       }
+      get_student_analytics_summary: {
+        Args: { _student_id: string }
+        Returns: Json
+      }
+      get_student_course_breakdown: {
+        Args: { _student_id: string }
+        Returns: {
+          avg_score: number
+          code: string
+          completed_lessons: number
+          course_id: string
+          progress_pct: number
+          submitted_assignments: number
+          title: string
+          total_assignments: number
+          total_lessons: number
+        }[]
+      }
+      get_student_quiz_history: {
+        Args: { _limit?: number; _student_id: string }
+        Returns: {
+          attempt_id: string
+          completed_at: string
+          quiz_title: string
+          score: number
+        }[]
+      }
+      get_tutor_course_summary: { Args: { _course_id: string }; Returns: Json }
+      get_tutor_courses: {
+        Args: { _tutor_id: string }
+        Returns: {
+          code: string
+          course_id: string
+          title: string
+        }[]
+      }
+      get_tutor_grade_distribution: {
+        Args: { _course_id: string }
+        Returns: {
+          count: number
+          range: string
+        }[]
+      }
+      get_tutor_student_performance: {
+        Args: { _course_id: string }
+        Returns: {
+          at_risk: boolean
+          avg_assignment: number
+          avg_quiz: number
+          email: string
+          full_name: string
+          lesson_pct: number
+          overall_avg: number
+          student_id: string
+          submission_rate: number
+        }[]
+      }
       get_user_institution_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
