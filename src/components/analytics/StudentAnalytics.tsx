@@ -1,5 +1,4 @@
-import { useMemo, useEffect } from "react";
-import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts } from "@/hooks/useData";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,67 +10,83 @@ import {
   PieChart, Pie, Cell,
 } from "recharts";
 
-const COLORS = [
-  "hsl(152, 45%, 40%)", "hsl(210, 60%, 50%)", "hsl(340, 55%, 50%)",
-  "hsl(45, 80%, 50%)", "hsl(270, 50%, 55%)", "hsl(180, 45%, 45%)",
-];
-
 const StudentAnalytics = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const { data: enrollments, isLoading } = useEnrollments();
-  const { data: allAssignments } = useAssignments();
-  const { data: submissions } = useMySubmissions();
-  const { data: quizAttempts } = useMyQuizAttempts();
 
-  // Real-time: refresh when own submissions or quiz attempts change
+  // Server-side aggregated summary
+  const { data: summary, isLoading: loadingSummary } = useQuery({
+    queryKey: ["student-analytics-summary", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_student_analytics_summary", { _student_id: user!.id });
+      if (error) throw error;
+      return data as {
+        enrolled_count: number;
+        total_assignments: number;
+        submitted_assignments: number;
+        avg_assignment_score: number;
+        avg_quiz_score: number;
+        total_lessons: number;
+        completed_lessons: number;
+      };
+    },
+  });
+
+  // Per-course breakdown
+  const { data: courseBreakdown } = useQuery({
+    queryKey: ["student-analytics-courses", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_student_course_breakdown", { _student_id: user!.id });
+      if (error) throw error;
+      return data as Array<{
+        course_id: string;
+        code: string;
+        title: string;
+        total_lessons: number;
+        completed_lessons: number;
+        progress_pct: number;
+        total_assignments: number;
+        submitted_assignments: number;
+        avg_score: number;
+      }>;
+    },
+  });
+
+  // Recent quiz history
+  const { data: quizHistory } = useQuery({
+    queryKey: ["student-analytics-quizzes", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_student_quiz_history", { _student_id: user!.id, _limit: 8 });
+      if (error) throw error;
+      return data as Array<{ attempt_id: string; quiz_title: string; score: number | null; completed_at: string | null }>;
+    },
+  });
+
+  // Real-time: refresh summaries on changes
   useEffect(() => {
     if (!user) return;
     const channel = supabase
       .channel("student-analytics-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "assignment_submissions", filter: `student_id=eq.${user.id}` }, () => {
-        qc.invalidateQueries({ queryKey: ["my-submissions"] });
+        qc.invalidateQueries({ queryKey: ["student-analytics-summary"] });
+        qc.invalidateQueries({ queryKey: ["student-analytics-courses"] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "quiz_attempts", filter: `student_id=eq.${user.id}` }, () => {
-        qc.invalidateQueries({ queryKey: ["quiz-attempts"] });
+        qc.invalidateQueries({ queryKey: ["student-analytics-summary"] });
+        qc.invalidateQueries({ queryKey: ["student-analytics-quizzes"] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "lesson_completions", filter: `student_id=eq.${user.id}` }, () => {
-        qc.invalidateQueries({ queryKey: ["my-lesson-completions"] });
+        qc.invalidateQueries({ queryKey: ["student-analytics-summary"] });
+        qc.invalidateQueries({ queryKey: ["student-analytics-courses"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, qc]);
 
-  const { data: lessonCompletions } = useQuery({
-    queryKey: ["my-lesson-completions", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lesson_completions")
-        .select("*, lessons(module_id, modules(course_id, title))")
-        .eq("student_id", user!.id);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const enrolledCourseIds = useMemo(() => enrollments?.map(e => e.course_id) || [], [enrollments]);
-
-  const { data: allModules } = useQuery({
-    queryKey: ["all-modules-analytics", enrolledCourseIds],
-    enabled: enrolledCourseIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("modules")
-        .select("*, lessons(id)")
-        .in("course_id", enrolledCourseIds)
-        .order("order");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  if (isLoading) {
+  if (loadingSummary) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -79,51 +94,28 @@ const StudentAnalytics = () => {
     );
   }
 
-  const courseProgress = (enrollments || []).map((enrollment) => {
-    const course = enrollment.courses as any;
-    const courseModules = allModules?.filter(m => m.course_id === enrollment.course_id) || [];
-    const totalLessons = courseModules.reduce((s, m) => s + ((m.lessons as any[])?.length || 0), 0);
-    const completedLessons = lessonCompletions?.filter(
-      (lc: any) => lc.lessons?.modules?.course_id === enrollment.course_id
-    ).length || 0;
-    const pct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-    return { name: course?.code || "?", progress: pct, totalLessons, completedLessons };
-  });
+  const s = summary ?? {
+    enrolled_count: 0, total_assignments: 0, submitted_assignments: 0,
+    avg_assignment_score: 0, avg_quiz_score: 0, total_lessons: 0, completed_lessons: 0,
+  };
 
-  const gradeData = (enrollments || []).map((enrollment) => {
-    const course = enrollment.courses as any;
-    const courseAssignments = allAssignments?.filter(a => a.course_id === enrollment.course_id) || [];
-    const courseSubs = submissions?.filter(s => courseAssignments.some(a => a.id === s.assignment_id)) || [];
-    const graded = courseSubs.filter(s => s.score !== null);
-    const avgScore = graded.length > 0 ? Math.round(graded.reduce((s, g) => s + (g.score || 0), 0) / graded.length) : 0;
-    return { name: course?.code || "?", avgScore, submitted: courseSubs.length, total: courseAssignments.length };
-  });
-
-  const completedQuizzes = quizAttempts?.filter(a => a.status === "completed") || [];
-  const avgQuizScore = completedQuizzes.length > 0
-    ? Math.round(completedQuizzes.reduce((s, a) => s + (a.score || 0), 0) / completedQuizzes.length)
-    : 0;
-
-  const totalAssignments = allAssignments?.length || 0;
-  const submittedAssignments = submissions?.length || 0;
-  const gradedSubs = submissions?.filter(s => s.score !== null) || [];
-  const overallAvg = gradedSubs.length > 0
-    ? Math.round(gradedSubs.reduce((s, g) => s + (g.score || 0), 0) / gradedSubs.length)
-    : 0;
+  const gradeData = (courseBreakdown || []).map((c) => ({
+    name: c.code, avgScore: c.avg_score, submitted: c.submitted_assignments, total: c.total_assignments,
+  }));
 
   const assignmentPie = [
-    { name: "Submitted", value: submittedAssignments, color: "hsl(152, 45%, 40%)" },
-    { name: "Pending", value: Math.max(0, totalAssignments - submittedAssignments), color: "hsl(45, 80%, 50%)" },
+    { name: "Submitted", value: s.submitted_assignments, color: "hsl(152, 45%, 40%)" },
+    { name: "Pending", value: Math.max(0, s.total_assignments - s.submitted_assignments), color: "hsl(45, 80%, 50%)" },
   ].filter(d => d.value > 0);
 
   return (
     <>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: "Courses Enrolled", value: enrollments?.length || 0, icon: BookOpen, color: "text-primary" },
-          { label: "Assignments Done", value: `${submittedAssignments}/${totalAssignments}`, icon: FileText, color: "text-accent" },
-          { label: "Avg Assignment Score", value: overallAvg > 0 ? `${overallAvg}%` : "—", icon: TrendingUp, color: "text-primary" },
-          { label: "Avg Quiz Score", value: avgQuizScore > 0 ? avgQuizScore : "—", icon: Brain, color: "text-primary" },
+          { label: "Courses Enrolled", value: s.enrolled_count, icon: BookOpen, color: "text-primary" },
+          { label: "Assignments Done", value: `${s.submitted_assignments}/${s.total_assignments}`, icon: FileText, color: "text-accent" },
+          { label: "Avg Assignment Score", value: s.avg_assignment_score > 0 ? `${s.avg_assignment_score}%` : "—", icon: TrendingUp, color: "text-primary" },
+          { label: "Avg Quiz Score", value: s.avg_quiz_score > 0 ? s.avg_quiz_score : "—", icon: Brain, color: "text-primary" },
         ].map(stat => (
           <div key={stat.label} className="rounded-xl border bg-card p-4 shadow-sm">
             <div className="flex items-center gap-3">
@@ -144,19 +136,19 @@ const StudentAnalytics = () => {
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-primary" /> Course Progress
           </h3>
-          {courseProgress.length === 0 ? (
+          {(courseBreakdown?.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Enroll in courses to track progress</p>
           ) : (
             <div className="space-y-4">
-              {courseProgress.map(c => (
-                <div key={c.name}>
+              {courseBreakdown!.map(c => (
+                <div key={c.course_id}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">{c.name}</span>
-                    <span className="text-sm text-muted-foreground">{c.completedLessons}/{c.totalLessons} lessons</span>
+                    <span className="text-sm font-medium">{c.code}</span>
+                    <span className="text-sm text-muted-foreground">{c.completed_lessons}/{c.total_lessons} lessons</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Progress value={c.progress} className="h-2 flex-1" />
-                    <span className="text-sm font-bold text-primary w-12 text-right">{c.progress}%</span>
+                    <Progress value={c.progress_pct} className="h-2 flex-1" />
+                    <span className="text-sm font-bold text-primary w-12 text-right">{c.progress_pct}%</span>
                   </div>
                 </div>
               ))}
@@ -206,15 +198,15 @@ const StudentAnalytics = () => {
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <Brain className="h-4 w-4 text-primary" /> Quiz Performance
           </h3>
-          {completedQuizzes.length === 0 ? (
+          {(quizHistory?.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No quizzes completed yet</p>
           ) : (
             <div className="space-y-3">
-              {completedQuizzes.slice(0, 8).map((attempt, i) => (
-                <div key={attempt.id} className="flex items-center gap-3 rounded-lg bg-secondary/40 p-3">
+              {quizHistory!.map((attempt, i) => (
+                <div key={attempt.attempt_id} className="flex items-center gap-3 rounded-lg bg-secondary/40 p-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">{i + 1}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">Quiz Attempt</p>
+                    <p className="text-sm font-medium truncate">{attempt.quiz_title}</p>
                     <p className="text-xs text-muted-foreground">
                       {attempt.completed_at ? new Date(attempt.completed_at).toLocaleDateString("en-KE", { month: "short", day: "numeric" }) : "—"}
                     </p>
