@@ -42,7 +42,7 @@ const ADMIN_PREFS: NotifPref[] = [
 function getPrefsForRole(role: string): NotifPref[] {
   if (role === "parent") return PARENT_PREFS;
   if (role === "tutor" || role === "ta") return TUTOR_PREFS;
-  if (["admin", "platform_admin", "school_admin"].includes(role)) return ADMIN_PREFS;
+  if (["platform_admin", "school_admin"].includes(role)) return ADMIN_PREFS;
   return STUDENT_PREFS;
 }
 

@@ -2,7 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useRole } from "@/hooks/useRole";
 import { Loader2 } from "lucide-react";
 
-type AppRole = "admin" | "platform_admin" | "school_admin" | "tutor" | "ta" | "student" | "parent";
+type AppRole = "platform_admin" | "school_admin" | "tutor" | "ta" | "student" | "parent";
 
 interface RoleGuardProps {
   children: React.ReactNode;

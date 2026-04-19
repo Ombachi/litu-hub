@@ -18,7 +18,6 @@ const Dashboard = () => {
       {(() => {
         switch (role) {
           case "platform_admin":
-          case "admin":
             return <PlatformAdminDashboard />;
           case "school_admin":
             return <SchoolAdminDashboard />;
