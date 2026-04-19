@@ -21,11 +21,11 @@ import SchoolAdminsTab from "@/components/admin/SchoolAdminsTab";
 import SchoolAdminDashboard from "@/components/admin/SchoolAdminDashboard";
 import SchoolAdminCoursesTab from "@/components/admin/SchoolAdminCoursesTab";
 
-const ROLES = ["admin", "platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as const;
+const ROLES = ["platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as const;
 
 const AdminPanel = () => {
   const { isAdmin, role } = useRole();
-  const isPlatformAdmin = role === "platform_admin" || role === "admin";
+  const isPlatformAdmin = role === "platform_admin";
   const isSchoolAdmin = role === "school_admin";
   const { data: myInstitution } = useMyInstitution();
   const qc = useQueryClient();
@@ -216,7 +216,7 @@ const AdminPanel = () => {
   // For platform admin, exclude other platform admins from the user list
   const institutionMemberIds = new Set(institutionMembers?.map(m => m.user_id) || []);
   const platformAdminIds = new Set(
-    allRoles?.filter(r => r.role === 'admin' || r.role === 'platform_admin').map(r => r.user_id) || []
+    allRoles?.filter(r => r.role === 'platform_admin').map(r => r.user_id) || []
   );
   // Build a map of userId -> institution name for platform admin
   const userInstMap = new Map<string, string>();

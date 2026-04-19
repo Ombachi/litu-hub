@@ -15,18 +15,18 @@ import ScientificCalculator from "@/components/ScientificCalculator";
 import StudyAssistant from "@/components/StudyAssistant";
 
 const allNavItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "tutor", "ta", "school_admin", "admin", "platform_admin", "parent"] as string[] },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["student", "tutor", "ta", "school_admin", "platform_admin", "parent"] as string[] },
   { to: "/assignments", icon: FileText, label: "Assignments", roles: ["student", "ta"] as string[] },
   { to: "/quizzes", icon: Brain, label: "Quizzes", roles: ["student", "ta"] as string[] },
   { to: "/grades", icon: TrendingUp, label: "Grades", roles: ["student", "ta"] as string[] },
   { to: "/calendar", icon: Calendar, label: "Calendar", roles: ["student", "tutor", "ta"] as string[] },
-  { to: "/messages", icon: Mail, label: "Messages", roles: ["admin", "platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as string[] },
+  { to: "/messages", icon: Mail, label: "Messages", roles: ["platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as string[] },
   { to: "/discussions", icon: MessageSquare, label: "Discussions", roles: ["student", "ta"] as string[] },
   { to: "/analytics", icon: TrendingUp, label: "Analytics", roles: ["tutor", "ta"] as string[] },
   { to: "/parent", icon: Users, label: "Parent Portal", roles: ["parent"] as string[] },
   { to: "/grading-queue", icon: ClipboardCheck, label: "Grading Queue", roles: ["tutor", "ta"] as string[] },
   { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio", roles: ["tutor", "ta"] as string[] },
-  { to: "/admin", icon: Settings, label: "Admin Panel", roles: ["admin", "platform_admin", "school_admin"] as string[] },
+  { to: "/admin", icon: Settings, label: "Admin Panel", roles: ["platform_admin", "school_admin"] as string[] },
 ];
 
 interface AppLayoutProps { children: React.ReactNode; }

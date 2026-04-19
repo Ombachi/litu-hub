@@ -73,7 +73,7 @@ const SchoolAdminsTab = () => {
       const { data: excludeRoles } = await supabase
         .from("user_roles")
         .select("user_id, role")
-        .in("role", ["admin", "platform_admin", "student", "parent"] as any);
+        .in("role", ["platform_admin", "student", "parent"] as any);
       const excludeIds = new Set(excludeRoles?.map(r => r.user_id) || []);
       const { data, error } = await supabase.from("profiles").select("user_id, first_name, last_name, email").order("first_name");
       if (error) throw error;

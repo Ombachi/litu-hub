@@ -90,7 +90,7 @@ const App = () => (
                           <Route
                             path="/coach-studio"
                             element={
-                              <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
+                              <RoleGuard allowedRoles={["platform_admin", "school_admin", "tutor", "ta"]}>
                                 <ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><CoachStudio /></Suspense></ErrorBoundary>
                               </RoleGuard>
                             }
@@ -98,7 +98,7 @@ const App = () => (
                           <Route
                             path="/admin"
                             element={
-                              <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin"]}>
+                              <RoleGuard allowedRoles={["platform_admin", "school_admin"]}>
                                 <ErrorBoundary><Suspense fallback={<DashboardSkeleton />}><AdminPanel /></Suspense></ErrorBoundary>
                               </RoleGuard>
                             }
@@ -106,7 +106,7 @@ const App = () => (
                           <Route
                             path="/grading-queue"
                             element={
-                              <RoleGuard allowedRoles={["admin", "platform_admin", "school_admin", "tutor", "ta"]}>
+                              <RoleGuard allowedRoles={["platform_admin", "school_admin", "tutor", "ta"]}>
                                 <ErrorBoundary><Suspense fallback={<GradingQueueSkeleton />}><GradingQueuePage /></Suspense></ErrorBoundary>
                               </RoleGuard>
                             }
