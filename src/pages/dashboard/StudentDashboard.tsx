@@ -7,42 +7,14 @@ import { Progress } from "@/components/ui/progress";
 import { DashboardSkeleton } from "@/components/PageSkeleton";
 import { toast } from "sonner";
 import {
-  BookOpen, Clock, FileText, Brain, Trophy, ArrowRight, TrendingUp, Calendar,
+  BookOpen, Clock, FileText, ArrowRight, Calendar,
 } from "lucide-react";
-
-const badges = [
-  { name: "Quick Learner", icon: "⚡", earned: true },
-  { name: "Team Player", icon: "🤝", earned: true },
-  { name: "Perfect Score", icon: "🎯", earned: false },
-  { name: "Early Bird", icon: "🌅", earned: true },
-  { name: "Consistent", icon: "🔥", earned: true },
-];
 
 const StudentDashboard = () => {
   const { data: courses, isLoading: loadingCourses } = useCourses();
   const { data: enrollments, isLoading: loadingEnrollments } = useEnrollments();
   const { data: assignments } = useAssignments();
   const { data: profile } = useProfile();
-  const { data: submissions } = useQuery({
-    queryKey: ["my-submission-count"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-      const { data, error } = await supabase.from("assignment_submissions").select("id, score").eq("student_id", user.id);
-      if (error) throw error;
-      return data;
-    },
-  });
-  const { data: quizAttempts } = useQuery({
-    queryKey: ["my-quiz-attempt-count"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-      const { data, error } = await supabase.from("quiz_attempts").select("id").eq("student_id", user.id).eq("status", "completed");
-      if (error) throw error;
-      return data;
-    },
-  });
   const enrollMutation = useEnroll();
 
   if (loadingCourses || loadingEnrollments) return <DashboardSkeleton />;
@@ -68,27 +40,6 @@ const StudentDashboard = () => {
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight">Habari, {firstName}! 👋</h1>
         <p className="mt-1 text-muted-foreground">Here's what's happening today</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          { label: "Enrolled Courses", value: enrolledCourses.length, icon: BookOpen, color: "text-primary" },
-          { label: "Pending Tasks", value: upcomingAssignments.length, icon: FileText, color: "text-accent" },
-          { label: "Quizzes Done", value: quizAttempts?.length || 0, icon: Brain, color: "text-info" },
-          { label: "Submissions", value: submissions?.length || 0, icon: TrendingUp, color: "text-success" },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-xl border bg-card p-4 shadow-card transition-all hover:shadow-elevated">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
-              </div>
-              <div>
-                <p className="text-2xl font-display font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
@@ -150,19 +101,6 @@ const StudentDashboard = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card p-5 shadow-card">
-            <h3 className="font-display font-semibold flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-accent" /> My Badges
-            </h3>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {badges.map((badge) => (
-                <div key={badge.name} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${badge.earned ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground opacity-50"}`}>
-                  <span>{badge.icon}</span>
-                  {badge.name}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
