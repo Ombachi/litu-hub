@@ -1,7 +1,5 @@
 import { Link } from "react-router-dom";
 import { useCourses, useEnrollments, useAssignments, useEnroll, useProfile } from "@/hooks/useData";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DashboardSkeleton } from "@/components/PageSkeleton";
