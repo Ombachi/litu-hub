@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Users, Shield, BookOpen, ClipboardList, Plus, Trash2, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3,
+  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import PlatformDashboard from "@/components/admin/PlatformDashboard";
 import SchoolAdminsTab from "@/components/admin/SchoolAdminsTab";
 import SchoolAdminDashboard from "@/components/admin/SchoolAdminDashboard";
 import SchoolAdminCoursesTab from "@/components/admin/SchoolAdminCoursesTab";
+import ParentApprovalsTab from "@/components/admin/ParentApprovalsTab";
 
 const ROLES = ["platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as const;
 
