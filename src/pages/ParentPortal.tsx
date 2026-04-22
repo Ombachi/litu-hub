@@ -148,21 +148,35 @@ const ParentPortal = () => {
           <Users className="h-4 w-4 text-primary" /> My Children
         </h3>
         <div className="flex flex-wrap gap-2 mb-3">
-          {links?.map((link) => {
+          {links?.map((link: any) => {
             const p = link.profiles as any;
-            const isActive = link.student_id === childId;
+            const isApproved = link.status === "approved";
+            const isActive = link.student_id === childId && isApproved;
+            const statusLabel =
+              link.status === "approved" ? "Approved" :
+              link.status === "pending" ? "Pending approval" : link.status;
+            const statusVariant =
+              link.status === "approved" ? "default" :
+              link.status === "pending" ? "secondary" : "outline";
             return (
               <button
                 key={link.id}
-                onClick={() => setSelectedChild(link.student_id)}
+                onClick={() => isApproved && setSelectedChild(link.student_id)}
+                disabled={!isApproved}
+                title={isApproved ? undefined : "Awaiting admin approval before you can view this student's data"}
                 className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-secondary/80"
+                  isActive ? "bg-primary text-primary-foreground" :
+                  isApproved ? "bg-secondary hover:bg-secondary/80" :
+                  "bg-secondary/40 text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-background/20 text-xs font-bold">
                   {p?.first_name?.[0] || "?"}
                 </div>
-                {p?.first_name} {p?.last_name}
+                <span>{p?.first_name} {p?.last_name}</span>
+                <Badge variant={statusVariant as any} className="text-[10px] capitalize ml-1">
+                  {statusLabel}
+                </Badge>
               </button>
             );
           })}
@@ -188,7 +202,11 @@ const ParentPortal = () => {
       {!childId ? (
         <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
           <Users className="mx-auto h-10 w-10 text-muted-foreground" />
-          <p className="mt-3 text-muted-foreground">Link your child's account to view their progress.</p>
+          <p className="mt-3 text-muted-foreground">
+            {(links || []).some((l: any) => l.status === "pending")
+              ? "Your link request is awaiting admin approval. You'll be notified once it's approved."
+              : "Link your child's account to view their progress."}
+          </p>
         </div>
       ) : (
         <>
