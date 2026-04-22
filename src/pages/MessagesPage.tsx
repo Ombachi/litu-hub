@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,14 @@ import { toast } from "sonner";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
 
+type PublicUser = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  role?: string | null;
+};
+
 const MessagesPage = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -22,24 +30,17 @@ const MessagesPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all users (profiles) that can be messaged, with their roles
-  const { data: allUsers } = useQuery({
-    queryKey: ["message-users"],
-    enabled: !!user,
+  // Recipient picker: server-side search returning name/avatar/role only (no email).
+  const { data: searchResults, isFetching: searching } = useQuery({
+    queryKey: ["search-users", userSearch],
+    enabled: !!user && userSearch.trim().length > 0,
     queryFn: async () => {
-      const { data: profilesData, error } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name, email, avatar_url")
-        .neq("user_id", user!.id)
-        .order("first_name");
+      const { data, error } = await (supabase as any).rpc("search_messageable_users", {
+        _query: userSearch.trim(),
+        _limit: 25,
+      });
       if (error) throw error;
-      // Fetch roles - RLS may restrict visibility, so we use what we can get
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-      const roleMap = new Map<string, string>();
-      rolesData?.forEach(r => roleMap.set(r.user_id, r.role));
-      return profilesData?.map(p => ({ ...p, role: roleMap.get(p.user_id) || null })) || [];
+      return (data || []) as PublicUser[];
     },
   });
 
@@ -72,6 +73,26 @@ const MessagesPage = () => {
         }
       });
       return Array.from(convMap.values());
+    },
+  });
+
+  // Resolve conversation partner profiles via the public-profiles RPC (no email exposure).
+  const partnerIds = useMemo(() => {
+    const ids = new Set<string>();
+    conversations?.forEach((c) => ids.add(c.partnerId));
+    if (selectedUserId) ids.add(selectedUserId);
+    return Array.from(ids);
+  }, [conversations, selectedUserId]);
+
+  const { data: partnerProfiles } = useQuery({
+    queryKey: ["public-profiles", partnerIds.sort().join(",")],
+    enabled: partnerIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_public_profiles", {
+        _user_ids: partnerIds,
+      });
+      if (error) throw error;
+      return (data || []) as PublicUser[];
     },
   });
 
@@ -160,12 +181,11 @@ const MessagesPage = () => {
     },
   });
 
-  const getUserProfile = (userId: string) => allUsers?.find((u) => u.user_id === userId);
-  const selectedUser = selectedUserId ? getUserProfile(selectedUserId) : null;
+  const getUserProfile = (userId: string): PublicUser | undefined =>
+    partnerProfiles?.find((u) => u.user_id === userId) ||
+    searchResults?.find((u) => u.user_id === userId);
 
-  const filteredUsers = allUsers?.filter((u) =>
-    `${u.first_name} ${u.last_name} ${u.email} ${u.role}`.toLowerCase().includes(userSearch.toLowerCase())
-  );
+  const selectedUser = selectedUserId ? getUserProfile(selectedUserId) : null;
 
   const getAvatarUrl = (avatarPath: string | null) => {
     if (!avatarPath) return null;
@@ -187,6 +207,10 @@ const MessagesPage = () => {
   };
 
   const isImage = (filename: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
+  const fullName = (u?: PublicUser | null) =>
+    u ? `${u.first_name || ""} ${u.last_name || ""}`.trim() || "User" : "User";
+  const initial = (u?: PublicUser | null) =>
+    (u?.first_name?.[0] || u?.last_name?.[0] || "?").toUpperCase();
 
   return (
     <div className="flex h-[calc(100vh-120px)] rounded-xl border bg-card shadow-card overflow-hidden animate-fade-in">
@@ -199,34 +223,49 @@ const MessagesPage = () => {
             <Input
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
-              placeholder="Search users..."
+              placeholder="Search by name..."
               className="pl-9 h-9"
             />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {userSearch ? (
-            filteredUsers?.map((u) => (
-              <button
-                key={u.user_id}
-                onClick={() => { setSelectedUserId(u.user_id); setUserSearch(""); }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
-              >
-                <Avatar className="h-10 w-10 shrink-0">
-                  {u.avatar_url && <AvatarImage src={getAvatarUrl(u.avatar_url)!} alt="" />}
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                    {(u.first_name?.[0] || u.email?.[0] || "?").toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">{u.first_name} {u.last_name}</p>
-                    {u.role && <Badge variant="secondary" className="text-[10px] capitalize shrink-0">{u.role.replace("_", " ")}</Badge>}
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+            <>
+              {searching && (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-              </button>
-            ))
+              )}
+              {!searching && searchResults?.length === 0 && (
+                <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No users found.
+                </div>
+              )}
+              {searchResults?.map((u) => (
+                <button
+                  key={u.user_id}
+                  onClick={() => { setSelectedUserId(u.user_id); setUserSearch(""); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                >
+                  <Avatar className="h-10 w-10 shrink-0">
+                    {u.avatar_url && <AvatarImage src={getAvatarUrl(u.avatar_url)!} alt="" />}
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                      {initial(u)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate">{fullName(u)}</p>
+                      {u.role && (
+                        <Badge variant="secondary" className="text-[10px] capitalize shrink-0">
+                          {u.role.replace("_", " ")}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </>
           ) : (
             conversations?.map((conv) => {
               const partner = getUserProfile(conv.partnerId);
@@ -242,13 +281,11 @@ const MessagesPage = () => {
                   <Avatar className="h-10 w-10 shrink-0">
                     {partner?.avatar_url && <AvatarImage src={getAvatarUrl(partner.avatar_url)!} alt="" />}
                     <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                      {(partner?.first_name?.[0] || "?").toUpperCase()}
+                      {initial(partner)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {partner?.first_name || "User"} {partner?.last_name || ""}
-                    </p>
+                    <p className="text-sm font-medium truncate">{fullName(partner)}</p>
                     <p className="text-xs text-muted-foreground truncate">{conv.lastMessage?.content || "📎 Attachment"}</p>
                   </div>
                   {conv.unreadCount > 0 && (
@@ -278,12 +315,16 @@ const MessagesPage = () => {
               <Avatar className="h-9 w-9">
                 {selectedUser?.avatar_url && <AvatarImage src={getAvatarUrl(selectedUser.avatar_url)!} alt="" />}
                 <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                  {(selectedUser?.first_name?.[0] || "?").toUpperCase()}
+                  {initial(selectedUser)}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium text-sm">{selectedUser?.first_name || "User"} {selectedUser?.last_name || ""}</p>
-                <p className="text-xs text-muted-foreground">{selectedUser?.email}</p>
+                <p className="font-medium text-sm">{fullName(selectedUser)}</p>
+                {selectedUser?.role && (
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {selectedUser.role.replace("_", " ")}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
@@ -296,7 +337,7 @@ const MessagesPage = () => {
                       <Avatar className="h-7 w-7 shrink-0 mt-1">
                         {senderProfile?.avatar_url && <AvatarImage src={getAvatarUrl(senderProfile.avatar_url)!} alt="" />}
                         <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
-                          {(senderProfile?.first_name?.[0] || "?").toUpperCase()}
+                          {initial(senderProfile)}
                         </AvatarFallback>
                       </Avatar>
                     )}

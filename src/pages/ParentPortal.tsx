@@ -28,7 +28,7 @@ const ParentPortal = () => {
   const [studentEmail, setStudentEmail] = useState("");
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
 
-  // Get linked children
+  // Get linked children (any status). Approved links unlock data; pending shows banner.
   const { data: links, isLoading: loadingLinks } = useQuery({
     queryKey: ["parent-links", user?.id],
     enabled: !!user,
@@ -39,45 +39,41 @@ const ParentPortal = () => {
         .eq("parent_id", user!.id);
       if (error) throw error;
       if (!rawLinks?.length) return [];
-      // Fetch profiles for linked students
+      // Resolve student names via the public-profiles RPC (no email exposure).
       const studentIds = rawLinks.map(l => l.student_id);
-      const { data: studentProfiles } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name, email")
-        .in("user_id", studentIds);
+      const { data: studentProfiles } = await (supabase as any).rpc("get_public_profiles", {
+        _user_ids: studentIds,
+      });
       return rawLinks.map(l => ({
         ...l,
-        profiles: studentProfiles?.find(p => p.user_id === l.student_id) || null,
+        profiles: (studentProfiles || []).find((p: any) => p.user_id === l.student_id) || null,
       }));
     },
   });
 
   const linkChild = useMutation({
     mutationFn: async (email: string) => {
-      const { data: profile, error: pErr } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("email", email)
-        .maybeSingle();
-      if (pErr) throw pErr;
-      if (!profile) throw new Error("No student found with that email");
-
-      const { error } = await supabase.from("parent_student_links").insert({
-        parent_id: user!.id,
-        student_id: profile.user_id,
+      // Server-side RPC: looks up student by email without exposing the profiles table,
+      // creates the link in 'pending' status, and notifies admins for approval.
+      const { error } = await (supabase as any).rpc("request_parent_link_by_email", {
+        _student_email: email,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["parent-links"] });
       setStudentEmail("");
-      toast.success("Child linked successfully");
+      toast.success("Link request sent — awaiting admin approval");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Get selected child's data
-  const childId = selectedChild || links?.[0]?.student_id;
+  // Only approved links unlock child data; pending requests just show a status badge.
+  const approvedLinks = useMemo(
+    () => (links || []).filter((l: any) => l.status === "approved"),
+    [links]
+  );
+  const childId = selectedChild || approvedLinks[0]?.student_id;
 
   const { data: childEnrollments } = useQuery({
     queryKey: ["parent-child-enrollments", childId],
@@ -152,21 +148,35 @@ const ParentPortal = () => {
           <Users className="h-4 w-4 text-primary" /> My Children
         </h3>
         <div className="flex flex-wrap gap-2 mb-3">
-          {links?.map((link) => {
+          {links?.map((link: any) => {
             const p = link.profiles as any;
-            const isActive = link.student_id === childId;
+            const isApproved = link.status === "approved";
+            const isActive = link.student_id === childId && isApproved;
+            const statusLabel =
+              link.status === "approved" ? "Approved" :
+              link.status === "pending" ? "Pending approval" : link.status;
+            const statusVariant =
+              link.status === "approved" ? "default" :
+              link.status === "pending" ? "secondary" : "outline";
             return (
               <button
                 key={link.id}
-                onClick={() => setSelectedChild(link.student_id)}
+                onClick={() => isApproved && setSelectedChild(link.student_id)}
+                disabled={!isApproved}
+                title={isApproved ? undefined : "Awaiting admin approval before you can view this student's data"}
                 className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-secondary/80"
+                  isActive ? "bg-primary text-primary-foreground" :
+                  isApproved ? "bg-secondary hover:bg-secondary/80" :
+                  "bg-secondary/40 text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-background/20 text-xs font-bold">
                   {p?.first_name?.[0] || "?"}
                 </div>
-                {p?.first_name} {p?.last_name}
+                <span>{p?.first_name} {p?.last_name}</span>
+                <Badge variant={statusVariant as any} className="text-[10px] capitalize ml-1">
+                  {statusLabel}
+                </Badge>
               </button>
             );
           })}
@@ -192,7 +202,11 @@ const ParentPortal = () => {
       {!childId ? (
         <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
           <Users className="mx-auto h-10 w-10 text-muted-foreground" />
-          <p className="mt-3 text-muted-foreground">Link your child's account to view their progress.</p>
+          <p className="mt-3 text-muted-foreground">
+            {(links || []).some((l: any) => l.status === "pending")
+              ? "Your link request is awaiting admin approval. You'll be notified once it's approved."
+              : "Link your child's account to view their progress."}
+          </p>
         </div>
       ) : (
         <>
