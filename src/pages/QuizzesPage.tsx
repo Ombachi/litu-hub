@@ -205,52 +205,32 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
     if (!attemptId || !questions || submitted) return;
     setSubmitted(true);
 
-    let pendingReview = 0;
+    // Client only sends the answer text; the server computes is_correct & points.
     const responses = questions.map((q) => {
       const ans = answers[q.id];
-
+      let responseText = "";
       if (q.question_type === "short_answer") {
-        pendingReview++;
-        const textAnswer = typeof ans === "object" ? (ans.text || "") : (ans || "");
-        const fileUrl = typeof ans === "object" ? (ans.fileUrl || "") : "";
-        return {
-          question_id: q.id,
-          response: fileUrl ? `${textAnswer}\n\n📎 ${fileUrl}` : textAnswer,
-          is_correct: false,
-          points_earned: 0,
-        };
+        const textAnswer = typeof ans === "object" ? (ans?.text || "") : (ans || "");
+        const fileUrl = typeof ans === "object" ? (ans?.fileUrl || "") : "";
+        responseText = fileUrl ? `${textAnswer}\n\n📎 ${fileUrl}` : textAnswer;
+      } else if (Array.isArray(ans)) {
+        responseText = ans.join("|||");
+      } else {
+        responseText = ans || "";
       }
-
-      const correctSet = new Set((q.correct_answer || "").split("|||").filter(Boolean));
-      
-      if (correctSet.size > 1) {
-        const selectedSet = new Set(Array.isArray(ans) ? ans : []);
-        const isCorrect = correctSet.size === selectedSet.size &&
-          [...correctSet].every(c => selectedSet.has(c));
-        return {
-          question_id: q.id,
-          response: Array.isArray(ans) ? ans.join("|||") : (ans || ""),
-          is_correct: isCorrect,
-          points_earned: isCorrect ? q.points : 0,
-        };
-      }
-
-      const isCorrect = ans === q.correct_answer;
-      return {
-        question_id: q.id,
-        response: ans || "",
-        is_correct: isCorrect,
-        points_earned: isCorrect ? q.points : 0,
-      };
+      return { question_id: q.id, response: responseText };
     });
 
-    const score = responses.reduce((s, r) => s + r.points_earned, 0);
     const total = questions.reduce((s, q) => s + q.points, 0);
-    const correct = responses.filter((r) => r.is_correct).length;
 
     try {
-      await submitResponses.mutateAsync({ attemptId, responses });
-      setResults({ score, total, correct, pendingReview });
+      const result = await submitResponses.mutateAsync({ attemptId, responses });
+      setResults({
+        score: result?.score ?? 0,
+        total,
+        correct: result?.correct ?? 0,
+        pendingReview: result?.pending_review ?? 0,
+      });
     } catch (e: any) {
       toast.error(e.message);
     }
