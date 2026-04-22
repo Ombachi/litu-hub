@@ -28,7 +28,7 @@ const ParentPortal = () => {
   const [studentEmail, setStudentEmail] = useState("");
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
 
-  // Get linked children
+  // Get linked children (any status). Approved links unlock data; pending shows banner.
   const { data: links, isLoading: loadingLinks } = useQuery({
     queryKey: ["parent-links", user?.id],
     enabled: !!user,
@@ -39,15 +39,14 @@ const ParentPortal = () => {
         .eq("parent_id", user!.id);
       if (error) throw error;
       if (!rawLinks?.length) return [];
-      // Fetch profiles for linked students
+      // Resolve student names via the public-profiles RPC (no email exposure).
       const studentIds = rawLinks.map(l => l.student_id);
-      const { data: studentProfiles } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name, email")
-        .in("user_id", studentIds);
+      const { data: studentProfiles } = await (supabase as any).rpc("get_public_profiles", {
+        _user_ids: studentIds,
+      });
       return rawLinks.map(l => ({
         ...l,
-        profiles: studentProfiles?.find(p => p.user_id === l.student_id) || null,
+        profiles: (studentProfiles || []).find((p: any) => p.user_id === l.student_id) || null,
       }));
     },
   });
