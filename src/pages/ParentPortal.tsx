@@ -54,24 +54,17 @@ const ParentPortal = () => {
 
   const linkChild = useMutation({
     mutationFn: async (email: string) => {
-      const { data: profile, error: pErr } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("email", email)
-        .maybeSingle();
-      if (pErr) throw pErr;
-      if (!profile) throw new Error("No student found with that email");
-
-      const { error } = await supabase.from("parent_student_links").insert({
-        parent_id: user!.id,
-        student_id: profile.user_id,
+      // Server-side RPC: looks up student by email without exposing the profiles table,
+      // creates the link in 'pending' status, and notifies admins for approval.
+      const { error } = await (supabase as any).rpc("request_parent_link_by_email", {
+        _student_email: email,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["parent-links"] });
       setStudentEmail("");
-      toast.success("Child linked successfully");
+      toast.success("Link request sent — awaiting admin approval");
     },
     onError: (e: any) => toast.error(e.message),
   });
