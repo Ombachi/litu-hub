@@ -261,6 +261,7 @@ const AdminPanel = () => {
         { value: "institutions", icon: Building2, label: "Institutions" },
         { value: "school-admins", icon: Shield, label: "School Admins" },
         { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
+        { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ]
     : [
@@ -270,6 +271,7 @@ const AdminPanel = () => {
         { value: "enrollment", icon: UserPlus, label: "Enrollment" },
         { value: "terms", icon: Calendar, label: "Terms" },
         { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
+        { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ];
 
@@ -496,6 +498,11 @@ const AdminPanel = () => {
             <EnrollmentTab />
           </TabsContent>
         )}
+
+        {/* Parent Approvals Tab (both roles) */}
+        <TabsContent value="parent-approvals" className="mt-6">
+          <ParentApprovalsTab />
+        </TabsContent>
 
         {/* Audit Logs Tab (both roles) */}
         <TabsContent value="audit" className="mt-6">
