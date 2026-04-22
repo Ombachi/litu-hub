@@ -26,24 +26,64 @@ const MessagesPage = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Debounced query so we only hit the server after the user pauses typing.
+  const debouncedSearch = useDebounce(userSearch, 300);
 
   // Recipient picker: server-side search returning name/avatar/role only (no email).
   const { data: searchResults, isFetching: searching } = useQuery({
-    queryKey: ["search-users", userSearch],
-    enabled: !!user && userSearch.trim().length > 0,
+    queryKey: ["search-users", debouncedSearch],
+    enabled: !!user && debouncedSearch.trim().length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("search_messageable_users", {
-        _query: userSearch.trim(),
+        _query: debouncedSearch.trim(),
         _limit: 25,
       });
       if (error) throw error;
       return (data || []) as PublicUser[];
     },
   });
+
+  // Reset highlight when the search or results change.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [debouncedSearch, searchResults?.length]);
+
+  const startConversationWith = (userId: string) => {
+    setSelectedUserId(userId);
+    setUserSearch("");
+    setActiveIndex(0);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!searchResults?.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, searchResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const target = searchResults[activeIndex];
+      if (target) startConversationWith(target.user_id);
+    } else if (e.key === "Escape") {
+      setUserSearch("");
+    }
+  };
+
+  // Keep highlighted item scrolled into view.
+  useEffect(() => {
+    if (!resultsRef.current) return;
+    const el = resultsRef.current.querySelector<HTMLElement>(`[data-result-index="${activeIndex}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
 
   // Fetch conversations (grouped by other user)
   const { data: conversations } = useQuery({
