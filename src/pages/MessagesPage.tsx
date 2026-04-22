@@ -264,48 +264,66 @@ const MessagesPage = () => {
             <Input
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
-              placeholder="Search by name..."
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search by name… (↑/↓ + Enter)"
               className="pl-9 h-9"
+              aria-label="Search users to start a conversation"
+              role="combobox"
+              aria-expanded={!!userSearch && !!searchResults?.length}
+              aria-controls="recipient-results"
+              aria-activedescendant={
+                searchResults?.length ? `recipient-result-${activeIndex}` : undefined
+              }
             />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" ref={resultsRef} id="recipient-results" role="listbox">
           {userSearch ? (
             <>
-              {searching && (
+              {(searching || userSearch !== debouncedSearch) && (
                 <div className="flex justify-center py-6">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               )}
-              {!searching && searchResults?.length === 0 && (
+              {!searching && userSearch === debouncedSearch && searchResults?.length === 0 && (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No users found.
                 </div>
               )}
-              {searchResults?.map((u) => (
-                <button
-                  key={u.user_id}
-                  onClick={() => { setSelectedUserId(u.user_id); setUserSearch(""); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
-                >
-                  <Avatar className="h-10 w-10 shrink-0">
-                    {u.avatar_url && <AvatarImage src={getAvatarUrl(u.avatar_url)!} alt="" />}
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                      {initial(u)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate">{fullName(u)}</p>
-                      {u.role && (
-                        <Badge variant="secondary" className="text-[10px] capitalize shrink-0">
-                          {u.role.replace("_", " ")}
-                        </Badge>
-                      )}
+              {searchResults?.map((u, idx) => {
+                const isActive = idx === activeIndex;
+                return (
+                  <button
+                    key={u.user_id}
+                    id={`recipient-result-${idx}`}
+                    data-result-index={idx}
+                    role="option"
+                    aria-selected={isActive}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    onClick={() => startConversationWith(u.user_id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${
+                      isActive ? "bg-primary/10" : "hover:bg-secondary/50"
+                    }`}
+                  >
+                    <Avatar className="h-10 w-10 shrink-0">
+                      {u.avatar_url && <AvatarImage src={getAvatarUrl(u.avatar_url)!} alt="" />}
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                        {initial(u)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium truncate">{fullName(u)}</p>
+                        {u.role && (
+                          <Badge variant="secondary" className="text-[10px] capitalize shrink-0">
+                            {u.role.replace("_", " ")}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </>
           ) : (
             conversations?.map((conv) => {
