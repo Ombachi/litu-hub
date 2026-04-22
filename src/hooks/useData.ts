@@ -164,11 +164,11 @@ export function useQuizQuestions(quizId: string | undefined) {
     queryKey: ["quiz-questions", quizId],
     enabled: !!quizId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("quiz_questions")
-        .select("*")
-        .eq("quiz_id", quizId!)
-        .order("order");
+      // Use the SECURITY DEFINER RPC: it strips correct_answer/explanation
+      // for non-coach callers so students never see the answers in network responses.
+      const { data, error } = await (supabase as any).rpc("get_quiz_questions_for_student", {
+        _quiz_id: quizId!,
+      });
       if (error) throw error;
       return data;
     },
@@ -218,19 +218,15 @@ export function useSubmitQuizResponses() {
   return useMutation({
     mutationFn: async (params: {
       attemptId: string;
-      responses: { question_id: string; response: string; is_correct: boolean; points_earned: number }[];
+      // Client only supplies the answer text; the server computes is_correct & points.
+      responses: { question_id: string; response: string }[];
     }) => {
-      const { error: respError } = await supabase.from("quiz_responses").insert(
-        params.responses.map((r) => ({ attempt_id: params.attemptId, ...r }))
-      );
-      if (respError) throw respError;
-
-      const totalPoints = params.responses.reduce((s, r) => s + r.points_earned, 0);
-      const { error: attemptError } = await supabase
-        .from("quiz_attempts")
-        .update({ status: "completed", completed_at: new Date().toISOString(), score: totalPoints })
-        .eq("id", params.attemptId);
-      if (attemptError) throw attemptError;
+      const { data, error } = await (supabase as any).rpc("submit_quiz_attempt", {
+        _attempt_id: params.attemptId,
+        _responses: params.responses,
+      });
+      if (error) throw error;
+      return data as { score: number; correct: number; pending_review: number };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quiz-attempts"] });
