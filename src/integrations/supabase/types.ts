@@ -987,6 +987,7 @@ export type Database = {
       }
     }
     Functions: {
+      approve_parent_link: { Args: { _link_id: string }; Returns: undefined }
       can_access_course: {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
@@ -1134,9 +1135,40 @@ export type Database = {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
       }
+      list_pending_parent_links: {
+        Args: never
+        Returns: {
+          created_at: string
+          link_id: string
+          parent_email: string
+          parent_first_name: string
+          parent_id: string
+          parent_last_name: string
+          status: string
+          student_email: string
+          student_first_name: string
+          student_id: string
+          student_last_name: string
+        }[]
+      }
+      reject_parent_link: { Args: { _link_id: string }; Returns: undefined }
+      request_parent_link_by_email: {
+        Args: { _student_email: string }
+        Returns: string
+      }
       school_admin_can_access_course: {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
+      }
+      search_messageable_users: {
+        Args: { _limit?: number; _query: string }
+        Returns: {
+          avatar_url: string
+          first_name: string
+          last_name: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
       }
       submit_quiz_attempt: {
         Args: { _attempt_id: string; _responses: Json }
