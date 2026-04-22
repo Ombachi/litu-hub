@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, Users } from "lucide-react";
+import { Loader2, Check, X, Users, FileSearch } from "lucide-react";
 import { toast } from "sonner";
+import ParentLinkAuditDialog from "./ParentLinkAuditDialog";
 
 const ParentApprovalsTab = () => {
   const qc = useQueryClient();
+  const [auditLinkId, setAuditLinkId] = useState<string | null>(null);
 
   const { data: links, isLoading } = useQuery({
     queryKey: ["pending-parent-links"],
