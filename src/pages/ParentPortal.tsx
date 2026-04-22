@@ -68,8 +68,12 @@ const ParentPortal = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Get selected child's data
-  const childId = selectedChild || links?.[0]?.student_id;
+  // Only approved links unlock child data; pending requests just show a status badge.
+  const approvedLinks = useMemo(
+    () => (links || []).filter((l: any) => l.status === "approved"),
+    [links]
+  );
+  const childId = selectedChild || approvedLinks[0]?.student_id;
 
   const { data: childEnrollments } = useQuery({
     queryKey: ["parent-child-enrollments", childId],
