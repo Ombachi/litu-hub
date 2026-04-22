@@ -1031,6 +1031,7 @@ export type Database = {
           day: string
         }[]
       }
+      get_parent_link_audit: { Args: { _link_id: string }; Returns: Json }
       get_public_profiles: {
         Args: { _user_ids: string[] }
         Returns: {

@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, Users } from "lucide-react";
+import { Loader2, Check, X, Users, FileSearch } from "lucide-react";
 import { toast } from "sonner";
+import ParentLinkAuditDialog from "./ParentLinkAuditDialog";
 
 const ParentApprovalsTab = () => {
   const qc = useQueryClient();
+  const [auditLinkId, setAuditLinkId] = useState<string | null>(null);
 
   const { data: links, isLoading } = useQuery({
     queryKey: ["pending-parent-links"],
@@ -33,11 +36,12 @@ const ParentApprovalsTab = () => {
       const { error } = await (supabase as any).rpc("approve_parent_link", { _link_id: linkId });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_d, linkId) => {
       qc.invalidateQueries({ queryKey: ["pending-parent-links"] });
-      toast.success("Parent link approved");
+      qc.invalidateQueries({ queryKey: ["parent-link-audit", linkId] });
+      toast.success("Parent link approved", { description: "The parent has been notified and can now view their child's progress." });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error("Approval failed", { description: e.message }),
   });
 
   const reject = useMutation({
@@ -47,9 +51,9 @@ const ParentApprovalsTab = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pending-parent-links"] });
-      toast.success("Parent link rejected");
+      toast.success("Parent link rejected", { description: "The request was removed and the parent has been notified." });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error("Rejection failed", { description: e.message }),
   });
 
   if (isLoading) {
@@ -104,33 +108,48 @@ const ParentApprovalsTab = () => {
                 {new Date(l.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
               </td>
               <td className="px-5 py-3 text-right">
-                {l.status === "pending" ? (
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => approve.mutate(l.link_id)}
-                      disabled={approve.isPending}
-                      className="p-1.5 hover:bg-success/10 text-success rounded-lg transition-colors"
-                      title="Approve"
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => reject.mutate(l.link_id)}
-                      disabled={reject.isPending}
-                      className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
-                      title="Reject"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    onClick={() => setAuditLinkId(l.link_id)}
+                    className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                    title="View audit trail"
+                  >
+                    <FileSearch className="h-4 w-4" />
+                  </button>
+                  {l.status === "pending" ? (
+                    <>
+                      <button
+                        onClick={() => approve.mutate(l.link_id)}
+                        disabled={approve.isPending}
+                        className="p-1.5 hover:bg-success/10 text-success rounded-lg transition-colors disabled:opacity-50"
+                        title="Approve"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => reject.mutate(l.link_id)}
+                        disabled={reject.isPending}
+                        className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50"
+                        title="Reject"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-1">—</span>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <ParentLinkAuditDialog
+        linkId={auditLinkId}
+        open={!!auditLinkId}
+        onOpenChange={(open) => !open && setAuditLinkId(null)}
+      />
     </div>
   );
 };
