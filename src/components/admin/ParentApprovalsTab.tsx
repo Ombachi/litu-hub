@@ -36,11 +36,12 @@ const ParentApprovalsTab = () => {
       const { error } = await (supabase as any).rpc("approve_parent_link", { _link_id: linkId });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_d, linkId) => {
       qc.invalidateQueries({ queryKey: ["pending-parent-links"] });
-      toast.success("Parent link approved");
+      qc.invalidateQueries({ queryKey: ["parent-link-audit", linkId] });
+      toast.success("Parent link approved", { description: "The parent has been notified and can now view their child's progress." });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error("Approval failed", { description: e.message }),
   });
 
   const reject = useMutation({
