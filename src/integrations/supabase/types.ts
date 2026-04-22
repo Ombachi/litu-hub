@@ -656,21 +656,30 @@ export type Database = {
       }
       parent_student_links: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           id: string
           parent_id: string
+          status: string
           student_id: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           id?: string
           parent_id: string
+          status?: string
           student_id: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           id?: string
           parent_id?: string
+          status?: string
           student_id?: string
         }
         Relationships: []
@@ -955,7 +964,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          first_name: string | null
+          last_name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_access_course: {
@@ -999,6 +1028,32 @@ export type Database = {
         Returns: {
           count: number
           day: string
+        }[]
+      }
+      get_public_profiles: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          first_name: string
+          last_name: string
+          user_id: string
+        }[]
+      }
+      get_quiz_questions_for_student: {
+        Args: { _quiz_id: string }
+        Returns: {
+          competency_tag: string
+          correct_answer: string
+          difficulty: string
+          explanation: string
+          id: string
+          options: Json
+          order: number
+          points: number
+          pool_name: string
+          question_text: string
+          question_type: string
+          quiz_id: string
         }[]
       }
       get_student_analytics_summary: {
@@ -1082,6 +1137,10 @@ export type Database = {
       school_admin_can_access_course: {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
+      }
+      submit_quiz_attempt: {
+        Args: { _attempt_id: string; _responses: Json }
+        Returns: Json
       }
     }
     Enums: {
