@@ -108,33 +108,48 @@ const ParentApprovalsTab = () => {
                 {new Date(l.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
               </td>
               <td className="px-5 py-3 text-right">
-                {l.status === "pending" ? (
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => approve.mutate(l.link_id)}
-                      disabled={approve.isPending}
-                      className="p-1.5 hover:bg-success/10 text-success rounded-lg transition-colors"
-                      title="Approve"
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => reject.mutate(l.link_id)}
-                      disabled={reject.isPending}
-                      className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
-                      title="Reject"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    onClick={() => setAuditLinkId(l.link_id)}
+                    className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                    title="View audit trail"
+                  >
+                    <FileSearch className="h-4 w-4" />
+                  </button>
+                  {l.status === "pending" ? (
+                    <>
+                      <button
+                        onClick={() => approve.mutate(l.link_id)}
+                        disabled={approve.isPending}
+                        className="p-1.5 hover:bg-success/10 text-success rounded-lg transition-colors disabled:opacity-50"
+                        title="Approve"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => reject.mutate(l.link_id)}
+                        disabled={reject.isPending}
+                        className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50"
+                        title="Reject"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-1">—</span>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <ParentLinkAuditDialog
+        linkId={auditLinkId}
+        open={!!auditLinkId}
+        onOpenChange={(open) => !open && setAuditLinkId(null)}
+      />
     </div>
   );
 };
