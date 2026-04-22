@@ -51,9 +51,9 @@ const ParentApprovalsTab = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pending-parent-links"] });
-      toast.success("Parent link rejected");
+      toast.success("Parent link rejected", { description: "The request was removed and the parent has been notified." });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error("Rejection failed", { description: e.message }),
   });
 
   if (isLoading) {
