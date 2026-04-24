@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen,
+  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen, Pin,
 } from "lucide-react";
 import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions, useDiscussions } from "@/hooks/useData";
 import {
