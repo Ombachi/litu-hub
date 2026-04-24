@@ -185,11 +185,11 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
               )}
               {questionType === "short_answer" && (
                 <div className="mt-4 rounded-lg border border-muted bg-muted/10 p-3 text-sm text-muted-foreground italic">
-                  📝 This is a short answer question — graded manually by the tutor.
+                  This is a short answer question — graded manually by the tutor.
                 </div>
               )}
               {explanation && (
-                <p className="mt-4 text-sm text-muted-foreground italic">💡 {explanation}</p>
+                <p className="mt-4 text-sm text-muted-foreground italic">{explanation}</p>
               )}
             </div>
             <Button variant="outline" onClick={() => setPreview(false)}>Back to Edit</Button>
@@ -274,14 +274,14 @@ const QuestionBankDialog = ({ open, onOpenChange, onSubmit, isPending, initial }
                   </button>
                 )}
                 <p className="text-[10px] text-muted-foreground">
-                  ✅ Check the box(es) next to the correct answer(s). You can select multiple correct answers.
+                  Check the box(es) next to the correct answer(s). You can select multiple correct answers.
                 </p>
               </div>
             )}
 
             {questionType === "short_answer" && (
               <div className="rounded-lg border border-muted bg-muted/10 p-4 space-y-2">
-                <p className="text-sm font-medium flex items-center gap-2">📝 Short Answer Question</p>
+                <p className="text-sm font-medium">Short Answer Question</p>
                 <p className="text-xs text-muted-foreground">
                   Students will type or upload their answer. This question type is <strong>manually graded</strong> by the tutor — no auto-grading applies.
                 </p>

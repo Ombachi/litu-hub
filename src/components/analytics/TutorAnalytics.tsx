@@ -248,7 +248,7 @@ const TutorAnalytics = () => {
               )}
             </h3>
             {atRiskStudents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No at-risk students 🎉</p>
+              <p className="text-sm text-muted-foreground text-center py-8">No at-risk students</p>
             ) : (
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {atRiskStudents.map(st => (
