@@ -14,7 +14,7 @@ const SAQReviewList = ({ saqResponses, saqScores, setSaqScores, onGrade, isPendi
     return (
       <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
-        <p className="mt-3 text-muted-foreground">No short answer questions pending review! 🎉</p>
+        <p className="mt-3 text-muted-foreground">No short answer questions pending review</p>
       </div>
     );
   }

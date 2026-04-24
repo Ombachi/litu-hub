@@ -125,7 +125,7 @@ const StudyAssistant = () => {
       });
     } catch (e: any) {
       if (e.name !== "AbortError") {
-        setMessages((p) => [...p, { role: "assistant", content: `⚠️ ${e.message || "Something went wrong."}` }]);
+        setMessages((p) => [...p, { role: "assistant", content: e.message || "Something went wrong." }]);
       }
       setLoading(false);
     }

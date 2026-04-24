@@ -77,7 +77,7 @@ const SchoolAdminDashboard = () => {
           </div>
         )}
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Welcome, {firstName}! 🏫</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight">Welcome, {firstName}</h1>
           <p className="mt-1 text-muted-foreground">{myInstitution?.name || "Your Institution"} — Management Dashboard</p>
         </div>
       </div>

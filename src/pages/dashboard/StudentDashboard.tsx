@@ -36,7 +36,7 @@ const StudentDashboard = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Habari, {firstName}! 👋</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight">Habari, {firstName}</h1>
         <p className="mt-1 text-muted-foreground">Here's what's happening today</p>
       </div>
 

@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen,
+  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen, Pin,
 } from "lucide-react";
 import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions, useDiscussions } from "@/hooks/useData";
 import {
@@ -556,7 +556,7 @@ const CoachStudio = () => {
                               <Badge variant="outline" className="text-[10px]">{q.points} pts</Badge>
                               {q.difficulty && <Badge variant="outline" className="text-[10px] capitalize">{q.difficulty}</Badge>}
                               {q.competency_tag && <Badge className="text-[10px]">{q.competency_tag}</Badge>}
-                              {q.pool_name && <Badge variant="secondary" className="text-[10px]">🏷 {q.pool_name}</Badge>}
+                              {q.pool_name && <Badge variant="secondary" className="text-[10px]">{q.pool_name}</Badge>}
                             </div>
                             {Array.isArray(q.options) && q.options.length > 0 && (
                               <div className="mt-2 space-y-1">
@@ -652,7 +652,7 @@ const CoachStudio = () => {
               discussions.map((d) => (
                   <div key={d.id} className="rounded-xl border bg-card p-4 shadow-card flex items-center justify-between">
                     <Link to={`/discussion/${d.id}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity">
-                      {d.pinned && <span className="text-accent text-xs">📌</span>}
+                      {d.pinned && <Pin className="h-3.5 w-3.5 text-accent shrink-0" />}
                       <div className="min-w-0">
                         <h4 className="font-medium text-sm truncate">{d.title}</h4>
                         <p className="text-xs text-muted-foreground">
@@ -669,7 +669,7 @@ const CoachStudio = () => {
                         className={`p-1.5 rounded-lg transition-colors ${d.pinned ? "text-accent hover:bg-accent/10" : "text-muted-foreground hover:bg-secondary"}`}
                         title={d.pinned ? "Unpin" : "Pin"}
                       >
-                        📌
+                        <Pin className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => { if (confirm("Delete this discussion?")) deleteDiscussion.mutate(d.id); }}

@@ -279,7 +279,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
           </div>
           {results.pendingReview > 0 && (
             <div className="mt-4 rounded-lg bg-warning/10 p-3 text-sm text-warning">
-              📝 {results.pendingReview} short answer question(s) pending tutor review. Your final score may change.
+              {results.pendingReview} short answer question(s) pending tutor review. Your final score may change.
             </div>
           )}
           <div className="mt-8 text-left space-y-4">
@@ -363,7 +363,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
         <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 flex items-center gap-3 animate-pulse" role="alert">
           <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
           <span className="text-sm font-medium text-destructive">
-            {(timeLeft || 0) <= 30 ? "⚠️ Less than 30 seconds! Quiz will auto-submit." : "⏰ Less than 2 minutes remaining!"}
+            {(timeLeft || 0) <= 30 ? "Less than 30 seconds! Quiz will auto-submit." : "Less than 2 minutes remaining!"}
           </span>
         </div>
       )}
