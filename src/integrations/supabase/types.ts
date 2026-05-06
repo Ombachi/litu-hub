@@ -1152,6 +1152,10 @@ export type Database = {
           student_last_name: string
         }[]
       }
+      notify_saq_graded: {
+        Args: { _attempt_id: string; _points_earned: number }
+        Returns: undefined
+      }
       reject_parent_link: { Args: { _link_id: string }; Returns: undefined }
       request_parent_link_by_email: {
         Args: { _student_email: string }

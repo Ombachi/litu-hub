@@ -155,15 +155,10 @@ export function useGradeSAQ() {
         await supabase.from("quiz_attempts").update({ score: totalScore }).eq("id", params.attemptId);
       }
 
-      const { data: attempt } = await supabase.from("quiz_attempts").select("student_id, quizzes(title)").eq("id", params.attemptId).maybeSingle();
-      if (attempt) {
-        await supabase.from("notifications").insert({
-          user_id: attempt.student_id,
-          title: "Quiz Answer Graded",
-          message: `Your short answer for "${(attempt.quizzes as any)?.title}" has been graded. Points: ${params.pointsEarned}`,
-          type: "grade", link: "/grades",
-        });
-      }
+      await supabase.rpc("notify_saq_graded" as any, {
+        _attempt_id: params.attemptId,
+        _points_earned: params.pointsEarned,
+      });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["grading-saq"] }); qc.invalidateQueries({ queryKey: ["grading-quiz-attempts"] }); toast.success("SAQ graded"); },
     onError: (e) => handleApiError(e, "SAQ Grading"),
