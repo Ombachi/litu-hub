@@ -217,6 +217,27 @@ export type Database = {
           },
         ]
       }
+      course_tas: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          ta_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          ta_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          ta_id?: string
+        }
+        Relationships: []
+      }
       course_tutors: {
         Row: {
           course_id: string
@@ -996,6 +1017,7 @@ export type Database = {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
       }
+      can_message_user: { Args: { _recipient: string }; Returns: boolean }
       cleanup_old_notifications: { Args: never; Returns: number }
       expire_stale_quiz_attempts: { Args: never; Returns: undefined }
       get_admin_analytics_summary: {
@@ -1151,6 +1173,10 @@ export type Database = {
           student_id: string
           student_last_name: string
         }[]
+      }
+      mark_direct_message_read: {
+        Args: { _message_id: string }
+        Returns: undefined
       }
       notify_saq_graded: {
         Args: { _attempt_id: string; _points_earned: number }
