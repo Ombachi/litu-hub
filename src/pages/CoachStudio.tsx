@@ -692,12 +692,20 @@ const CoachStudio = () => {
 
             {/* Announcements Tab - Coach manages */}
             <TabsContent value="announcements" className="mt-6">
-              {courseId && <AnnouncementsTab courseId={courseId} isManaging={true} />}
+              {courseId && (
+                <Suspense fallback={<TabFallback />}>
+                  <AnnouncementsTab courseId={courseId} isManaging={true} />
+                </Suspense>
+              )}
             </TabsContent>
 
             {/* Resources Tab - Coach manages */}
             <TabsContent value="resources" className="mt-6">
-              {courseId && <ResourcesTab courseId={courseId} isManaging={true} />}
+              {courseId && (
+                <Suspense fallback={<TabFallback />}>
+                  <ResourcesTab courseId={courseId} isManaging={true} />
+                </Suspense>
+              )}
             </TabsContent>
           </Tabs>
         </>
