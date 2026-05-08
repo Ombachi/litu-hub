@@ -319,28 +319,28 @@ const AdminPanel = () => {
         {/* Platform Admin: Overview */}
         {isPlatformAdmin && (
           <TabsContent value="overview" className="mt-6">
-            <PlatformDashboard />
+            <Suspense fallback={<TabFallback />}><PlatformDashboard /></Suspense>
           </TabsContent>
         )}
 
         {/* Platform Admin: Institutions */}
         {isPlatformAdmin && (
           <TabsContent value="institutions" className="mt-6">
-            <InstitutionsTab />
+            <Suspense fallback={<TabFallback />}><InstitutionsTab /></Suspense>
           </TabsContent>
         )}
 
         {/* Platform Admin: School Admins */}
         {isPlatformAdmin && (
           <TabsContent value="school-admins" className="mt-6">
-            <SchoolAdminsTab />
+            <Suspense fallback={<TabFallback />}><SchoolAdminsTab /></Suspense>
           </TabsContent>
         )}
 
         {/* School Admin: Dashboard */}
         {isSchoolAdmin && (
           <TabsContent value="dashboard" className="mt-6">
-            <SchoolAdminDashboard />
+            <Suspense fallback={<TabFallback />}><SchoolAdminDashboard /></Suspense>
           </TabsContent>
         )}
 
@@ -490,27 +490,27 @@ const AdminPanel = () => {
         {/* Terms Tab (school admin) */}
         {isSchoolAdmin && (
           <TabsContent value="terms" className="mt-6">
-            <TermsTab />
+            <Suspense fallback={<TabFallback />}><TermsTab /></Suspense>
           </TabsContent>
         )}
 
         {/* Courses Tab (school admin) */}
         {isSchoolAdmin && (
           <TabsContent value="courses" className="mt-6">
-            <SchoolAdminCoursesTab />
+            <Suspense fallback={<TabFallback />}><SchoolAdminCoursesTab /></Suspense>
           </TabsContent>
         )}
 
         {/* Enrollment Tab (school admin) */}
         {isSchoolAdmin && (
           <TabsContent value="enrollment" className="mt-6">
-            <EnrollmentTab />
+            <Suspense fallback={<TabFallback />}><EnrollmentTab /></Suspense>
           </TabsContent>
         )}
 
         {/* Parent Approvals Tab (both roles) */}
         <TabsContent value="parent-approvals" className="mt-6">
-          <ParentApprovalsTab />
+          <Suspense fallback={<TabFallback />}><ParentApprovalsTab /></Suspense>
         </TabsContent>
 
         {/* Audit Logs Tab (both roles) */}
