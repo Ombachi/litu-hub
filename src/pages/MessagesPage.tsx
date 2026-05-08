@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,8 +9,15 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Send, Loader2, Search, User, MessageSquare, Check, CheckCheck, Smile, Paperclip, X, FileText, Image, Download } from "lucide-react";
 import { toast } from "sonner";
-import data from "@emoji-mart/data";
-import Picker from "@emoji-mart/react";
+
+// Lazy-load the emoji picker bundle (~800KB) — only fetched when the user opens it.
+const EmojiPicker = lazy(async () => {
+  const [{ default: Picker }, { default: data }] = await Promise.all([
+    import("@emoji-mart/react"),
+    import("@emoji-mart/data"),
+  ]);
+  return { default: (props: any) => <Picker data={data} {...props} /> };
+});
 
 type PublicUser = {
   user_id: string;
@@ -478,7 +485,9 @@ const MessagesPage = () => {
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 border-none" align="start">
-                    <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" />
+                    <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">Loading…</div>}>
+                      <EmojiPicker onEmojiSelect={handleEmojiSelect} theme="auto" />
+                    </Suspense>
                   </PopoverContent>
                 </Popover>
                 <Input
