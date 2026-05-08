@@ -485,7 +485,9 @@ const MessagesPage = () => {
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 border-none" align="start">
-                    <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" />
+                    <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">Loading…</div>}>
+                      <EmojiPicker onEmojiSelect={handleEmojiSelect} theme="auto" />
+                    </Suspense>
                   </PopoverContent>
                 </Popover>
                 <Input
