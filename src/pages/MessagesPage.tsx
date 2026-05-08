@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Send, Loader2, Search, User, MessageSquare, Check, CheckCheck, Smile, Paperclip, X, FileText, Image, Download } from "lucide-react";
 import { toast } from "sonner";
+import VirtualMessagesList from "@/components/messages/VirtualMessagesList";
 
 // Lazy-load the emoji picker bundle (~800KB) — only fetched when the user opens it.
 const EmojiPicker = lazy(async () => {
