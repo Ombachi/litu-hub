@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen, Pin,
 } from "lucide-react";
-import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions, useDiscussions } from "@/hooks/useData";
+import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions, useDiscussions } from "@/hooks/queries";
 import {
   useCreateModule, useUpdateModule, useDeleteModule,
   useCreateLesson, useUpdateLesson, useDeleteLesson,
@@ -23,12 +23,19 @@ import AssignmentDialog from "@/components/coach/AssignmentDialog";
 import QuizDialog from "@/components/coach/QuizDialog";
 import QuestionBankDialog from "@/components/coach/QuestionBankDialog";
 import DeleteConfirmDialog from "@/components/coach/DeleteConfirmDialog";
-import AnnouncementsTab from "@/components/course/AnnouncementsTab";
-import ResourcesTab from "@/components/course/ResourcesTab";
+// Course-scoped tab panels are loaded only when the user opens that tab.
+const AnnouncementsTab = lazy(() => import("@/components/course/AnnouncementsTab"));
+const ResourcesTab = lazy(() => import("@/components/course/ResourcesTab"));
 import AIGenerateButton from "@/components/coach/AIGenerateButton";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const TabFallback = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  </div>
+);
 
 const CoachStudio = () => {
   const { data: allCourses, isLoading: loadingAllCourses } = useCourses();
@@ -685,12 +692,20 @@ const CoachStudio = () => {
 
             {/* Announcements Tab - Coach manages */}
             <TabsContent value="announcements" className="mt-6">
-              {courseId && <AnnouncementsTab courseId={courseId} isManaging={true} />}
+              {courseId && (
+                <Suspense fallback={<TabFallback />}>
+                  <AnnouncementsTab courseId={courseId} isManaging={true} />
+                </Suspense>
+              )}
             </TabsContent>
 
             {/* Resources Tab - Coach manages */}
             <TabsContent value="resources" className="mt-6">
-              {courseId && <ResourcesTab courseId={courseId} isManaging={true} />}
+              {courseId && (
+                <Suspense fallback={<TabFallback />}>
+                  <ResourcesTab courseId={courseId} isManaging={true} />
+                </Suspense>
+              )}
             </TabsContent>
           </Tabs>
         </>
