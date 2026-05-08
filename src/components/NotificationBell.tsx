@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useNotifications, useMarkNotificationRead, useMarkAllRead } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
+
+const ROW_HEIGHT = 76; // estimated px per notification row
 
 const NotificationBell = () => {
   const [open, setOpen] = useState(false);
@@ -10,6 +13,18 @@ const NotificationBell = () => {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllRead();
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const items = notifications ?? [];
+
+  // Virtualize the dropdown so a backlog of 50+ notifications doesn't render
+  // 50 DOM subtrees on every open.
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 4,
+  });
 
   const handleClick = (n: any) => {
     if (!n.read) markRead.mutate(n.id);
@@ -24,6 +39,7 @@ const NotificationBell = () => {
       <button
         onClick={() => setOpen(!open)}
         className="relative rounded-lg p-2 text-muted-foreground hover:bg-secondary transition-colors"
+        aria-label="Notifications"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -48,31 +64,42 @@ const NotificationBell = () => {
                 </button>
               )}
             </div>
-            <div className="max-h-80 overflow-auto">
-              {!notifications?.length ? (
-                <p className="p-4 text-center text-sm text-muted-foreground">No notifications</p>
-              ) : (
-                notifications.map((n: any) => (
-                  <button
-                    key={n.id}
-                    onClick={() => handleClick(n)}
-                    className={cn(
-                      "flex w-full gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-secondary/50 last:border-0",
-                      !n.read && "bg-primary/5"
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className={cn("text-sm truncate", !n.read && "font-semibold")}>{n.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{n.message}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {new Date(n.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                    {!n.read && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                  </button>
-                ))
-              )}
-            </div>
+            {!items.length ? (
+              <p className="p-4 text-center text-sm text-muted-foreground">No notifications</p>
+            ) : (
+              <div ref={scrollRef} className="max-h-80 overflow-auto">
+                <div
+                  style={{ height: rowVirtualizer.getTotalSize(), width: "100%", position: "relative" }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((vi) => {
+                    const n = items[vi.index] as any;
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => handleClick(n)}
+                        className={cn(
+                          "absolute left-0 top-0 flex w-full gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-secondary/50",
+                          !n.read && "bg-primary/5"
+                        )}
+                        style={{
+                          transform: `translateY(${vi.start}px)`,
+                          height: vi.size,
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className={cn("text-sm truncate", !n.read && "font-semibold")}>{n.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{n.message}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {new Date(n.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                        {!n.read && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
