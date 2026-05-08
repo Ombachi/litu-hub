@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -12,15 +12,23 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { useMyInstitution } from "@/hooks/useInstitution";
-import { useCourses } from "@/hooks/useData";
-import TermsTab from "@/components/admin/TermsTab";
-import EnrollmentTab from "@/components/admin/EnrollmentTab";
-import InstitutionsTab from "@/components/admin/InstitutionsTab";
-import PlatformDashboard from "@/components/admin/PlatformDashboard";
-import SchoolAdminsTab from "@/components/admin/SchoolAdminsTab";
-import SchoolAdminDashboard from "@/components/admin/SchoolAdminDashboard";
-import SchoolAdminCoursesTab from "@/components/admin/SchoolAdminCoursesTab";
-import ParentApprovalsTab from "@/components/admin/ParentApprovalsTab";
+import { useCourses } from "@/hooks/queries";
+
+// Tab panels are code-split: each chunk only loads when its tab is selected.
+const TermsTab = lazy(() => import("@/components/admin/TermsTab"));
+const EnrollmentTab = lazy(() => import("@/components/admin/EnrollmentTab"));
+const InstitutionsTab = lazy(() => import("@/components/admin/InstitutionsTab"));
+const PlatformDashboard = lazy(() => import("@/components/admin/PlatformDashboard"));
+const SchoolAdminsTab = lazy(() => import("@/components/admin/SchoolAdminsTab"));
+const SchoolAdminDashboard = lazy(() => import("@/components/admin/SchoolAdminDashboard"));
+const SchoolAdminCoursesTab = lazy(() => import("@/components/admin/SchoolAdminCoursesTab"));
+const ParentApprovalsTab = lazy(() => import("@/components/admin/ParentApprovalsTab"));
+
+const TabFallback = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  </div>
+);
 
 const ROLES = ["platform_admin", "school_admin", "tutor", "ta", "student", "parent"] as const;
 
