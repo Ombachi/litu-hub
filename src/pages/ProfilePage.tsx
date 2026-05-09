@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  User, Camera, Save, Loader2, Bell, Shield, Mail, Key,
+  User, Camera, Save, Loader2, Bell, Shield, Mail, Key, Download, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -229,8 +229,83 @@ const ProfilePage = () => {
             }}>Change</Button>
           </div>
         </div>
+          </div>
+        </div>
         <div className="mt-6 pt-4 border-t">
           <Button variant="destructive" onClick={signOut}>Sign Out</Button>
+        </div>
+      </div>
+
+      {/* Privacy & Data (GDPR) */}
+      <div className="rounded-xl border bg-card p-6 shadow-card">
+        <h2 className="font-display font-semibold flex items-center gap-2 mb-2">
+          <Shield className="h-4 w-4 text-primary" /> Privacy & Your Data
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Download a copy of your data, or permanently delete your account. Account deletion is irreversible.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) { toast.error("Not signed in"); return; }
+                const res = await fetch(
+                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gdpr-export`,
+                  { headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+                );
+                if (!res.ok) throw new Error((await res.json()).error || "Export failed");
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `litu-hub-export-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Data export downloaded");
+              } catch (e: any) {
+                toast.error(e.message || "Export failed");
+              }
+            }}
+            aria-label="Download all your personal data as JSON"
+          >
+            <Download className="mr-2 h-4 w-4" /> Export My Data
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={async () => {
+              const phrase = window.prompt(
+                "This permanently deletes your account and all associated data. This cannot be undone.\n\nType DELETE to confirm:"
+              );
+              if (phrase !== "DELETE") return;
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) { toast.error("Not signed in"); return; }
+                const res = await fetch(
+                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gdpr-delete`,
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${session.access_token}`,
+                      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ confirm: "DELETE" }),
+                  }
+                );
+                if (!res.ok) throw new Error((await res.json()).error || "Deletion failed");
+                toast.success("Account deleted. Goodbye.");
+                await supabase.auth.signOut();
+                window.location.href = "/auth";
+              } catch (e: any) {
+                toast.error(e.message || "Deletion failed");
+              }
+            }}
+            aria-label="Permanently delete your account and all data"
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Delete My Account
+          </Button>
         </div>
       </div>
     </div>
