@@ -38,6 +38,26 @@ serve(async (req) => {
       });
     }
 
+    // ---- AI quota / rate limit ----
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { error: quotaErr } = await adminClient.rpc("record_ai_usage", {
+      _user_id: userId,
+      _function_name: "ai-content-generate",
+      _daily_limit: 60,
+      _per_minute_limit: 6,
+    });
+    if (quotaErr) {
+      const msg = quotaErr.message || "";
+      const isLimit = msg.includes("AI_RATE_LIMIT") || msg.includes("AI_QUOTA_EXCEEDED");
+      return new Response(JSON.stringify({ error: msg }), {
+        status: isLimit ? 429 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { type, topic, courseTitle, courseCode, difficulty, count } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");

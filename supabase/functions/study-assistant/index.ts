@@ -32,6 +32,27 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const userId = claimsData.claims.sub as string;
+
+    // ---- AI quota / rate limit (DB-backed) ----
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { error: quotaErr } = await adminClient.rpc("record_ai_usage", {
+      _user_id: userId,
+      _function_name: "study-assistant",
+      _daily_limit: 80,
+      _per_minute_limit: 10,
+    });
+    if (quotaErr) {
+      const msg = quotaErr.message || "";
+      const isLimit = msg.includes("AI_RATE_LIMIT") || msg.includes("AI_QUOTA_EXCEEDED");
+      return new Response(JSON.stringify({ error: msg }), {
+        status: isLimit ? 429 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { messages, courseContext } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

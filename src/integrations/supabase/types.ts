@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          day: string
+          function_name: string
+          id: string
+          last_request_at: string
+          request_count: number
+          tokens: number
+          user_id: string
+        }
+        Insert: {
+          day?: string
+          function_name: string
+          id?: string
+          last_request_at?: string
+          request_count?: number
+          tokens?: number
+          user_id: string
+        }
+        Update: {
+          day?: string
+          function_name?: string
+          id?: string
+          last_request_at?: string
+          request_count?: number
+          tokens?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           author_id: string | null
@@ -506,6 +536,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gdpr_deletion_requests: {
+        Row: {
+          completed_at: string | null
+          details: Json | null
+          email: string
+          id: string
+          requested_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          details?: Json | null
+          email: string
+          id?: string
+          requested_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          details?: Json | null
+          email?: string
+          id?: string
+          requested_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       institutions: {
         Row: {
@@ -1020,6 +1080,8 @@ export type Database = {
       can_message_user: { Args: { _recipient: string }; Returns: boolean }
       cleanup_old_notifications: { Args: never; Returns: number }
       expire_stale_quiz_attempts: { Args: never; Returns: undefined }
+      gdpr_delete_user_account: { Args: never; Returns: Json }
+      gdpr_export_user_data: { Args: never; Returns: Json }
       get_admin_analytics_summary: {
         Args: { _institution_id?: string }
         Returns: Json
@@ -1181,6 +1243,15 @@ export type Database = {
       notify_saq_graded: {
         Args: { _attempt_id: string; _points_earned: number }
         Returns: undefined
+      }
+      record_ai_usage: {
+        Args: {
+          _daily_limit?: number
+          _function_name: string
+          _per_minute_limit?: number
+          _user_id: string
+        }
+        Returns: Json
       }
       reject_parent_link: { Args: { _link_id: string }; Returns: undefined }
       request_parent_link_by_email: {
