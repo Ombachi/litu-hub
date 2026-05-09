@@ -229,8 +229,6 @@ const ProfilePage = () => {
             }}>Change</Button>
           </div>
         </div>
-          </div>
-        </div>
         <div className="mt-6 pt-4 border-t">
           <Button variant="destructive" onClick={signOut}>Sign Out</Button>
         </div>
