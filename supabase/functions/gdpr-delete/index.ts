@@ -51,11 +51,60 @@ serve(async (req) => {
     const { data: rpcData, error: rpcError } = await userClient.rpc("gdpr_delete_user_account");
     if (rpcError) throw rpcError;
 
-    // Step 2: delete the auth user via service role (auth.users only reachable via admin API).
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Step 2: delete user-owned storage objects across all user-scoped buckets.
+    // Convention: every user-uploaded file is keyed under `{user_id}/...`.
+    // We DO NOT touch institution/lesson/resource folders that are not under the user's prefix.
+    const userScopedBuckets = ["avatars", "message-attachments", "submissions"];
+    const storageReport: Record<string, { removed: number; error?: string }> = {};
+    for (const bucket of userScopedBuckets) {
+      try {
+        const { data: listed, error: listErr } = await adminClient.storage
+          .from(bucket)
+          .list(userId, { limit: 1000 });
+        if (listErr) {
+          storageReport[bucket] = { removed: 0, error: listErr.message };
+          continue;
+        }
+        const paths = (listed ?? []).map((o) => `${userId}/${o.name}`);
+        if (paths.length === 0) {
+          storageReport[bucket] = { removed: 0 };
+          continue;
+        }
+        const { error: rmErr } = await adminClient.storage.from(bucket).remove(paths);
+        storageReport[bucket] = {
+          removed: rmErr ? 0 : paths.length,
+          ...(rmErr ? { error: rmErr.message } : {}),
+        };
+      } catch (e) {
+        storageReport[bucket] = {
+          removed: 0,
+          error: e instanceof Error ? e.message : "unknown",
+        };
+      }
+    }
+
+    // Also remove quiz-answers/{user_id}/* from the submissions bucket (nested prefix).
+    try {
+      const { data: qaListed } = await adminClient.storage
+        .from("submissions")
+        .list(`quiz-answers/${userId}`, { limit: 1000 });
+      const qaPaths = (qaListed ?? []).map((o) => `quiz-answers/${userId}/${o.name}`);
+      if (qaPaths.length > 0) {
+        await adminClient.storage.from("submissions").remove(qaPaths);
+        storageReport["submissions"] = {
+          removed: (storageReport["submissions"]?.removed ?? 0) + qaPaths.length,
+        };
+      }
+    } catch (e) {
+      console.error("quiz-answers cleanup failed:", e);
+    }
+
+    // Step 3: delete the auth user via service role (auth.users only reachable via admin API).
     const { error: authDelErr } = await adminClient.auth.admin.deleteUser(userId);
     if (authDelErr) {
       console.error("auth.admin.deleteUser failed:", authDelErr);
