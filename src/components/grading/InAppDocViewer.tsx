@@ -30,7 +30,14 @@ const InAppDocViewer = ({ fileUrl, onClose }: { fileUrl: string; onClose: () => 
                 <ExternalLink className="h-3.5 w-3.5" /> Open in new tab
               </a>
             )}
-            <button onClick={onClose} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close document viewer"
+              className="p-1 hover:bg-secondary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
         </div>
         <div className="flex-1 overflow-auto p-4 min-h-[60vh]">
