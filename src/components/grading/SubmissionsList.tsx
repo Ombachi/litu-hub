@@ -33,8 +33,8 @@ const SubmissionsList = ({ submissions, selectedIds, toggleSelect, onReview, onV
       {selectedIds.size > 0 && (
         <div className="rounded-xl border bg-primary/5 p-4 flex items-center gap-4 flex-wrap">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <input type="number" placeholder="Score" value={bulkProps.bulkScore} onChange={(e) => bulkProps.setBulkScore(e.target.value)} className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm" />
-          <select value={bulkProps.bulkFeedback} onChange={(e) => bulkProps.setBulkFeedback(e.target.value)} className="rounded-lg border bg-background px-3 py-1.5 text-sm">
+          <input type="number" aria-label="Bulk grading score" placeholder="Score" value={bulkProps.bulkScore} onChange={(e) => bulkProps.setBulkScore(e.target.value)} className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm" />
+          <select aria-label="Bulk feedback template" value={bulkProps.bulkFeedback} onChange={(e) => bulkProps.setBulkFeedback(e.target.value)} className="rounded-lg border bg-background px-3 py-1.5 text-sm">
             <option value="">Select feedback template...</option>
             {bulkProps.templates.map((t) => (<option key={t} value={t}>{t.substring(0, 50)}...</option>))}
           </select>
