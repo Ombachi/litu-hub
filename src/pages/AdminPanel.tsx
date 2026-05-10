@@ -366,9 +366,10 @@ const AdminPanel = () => {
                 <button
                   onClick={() => addUserToInstId && addUserToInstitution.mutate(addUserToInstId)}
                   disabled={!addUserToInstId || addUserToInstitution.isPending}
-                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+                  aria-label="Add selected user to institution"
+                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {addUserToInstitution.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                  {addUserToInstitution.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UserPlus className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
             </div>
