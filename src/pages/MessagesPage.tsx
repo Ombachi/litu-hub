@@ -436,11 +436,6 @@ const MessagesPage = () => {
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors"
-                >
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
                   aria-label="Attach a file"
                   className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
