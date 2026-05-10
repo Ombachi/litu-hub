@@ -413,8 +413,13 @@ const MessagesPage = () => {
                   <FileText className="h-4 w-4 text-primary" />
                 )}
                 <span className="text-sm truncate flex-1">{attachment.name}</span>
-                <button onClick={() => setAttachment(null)} className="p-1 hover:bg-secondary rounded">
-                  <X className="h-3 w-3" />
+                <button
+                  type="button"
+                  onClick={() => setAttachment(null)}
+                  aria-label="Remove attachment"
+                  className="p-1 hover:bg-secondary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
                 </button>
               </div>
             )}
