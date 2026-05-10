@@ -438,15 +438,22 @@ const MessagesPage = () => {
                   onClick={() => fileRef.current?.click()}
                   className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors"
                 >
-                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  aria-label="Attach a file"
+                  className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Paperclip className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </button>
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors"
+                      aria-label="Insert emoji"
+                      className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <Smile className="h-4 w-4 text-muted-foreground" />
+                      <Smile className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 border-none" align="start">
@@ -459,14 +466,16 @@ const MessagesPage = () => {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Type a message..."
+                  aria-label="Message text"
                   className="flex-1"
                 />
                 <button
                   type="submit"
                   disabled={(!message.trim() && !attachment) || uploading}
-                  className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
+                  aria-label={uploading ? "Sending message" : "Send message"}
+                  className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </form>
             </div>
