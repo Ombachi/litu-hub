@@ -116,7 +116,7 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, ...rpcData }), {
+    return new Response(JSON.stringify({ success: true, storage: storageReport, ...rpcData }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
