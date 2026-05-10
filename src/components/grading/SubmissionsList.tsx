@@ -56,7 +56,7 @@ const SubmissionsList = ({ submissions, selectedIds, toggleSelect, onReview, onV
         return (
           <div key={sub.id} className="rounded-xl border bg-card p-5 shadow-card">
             <div className="flex items-start gap-4">
-              <input type="checkbox" checked={selectedIds.has(sub.id)} onChange={() => toggleSelect(sub.id)} className="mt-1 h-4 w-4 rounded border-muted-foreground" />
+              <input type="checkbox" aria-label={`Select submission from ${studentName}`} checked={selectedIds.has(sub.id)} onChange={() => toggleSelect(sub.id)} className="mt-1 h-4 w-4 rounded border-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-3">
                   <div>
