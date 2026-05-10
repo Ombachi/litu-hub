@@ -138,20 +138,20 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium">Score</label>
-              <input type="number" value={score} onChange={(e) => setScore(e.target.value)} placeholder={`0 - ${submission.assignments?.max_score}`} max={submission.assignments?.max_score} min={0} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+              <label htmlFor="grade-score" className="text-sm font-medium">Score</label>
+              <input id="grade-score" type="number" value={score} onChange={(e) => setScore(e.target.value)} placeholder={`0 - ${submission.assignments?.max_score}`} max={submission.assignments?.max_score} min={0} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="text-sm font-medium">Template</label>
-              <select onChange={(e) => setFeedback(e.target.value)} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
+              <label htmlFor="grade-template" className="text-sm font-medium">Template</label>
+              <select id="grade-template" onChange={(e) => setFeedback(e.target.value)} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
                 <option value="">Choose template...</option>
                 {FEEDBACK_TEMPLATES.map((t) => (<option key={t} value={t}>{t.substring(0, 60)}...</option>))}
               </select>
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium">Feedback</label>
-            <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Provide feedback to the student..." className="mt-1 w-full rounded-lg border bg-background p-3 text-sm outline-none focus:border-primary resize-none" rows={4} />
+            <label htmlFor="grade-feedback" className="text-sm font-medium">Feedback</label>
+            <textarea id="grade-feedback" value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Provide feedback to the student..." className="mt-1 w-full rounded-lg border bg-background p-3 text-sm outline-none focus:border-primary resize-none" rows={4} />
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm hover:bg-secondary">Cancel</button>
