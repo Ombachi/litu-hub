@@ -55,11 +55,28 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border bg-card p-6 shadow-elevated animate-scale-in" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border bg-card p-6 shadow-elevated animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="grading-modal-title"
+      >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display font-bold text-lg">Grade Submission</h3>
-          <button onClick={onClose} className="p-1 hover:bg-secondary rounded"><X className="h-4 w-4" /></button>
+          <h3 id="grading-modal-title" className="font-display font-bold text-lg">Grade Submission</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close grading dialog"
+            className="p-1 hover:bg-secondary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
         <div className="space-y-4">
           <div>
