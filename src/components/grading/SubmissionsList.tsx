@@ -33,8 +33,8 @@ const SubmissionsList = ({ submissions, selectedIds, toggleSelect, onReview, onV
       {selectedIds.size > 0 && (
         <div className="rounded-xl border bg-primary/5 p-4 flex items-center gap-4 flex-wrap">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <input type="number" placeholder="Score" value={bulkProps.bulkScore} onChange={(e) => bulkProps.setBulkScore(e.target.value)} className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm" />
-          <select value={bulkProps.bulkFeedback} onChange={(e) => bulkProps.setBulkFeedback(e.target.value)} className="rounded-lg border bg-background px-3 py-1.5 text-sm">
+          <input type="number" aria-label="Bulk grading score" placeholder="Score" value={bulkProps.bulkScore} onChange={(e) => bulkProps.setBulkScore(e.target.value)} className="w-20 rounded-lg border bg-background px-3 py-1.5 text-sm" />
+          <select aria-label="Bulk feedback template" value={bulkProps.bulkFeedback} onChange={(e) => bulkProps.setBulkFeedback(e.target.value)} className="rounded-lg border bg-background px-3 py-1.5 text-sm">
             <option value="">Select feedback template...</option>
             {bulkProps.templates.map((t) => (<option key={t} value={t}>{t.substring(0, 50)}...</option>))}
           </select>
@@ -56,7 +56,7 @@ const SubmissionsList = ({ submissions, selectedIds, toggleSelect, onReview, onV
         return (
           <div key={sub.id} className="rounded-xl border bg-card p-5 shadow-card">
             <div className="flex items-start gap-4">
-              <input type="checkbox" checked={selectedIds.has(sub.id)} onChange={() => toggleSelect(sub.id)} className="mt-1 h-4 w-4 rounded border-muted-foreground" />
+              <input type="checkbox" aria-label={`Select submission from ${studentName}`} checked={selectedIds.has(sub.id)} onChange={() => toggleSelect(sub.id)} className="mt-1 h-4 w-4 rounded border-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-3">
                   <div>

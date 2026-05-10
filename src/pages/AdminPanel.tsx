@@ -366,9 +366,10 @@ const AdminPanel = () => {
                 <button
                   onClick={() => addUserToInstId && addUserToInstitution.mutate(addUserToInstId)}
                   disabled={!addUserToInstId || addUserToInstitution.isPending}
-                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+                  aria-label="Add selected user to institution"
+                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {addUserToInstitution.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                  {addUserToInstitution.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UserPlus className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
             </div>
@@ -378,7 +379,7 @@ const AdminPanel = () => {
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users by name or email..." className="pl-10" />
+              <Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users by name or email..." aria-label="Search users by name or email" className="pl-10" />
             </div>
             {isPlatformAdmin && (
               <Select value={instFilter} onValueChange={setInstFilter}>
@@ -439,10 +440,10 @@ const AdminPanel = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <button onClick={() => updateRole.mutate({ userId: p.user_id, role: editingRole.role })} disabled={updateRole.isPending} className="p-1 rounded hover:bg-primary/10 text-primary">
-                                <Save className="h-3.5 w-3.5" />
+                              <button onClick={() => updateRole.mutate({ userId: p.user_id, role: editingRole.role })} disabled={updateRole.isPending} aria-label="Save role" className="p-1 rounded hover:bg-primary/10 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                <Save className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
-                              <button onClick={() => setEditingRole(null)} className="p-1 rounded hover:bg-secondary"><X className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setEditingRole(null)} aria-label="Cancel role change" className="p-1 rounded hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
                             </div>
                           ) : (
                             <Badge variant="secondary" className="text-xs capitalize">{userRole.replace("_", " ")}</Badge>
@@ -452,7 +453,7 @@ const AdminPanel = () => {
                           <td className="px-5 py-3">
                             {instName ? (
                               <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
-                                <Building2 className="h-3 w-3" /> {instName}
+                                <Building2 className="h-3 w-3" aria-hidden="true" /> {instName}
                               </Badge>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
@@ -464,17 +465,18 @@ const AdminPanel = () => {
                         </td>
                         <td className="px-5 py-3 text-right flex items-center justify-end gap-1">
                           {!isEditing && (
-                            <button onClick={() => setEditingRole({ userId: p.user_id, role: userRole })} className="p-1.5 hover:bg-secondary rounded-lg transition-colors" title="Change role">
-                              <Shield className="h-4 w-4" />
+                            <button onClick={() => setEditingRole({ userId: p.user_id, role: userRole })} aria-label={`Change role for ${p.first_name || p.email}`} className="p-1.5 hover:bg-secondary rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title="Change role">
+                              <Shield className="h-4 w-4" aria-hidden="true" />
                             </button>
                           )}
                           {isSchoolAdmin && (
                             <button
                               onClick={() => { if (confirm(`Remove ${p.first_name} from ${myInstitution?.name}?`)) removeUserFromInstitution.mutate(p.user_id); }}
-                              className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
+                              aria-label={`Remove ${p.first_name || p.email} from institution`}
+                              className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               title="Remove from institution"
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-4 w-4" aria-hidden="true" />
                             </button>
                           )}
                         </td>
