@@ -2,8 +2,9 @@ import { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, FileText, Brain, MessageSquare, GraduationCap,
-  TrendingUp, Calendar, ClipboardCheck, Settings, Users, Mail,
+  TrendingUp, Calendar, ClipboardCheck, Settings, Users, Mail, Wallet,
 } from "lucide-react";
+import FeeStatusBanner from "@/components/FeeStatusBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { useProfile } from "@/hooks/useData";
@@ -30,6 +31,7 @@ const ALL_NAV_ITEMS: RoleScopedNavItem[] = [
   { to: "/parent", icon: Users, label: "Parent Portal", roles: ["parent"] },
   { to: "/grading-queue", icon: ClipboardCheck, label: "Grading Queue", roles: ["tutor", "ta"] },
   { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio", roles: ["tutor", "ta"] },
+  { to: "/fees", icon: Wallet, label: "Fees", roles: ["student", "parent"] },
   { to: "/admin", icon: Settings, label: "Admin Panel", roles: ["platform_admin", "school_admin"] },
 ];
 
@@ -110,7 +112,10 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           avatarUrl={avatarUrl}
           initials={initials}
         />
-        <main className="flex-1 overflow-auto p-4 lg:p-8" role="main">{children}</main>
+        <main className="flex-1 overflow-auto p-4 lg:p-8 space-y-4" role="main">
+          <FeeStatusBanner />
+          {children}
+        </main>
       </div>
       {showCalculator && (
         <Suspense fallback={null}><ScientificCalculator /></Suspense>

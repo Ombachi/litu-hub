@@ -33,6 +33,7 @@ const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
+const FeesPage = lazy(() => import("./pages/FeesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -79,6 +80,7 @@ const App = () => (
                           <Route path="/messages" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><MessagesPage /></Suspense></ErrorBoundary>} />
                           <Route path="/analytics" element={<ErrorBoundary><Suspense fallback={<DashboardSkeleton />}><AnalyticsPage /></Suspense></ErrorBoundary>} />
                           <Route path="/profile" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><ProfilePage /></Suspense></ErrorBoundary>} />
+                          <Route path="/fees" element={<RoleGuard allowedRoles={["student","parent","school_admin","platform_admin"]}><ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><FeesPage /></Suspense></ErrorBoundary></RoleGuard>} />
                           <Route
                             path="/parent"
                             element={
