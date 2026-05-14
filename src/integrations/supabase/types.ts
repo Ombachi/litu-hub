@@ -537,6 +537,54 @@ export type Database = {
           },
         ]
       }
+      fee_structures: {
+        Row: {
+          active: boolean
+          amount_cents: number
+          course_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          due_date: string | null
+          id: string
+          institution_id: string
+          name: string
+          term_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          amount_cents: number
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          institution_id: string
+          name: string
+          term_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          amount_cents?: number
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          institution_id?: string
+          name?: string
+          term_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gdpr_deletion_requests: {
         Row: {
           completed_at: string | null
@@ -593,6 +641,112 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      invoice_installments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          due_date: string
+          id: string
+          invoice_id: string
+          paid_at: string | null
+          paid_cents: number
+          sequence: number
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          due_date: string
+          id?: string
+          invoice_id: string
+          paid_at?: string | null
+          paid_cents?: number
+          sequence: number
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_id?: string
+          paid_at?: string | null
+          paid_cents?: number
+          sequence?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_installments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          due_date: string | null
+          fee_structure_id: string | null
+          id: string
+          institution_id: string
+          issued_at: string
+          paid_cents: number
+          reference: string
+          status: Database["public"]["Enums"]["invoice_status"]
+          student_id: string
+          term_id: string | null
+          total_cents: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          fee_structure_id?: string | null
+          id?: string
+          institution_id: string
+          issued_at?: string
+          paid_cents?: number
+          reference: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          student_id: string
+          term_id?: string | null
+          total_cents: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          fee_structure_id?: string | null
+          id?: string
+          institution_id?: string
+          issued_at?: string
+          paid_cents?: number
+          reference?: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          student_id?: string
+          term_id?: string | null
+          total_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_fee_structure_id_fkey"
+            columns: ["fee_structure_id"]
+            isOneToOne: false
+            referencedRelation: "fee_structures"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lesson_completions: {
         Row: {
@@ -764,6 +918,62 @@ export type Database = {
           student_id?: string
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          payer_id: string | null
+          provider: Database["public"]["Enums"]["payment_provider"]
+          provider_reference: string | null
+          raw_payload: Json | null
+          recorded_by: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          payer_id?: string | null
+          provider: Database["public"]["Enums"]["payment_provider"]
+          provider_reference?: string | null
+          raw_payload?: Json | null
+          recorded_by?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          payer_id?: string | null
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          provider_reference?: string | null
+          raw_payload?: Json | null
+          recorded_by?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -972,6 +1182,36 @@ export type Database = {
           },
         ]
       }
+      student_fee_overrides: {
+        Row: {
+          blocked: boolean
+          grace_until: string | null
+          id: string
+          reason: string | null
+          set_by: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          blocked?: boolean
+          grace_until?: string | null
+          id?: string
+          reason?: string | null
+          set_by?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          blocked?: boolean
+          grace_until?: string | null
+          id?: string
+          reason?: string | null
+          set_by?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terms: {
         Row: {
           created_at: string
@@ -1068,6 +1308,10 @@ export type Database = {
       }
     }
     Functions: {
+      apply_payment_to_invoice: {
+        Args: { _payment_id: string }
+        Returns: undefined
+      }
       approve_parent_link: { Args: { _link_id: string }; Returns: undefined }
       can_access_course: {
         Args: { _course_id: string; _user_id: string }
@@ -1114,6 +1358,10 @@ export type Database = {
           count: number
           day: string
         }[]
+      }
+      get_fee_status: {
+        Args: { _student_id: string }
+        Returns: Database["public"]["Enums"]["fee_status"]
       }
       get_parent_link_audit: { Args: { _link_id: string }; Returns: Json }
       get_public_profiles: {
@@ -1216,6 +1464,14 @@ export type Database = {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
       }
+      is_parent_of: {
+        Args: { _student_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_school_admin_of: {
+        Args: { _institution_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_tutor_or_ta: {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
@@ -1253,6 +1509,7 @@ export type Database = {
         }
         Returns: Json
       }
+      refresh_invoice_statuses: { Args: never; Returns: undefined }
       reject_parent_link: { Args: { _link_id: string }; Returns: undefined }
       request_parent_link_by_email: {
         Args: { _student_email: string }
@@ -1286,6 +1543,27 @@ export type Database = {
         | "school_admin"
         | "ta"
         | "parent"
+      fee_status: "none" | "paid" | "partial" | "grace" | "overdue" | "blocked"
+      invoice_status:
+        | "draft"
+        | "issued"
+        | "partial"
+        | "paid"
+        | "overdue"
+        | "cancelled"
+      payment_provider:
+        | "mpesa"
+        | "flutterwave"
+        | "paystack"
+        | "bank_transfer"
+        | "cash"
+        | "manual"
+      payment_status:
+        | "pending"
+        | "succeeded"
+        | "failed"
+        | "refunded"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1421,6 +1699,30 @@ export const Constants = {
         "school_admin",
         "ta",
         "parent",
+      ],
+      fee_status: ["none", "paid", "partial", "grace", "overdue", "blocked"],
+      invoice_status: [
+        "draft",
+        "issued",
+        "partial",
+        "paid",
+        "overdue",
+        "cancelled",
+      ],
+      payment_provider: [
+        "mpesa",
+        "flutterwave",
+        "paystack",
+        "bank_transfer",
+        "cash",
+        "manual",
+      ],
+      payment_status: [
+        "pending",
+        "succeeded",
+        "failed",
+        "refunded",
+        "cancelled",
       ],
     },
   },
