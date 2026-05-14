@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck,
+  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ const SchoolAdminsTab = lazy(() => import("@/components/admin/SchoolAdminsTab"))
 const SchoolAdminDashboard = lazy(() => import("@/components/admin/SchoolAdminDashboard"));
 const SchoolAdminCoursesTab = lazy(() => import("@/components/admin/SchoolAdminCoursesTab"));
 const ParentApprovalsTab = lazy(() => import("@/components/admin/ParentApprovalsTab"));
+const BursarTab = lazy(() => import("@/components/admin/BursarTab"));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -280,6 +281,7 @@ const AdminPanel = () => {
         { value: "enrollment", icon: UserPlus, label: "Enrollment" },
         { value: "terms", icon: Calendar, label: "Terms" },
         { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
+        { value: "fees", icon: Wallet, label: "Fees" },
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ];
@@ -507,6 +509,13 @@ const AdminPanel = () => {
         {isSchoolAdmin && (
           <TabsContent value="enrollment" className="mt-6">
             <Suspense fallback={<TabFallback />}><EnrollmentTab /></Suspense>
+          </TabsContent>
+        )}
+
+        {/* Bursar / Fees Tab (school admin) */}
+        {isSchoolAdmin && (
+          <TabsContent value="fees" className="mt-6">
+            <Suspense fallback={<TabFallback />}><BursarTab /></Suspense>
           </TabsContent>
         )}
 
