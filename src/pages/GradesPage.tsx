@@ -9,6 +9,7 @@ import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts, us
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import FeeGate from "@/components/FeeGate";
 
 const gradeScale = [
   { min: 90, letter: "A", color: "text-success" },
@@ -364,4 +365,8 @@ const GradesPage = () => {
   );
 };
 
-export default GradesPage;
+const GradesPageGated = () => (
+  <FeeGate feature="Report cards"><GradesPage /></FeeGate>
+);
+
+export default GradesPageGated;
