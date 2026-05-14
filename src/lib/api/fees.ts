@@ -1,0 +1,113 @@
+import { supabase } from "@/integrations/supabase/client";
+
+export type FeeStatus = "none" | "paid" | "partial" | "grace" | "overdue" | "blocked";
+
+export const feesApi = {
+  feeStatus: async (studentId: string): Promise<FeeStatus> => {
+    const { data, error } = await (supabase as any).rpc("get_fee_status", { _student_id: studentId });
+    if (error) throw error;
+    return (data as FeeStatus) ?? "none";
+  },
+
+  // Bursar
+  listStructures: async (institutionId: string) => {
+    const { data, error } = await (supabase as any)
+      .from("fee_structures")
+      .select("*, terms(name), courses(code,title)")
+      .eq("institution_id", institutionId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+  createStructure: async (input: {
+    institution_id: string; name: string; description?: string;
+    amount_cents: number; term_id?: string | null; course_id?: string | null;
+    due_date?: string | null;
+  }) => {
+    const { error } = await (supabase as any).from("fee_structures").insert(input);
+    if (error) throw error;
+  },
+  deleteStructure: async (id: string) => {
+    const { error } = await (supabase as any).from("fee_structures").delete().eq("id", id);
+    if (error) throw error;
+  },
+
+  listInstitutionInvoices: async (institutionId: string) => {
+    const { data, error } = await (supabase as any)
+      .from("invoices")
+      .select("*")
+      .eq("institution_id", institutionId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return data;
+  },
+  issueInvoice: async (input: {
+    institution_id: string; student_id: string; total_cents: number;
+    description?: string; due_date?: string | null; fee_structure_id?: string | null;
+    term_id?: string | null;
+    installments?: { sequence: number; amount_cents: number; due_date: string }[];
+  }) => {
+    const reference = `INV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const { data: inv, error } = await (supabase as any).from("invoices").insert({
+      institution_id: input.institution_id,
+      student_id: input.student_id,
+      total_cents: input.total_cents,
+      description: input.description ?? "",
+      due_date: input.due_date ?? null,
+      fee_structure_id: input.fee_structure_id ?? null,
+      term_id: input.term_id ?? null,
+      reference,
+      status: "issued",
+    }).select().single();
+    if (error) throw error;
+    if (input.installments?.length) {
+      const rows = input.installments.map(i => ({ ...i, invoice_id: inv.id }));
+      const { error: ie } = await (supabase as any).from("invoice_installments").insert(rows);
+      if (ie) throw ie;
+    }
+    return inv;
+  },
+  cancelInvoice: async (id: string) => {
+    const { error } = await (supabase as any).from("invoices").update({ status: "cancelled" }).eq("id", id);
+    if (error) throw error;
+  },
+  recordManualPayment: async (input: { invoice_id: string; amount_cents: number; provider: "bank_transfer" | "cash" | "manual"; provider_reference?: string; notes?: string; }) => {
+    const { error } = await (supabase as any).from("payments").insert({
+      invoice_id: input.invoice_id,
+      provider: input.provider,
+      provider_reference: input.provider_reference ?? `MANUAL-${Date.now().toString(36).toUpperCase()}`,
+      amount_cents: input.amount_cents,
+      currency: "KES",
+      status: "succeeded",
+      notes: input.notes ?? null,
+      raw_payload: { source: "bursar_manual" },
+    });
+    if (error) throw error;
+  },
+  setOverride: async (input: { student_id: string; blocked: boolean; grace_until?: string | null; reason?: string }) => {
+    const { error } = await (supabase as any).from("student_fee_overrides").upsert({
+      student_id: input.student_id,
+      blocked: input.blocked,
+      grace_until: input.grace_until ?? null,
+      reason: input.reason ?? null,
+    }, { onConflict: "student_id" });
+    if (error) throw error;
+  },
+
+  // Student / parent
+  listForStudent: async (studentId: string) => {
+    const { data, error } = await (supabase as any)
+      .from("invoices")
+      .select("*, invoice_installments(*), payments(id,amount_cents,provider,status,created_at,provider_reference)")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+  initiatePayment: async (input: { invoice_id: string; provider: string; amount_cents: number; phone?: string; notes?: string }) => {
+    const { data, error } = await supabase.functions.invoke("payments-initiate", { body: input });
+    if (error) throw error;
+    return data as { payment_id: string; provider_reference: string; stub: boolean; message: string };
+  },
+};
