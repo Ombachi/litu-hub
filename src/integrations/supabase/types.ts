@@ -931,6 +931,8 @@ export type Database = {
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_reference: string | null
           raw_payload: Json | null
+          receipt_number: string | null
+          receipt_url: string | null
           recorded_by: string | null
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
@@ -946,6 +948,8 @@ export type Database = {
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_reference?: string | null
           raw_payload?: Json | null
+          receipt_number?: string | null
+          receipt_url?: string | null
           recorded_by?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
@@ -961,6 +965,8 @@ export type Database = {
           provider?: Database["public"]["Enums"]["payment_provider"]
           provider_reference?: string | null
           raw_payload?: Json | null
+          receipt_number?: string | null
+          receipt_url?: string | null
           recorded_by?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
@@ -1499,6 +1505,10 @@ export type Database = {
       notify_saq_graded: {
         Args: { _attempt_id: string; _points_earned: number }
         Returns: undefined
+      }
+      recompute_fee_status_for_institution: {
+        Args: { _institution_id: string }
+        Returns: number
       }
       record_ai_usage: {
         Args: {
