@@ -110,7 +110,7 @@ const BursarTab = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const studentMap = useMemo(() => new Map((members ?? []).map((m: any) => [m.user_id, m])), [members]);
+  const studentMap = useMemo(() => new Map<string, any>((members ?? []).map((m: any) => [m.user_id as string, m])), [members]);
 
   if (!institutionId) return <p className="text-muted-foreground">No institution.</p>;
 

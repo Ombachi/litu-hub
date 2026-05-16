@@ -8,7 +8,7 @@ import { useStudentInvoices } from "@/hooks/useFees";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Loader2, Wallet, Smartphone, CreditCard, Building2 } from "lucide-react";
+import { Loader2, Wallet, Smartphone, CreditCard, Building2, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const fmtKES = (cents: number) => `KES ${(cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
@@ -175,6 +175,19 @@ const PayForm = ({ invoice, remaining, onDone, onCancel }: { invoice: any; remai
         <button onClick={onCancel} className="rounded-lg border px-4 py-2 text-sm">Cancel</button>
       </div>
     </div>
+  );
+};
+
+const ReceiptLink = ({ payment }: { payment: any }) => {
+  const open = async () => {
+    try { window.open(await feesApi.receiptUrl(payment.receipt_url), "_blank"); }
+    catch (e: any) { toast.error(e.message); }
+  };
+  return (
+    <button onClick={open} className="flex items-center gap-2 text-sm text-primary hover:underline">
+      <FileText className="h-4 w-4" />
+      Receipt {payment.receipt_number ?? payment.provider_reference} · {fmtKES(payment.amount_cents)}
+    </button>
   );
 };
 
