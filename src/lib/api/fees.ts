@@ -110,4 +110,33 @@ export const feesApi = {
     if (error) throw error;
     return data as { payment_id: string; provider_reference: string; stub: boolean; message: string };
   },
+
+  // Signed URL for a stored receipt (1 hour)
+  receiptUrl: async (path: string) => {
+    const { data, error } = await supabase.storage.from("receipts").createSignedUrl(path, 3600);
+    if (error) throw error;
+    return data.signedUrl;
+  },
+
+  // Bursar: list payments for an invoice
+  listPaymentsForInvoice: async (invoiceId: string) => {
+    const { data, error } = await (supabase as any).from("payments")
+      .select("*").eq("invoice_id", invoiceId).order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  // Bursar: confirm or fail a pending payment
+  setPaymentStatus: async (paymentId: string, status: "succeeded" | "failed", notes?: string) => {
+    const { error } = await (supabase as any).from("payments")
+      .update({ status, notes: notes ?? null }).eq("id", paymentId);
+    if (error) throw error;
+  },
+
+  // Bursar: recompute statuses across institution
+  recomputeStatuses: async (institutionId: string) => {
+    const { data, error } = await (supabase as any).rpc("recompute_fee_status_for_institution", { _institution_id: institutionId });
+    if (error) throw error;
+    return data as number;
+  },
 };
