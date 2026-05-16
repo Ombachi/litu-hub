@@ -99,6 +99,17 @@ const FeesPage = () => {
                   </div>
                 )}
 
+                {inv.payments?.some((p: any) => p.status === "succeeded" && p.receipt_url) && (
+                  <div className="p-5 border-b">
+                    <div className="text-xs uppercase text-muted-foreground mb-2">Receipts</div>
+                    <div className="space-y-1">
+                      {(inv.payments as any[]).filter(p => p.status === "succeeded" && p.receipt_url).map(p => (
+                        <ReceiptLink key={p.id} payment={p} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {remaining > 0 && (
                   <div className="p-5">
                     {paying === inv.id ? (
