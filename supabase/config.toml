@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.fee-receipt-notify]
 verify_jwt = false
+
+[functions.fee-receipt-generate]
+verify_jwt = false
+
+[functions.fee-receipt-retry]
+verify_jwt = false
