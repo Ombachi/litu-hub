@@ -73,7 +73,7 @@ export const feesApi = {
     if (error) throw error;
   },
   recordManualPayment: async (input: { invoice_id: string; amount_cents: number; provider: "bank_transfer" | "cash" | "manual"; provider_reference?: string; notes?: string; }) => {
-    const { error } = await (supabase as any).from("payments").insert({
+    const { data: pay, error } = await (supabase as any).from("payments").insert({
       invoice_id: input.invoice_id,
       provider: input.provider,
       provider_reference: input.provider_reference ?? `MANUAL-${Date.now().toString(36).toUpperCase()}`,
@@ -82,8 +82,27 @@ export const feesApi = {
       status: "succeeded",
       notes: input.notes ?? null,
       raw_payload: { source: "bursar_manual" },
-    });
+    }).select("id").single();
     if (error) throw error;
+    // Kick off PDF + notification asynchronously — failures don't block the manual record.
+    try { await supabase.functions.invoke("fee-receipt-generate", { body: { payment_id: pay.id } }); }
+    catch (e) { console.error("fee-receipt-generate failed", e); }
+  },
+  generateReceipt: async (payment_id: string) => {
+    const { data, error } = await supabase.functions.invoke("fee-receipt-generate", { body: { payment_id } });
+    if (error) throw error;
+    return data as { ok: boolean; receipt_url?: string; receipt_number?: string };
+  },
+  retryReceiptDeliveries: async () => {
+    const { data, error } = await supabase.functions.invoke("fee-receipt-retry", { body: {} });
+    if (error) throw error;
+    return data as { ok: boolean; retried: number; dlq?: number };
+  },
+  listDeliveryFailures: async (limit = 100) => {
+    const { data, error } = await (supabase as any).from("email_delivery_log")
+      .select("*").in("status", ["failed", "dlq"]).order("updated_at", { ascending: false }).limit(limit);
+    if (error) throw error;
+    return data;
   },
   setOverride: async (input: { student_id: string; blocked: boolean; grace_until?: string | null; reason?: string }) => {
     const { error } = await (supabase as any).from("student_fee_overrides").upsert({

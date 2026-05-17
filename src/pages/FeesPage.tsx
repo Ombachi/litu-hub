@@ -107,12 +107,7 @@ const FeesPage = () => {
                         .filter(p => p.status === "succeeded")
                         .map(p => p.receipt_url
                           ? <ReceiptLink key={p.id} payment={p} />
-                          : (
-                            <div key={p.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Receipt for {fmtKES(p.amount_cents)} is being generated…
-                            </div>
-                          )
+                          : <GenerateReceiptButton key={p.id} payment={p} onDone={() => qc.invalidateQueries({ queryKey: ["invoices", targetId] })} />
                         )}
                     </div>
                   </div>
@@ -196,6 +191,28 @@ const ReceiptLink = ({ payment }: { payment: any }) => {
       <FileText className="h-4 w-4" />
       Receipt {payment.receipt_number ?? payment.provider_reference} · {fmtKES(payment.amount_cents)}
     </button>
+  );
+};
+
+const GenerateReceiptButton = ({ payment, onDone }: { payment: any; onDone: () => void }) => {
+  const [busy, setBusy] = useState(false);
+  const generate = async () => {
+    setBusy(true);
+    try {
+      const res = await feesApi.generateReceipt(payment.id);
+      if (res?.receipt_url) toast.success("Receipt ready");
+      else toast.message("Generating in background — refresh in a moment");
+      onDone();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      <span className="text-muted-foreground">Receipt for {fmtKES(payment.amount_cents)} not generated.</span>
+      <button onClick={generate} disabled={busy} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-secondary/50 disabled:opacity-50">
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} Generate
+      </button>
+    </div>
   );
 };
 
