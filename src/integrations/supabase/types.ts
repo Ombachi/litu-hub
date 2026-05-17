@@ -467,6 +467,56 @@ export type Database = {
           },
         ]
       }
+      email_delivery_log: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          id: string
+          last_error: string | null
+          next_retry_at: string | null
+          payment_id: string | null
+          recipient_address: string
+          recipient_user_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_retry_at?: string | null
+          payment_id?: string | null
+          recipient_address: string
+          recipient_user_id?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_retry_at?: string | null
+          payment_id?: string | null
+          recipient_address?: string
+          recipient_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_delivery_log_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollment_requests: {
         Row: {
           course_id: string
@@ -1289,6 +1339,41 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_events: {
+        Row: {
+          event_id: string
+          id: string
+          payload: Json | null
+          payment_id: string | null
+          provider: string
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          payload?: Json | null
+          payment_id?: string | null
+          provider: string
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          payload?: Json | null
+          payment_id?: string | null
+          provider?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       public_profiles: {
@@ -1328,6 +1413,10 @@ export type Database = {
         Returns: boolean
       }
       can_message_user: { Args: { _recipient: string }; Returns: boolean }
+      claim_payment_for_receipt: {
+        Args: { _claim_token: string; _payment_id: string }
+        Returns: boolean
+      }
       cleanup_old_notifications: { Args: never; Returns: number }
       expire_stale_quiz_attempts: { Args: never; Returns: undefined }
       gdpr_delete_user_account: { Args: never; Returns: Json }
