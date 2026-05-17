@@ -107,12 +107,7 @@ const FeesPage = () => {
                         .filter(p => p.status === "succeeded")
                         .map(p => p.receipt_url
                           ? <ReceiptLink key={p.id} payment={p} />
-                          : (
-                            <div key={p.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Receipt for {fmtKES(p.amount_cents)} is being generated…
-                            </div>
-                          )
+                          : <GenerateReceiptButton key={p.id} payment={p} onDone={() => qc.invalidateQueries({ queryKey: ["invoices", targetId] })} />
                         )}
                     </div>
                   </div>
