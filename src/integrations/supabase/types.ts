@@ -1506,6 +1506,26 @@ export type Database = {
         Args: { _attempt_id: string; _points_earned: number }
         Returns: undefined
       }
+      notify_student_and_parents: {
+        Args: {
+          _link: string
+          _message: string
+          _student_id: string
+          _title: string
+          _type: string
+        }
+        Returns: undefined
+      }
+      notify_user: {
+        Args: {
+          _link: string
+          _message: string
+          _title: string
+          _type: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       recompute_fee_status_for_institution: {
         Args: { _institution_id: string }
         Returns: number

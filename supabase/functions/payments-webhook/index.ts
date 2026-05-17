@@ -141,6 +141,21 @@ Deno.serve(async (req) => {
     if (upErr) throw upErr;
 
     await admin.from("payments").update({ receipt_url: path, receipt_number: receiptNumber }).eq("id", payment.id);
+
+    // Fire-and-forget: email/SMS the receipt to student + linked parents.
+    try {
+      const notifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/fee-receipt-notify`;
+      fetch(notifyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ payment_id: payment.id }),
+      }).catch((e) => console.error("[payments-webhook] notify dispatch failed", e));
+    } catch (e) {
+      console.error("[payments-webhook] notify invoke failed", e);
+    }
   } catch (e) {
     console.error("[payments-webhook] receipt generation failed", e);
   }
