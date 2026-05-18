@@ -667,28 +667,46 @@ export type Database = {
       }
       institutions: {
         Row: {
+          address: string | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string
           id: string
           logo_url: string | null
           name: string
           primary_color: string | null
+          secondary_color: string | null
           slug: string
+          tagline: string | null
+          website: string | null
         }
         Insert: {
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null
           name: string
           primary_color?: string | null
+          secondary_color?: string | null
           slug: string
+          tagline?: string | null
+          website?: string | null
         }
         Update: {
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null
           name?: string
           primary_color?: string | null
+          secondary_color?: string | null
           slug?: string
+          tagline?: string | null
+          website?: string | null
         }
         Relationships: []
       }
