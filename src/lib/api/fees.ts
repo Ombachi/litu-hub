@@ -118,7 +118,7 @@ export const feesApi = {
   listForStudent: async (studentId: string) => {
     const { data, error } = await (supabase as any)
       .from("invoices")
-      .select("*, invoice_installments(*), payments(id,amount_cents,provider,status,created_at,provider_reference)")
+      .select("*, invoice_installments(*), payments(id,amount_cents,provider,status,created_at,provider_reference,receipt_url,receipt_number)")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
     if (error) throw error;
