@@ -121,19 +121,26 @@ Deno.serve(async (req) => {
 
   try {
     const { data: inv } = await admin.from("invoices")
-      .select("reference,student_id,institutions(name)").eq("id", payment.invoice_id).maybeSingle();
+      .select("reference,student_id,description,due_date,total_cents,paid_cents,institutions(name,slug)")
+      .eq("id", payment.invoice_id).maybeSingle();
     const { data: prof } = await admin.from("profiles")
-      .select("first_name,last_name").eq("user_id", inv?.student_id).maybeSingle();
+      .select("first_name,last_name,email").eq("user_id", inv?.student_id).maybeSingle();
 
     const receiptNumber = `RCPT-${Date.now().toString(36).toUpperCase()}-${payment.id.slice(0, 6).toUpperCase()}`;
     const pdfBytes = await generatePdf({
       receiptNumber,
       invoiceRef: inv?.reference ?? "—",
+      invoiceDescription: (inv as any)?.description ?? "",
+      invoiceDueDate: (inv as any)?.due_date ?? "",
+      invoiceTotalCents: Number((inv as any)?.total_cents ?? payment.amount_cents),
+      invoicePaidCents: Number((inv as any)?.paid_cents ?? payment.amount_cents),
       amountCents: payment.amount_cents,
       provider: payment.provider,
       providerRef: payment.provider_reference ?? "",
       studentName: prof ? `${prof.first_name ?? ""} ${prof.last_name ?? ""}`.trim() || "Student" : "Student",
+      studentEmail: (prof as any)?.email ?? "",
       institutionName: (inv as any)?.institutions?.name ?? "Litu Hub",
+      institutionSlug: (inv as any)?.institutions?.slug ?? "lituhub",
       paidAt: new Date(),
     });
 
