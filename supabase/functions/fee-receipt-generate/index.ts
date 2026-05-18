@@ -14,32 +14,74 @@ const json = (s: number, b: unknown) =>
 const fmtKES = (c: number) => `KES ${(c / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
 
 async function generatePdf(o: {
-  receiptNumber: string; invoiceRef: string; amountCents: number;
-  provider: string; providerRef: string; studentName: string;
-  institutionName: string; paidAt: Date;
+  receiptNumber: string; invoiceRef: string; invoiceDescription: string;
+  invoiceDueDate: string; amountCents: number; invoiceTotalCents: number;
+  invoicePaidCents: number; provider: string; providerRef: string;
+  studentName: string; studentEmail: string; institutionName: string;
+  institutionSlug: string; paidAt: Date;
 }): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([595, 420]);
+  const page = pdf.addPage([595, 700]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const green = rgb(0.12, 0.31, 0.22);
   const grey = rgb(0.35, 0.35, 0.35);
-  const draw = (t: string, x: number, y: number, size = 11, f = font, c = rgb(0,0,0)) =>
-    page.drawText(t, { x, y, size, font: f, color: c });
-  draw(o.institutionName, 40, 380, 18, bold, green);
-  draw("Payment Receipt", 40, 358, 12, font, grey);
-  draw(`#${o.receiptNumber}`, 420, 380, 12, bold, green);
-  draw(o.paidAt.toLocaleString("en-KE"), 380, 362, 10, font, grey);
-  page.drawLine({ start: { x: 40, y: 340 }, end: { x: 555, y: 340 }, thickness: 1, color: green });
-  const rows: [string,string][] = [
-    ["Student", o.studentName], ["Invoice", o.invoiceRef],
-    ["Method", o.provider.toUpperCase()], ["Reference", o.providerRef],
+  const light = rgb(0.96, 0.94, 0.88);
+  const draw = (t: string, x: number, y: number, size = 11, f = font, c = rgb(0, 0, 0)) =>
+    page.drawText(t ?? "", { x, y, size, font: f, color: c });
+
+  // Header
+  page.drawRectangle({ x: 0, y: 640, width: 595, height: 60, color: green });
+  draw(o.institutionName, 40, 668, 20, bold, rgb(1, 1, 1));
+  draw(`@${o.institutionSlug}`, 40, 650, 9, font, rgb(0.85, 0.92, 0.85));
+  draw("PAYMENT RECEIPT", 400, 672, 12, bold, rgb(1, 1, 1));
+  draw(`#${o.receiptNumber}`, 400, 654, 10, font, rgb(0.85, 0.92, 0.85));
+
+  // Meta
+  draw("Issued", 40, 612, 9, bold, grey);
+  draw(o.paidAt.toLocaleString("en-KE"), 40, 598, 10);
+  draw("Status", 300, 612, 9, bold, grey);
+  draw("PAID", 300, 598, 10, bold, green);
+
+  page.drawLine({ start: { x: 40, y: 582 }, end: { x: 555, y: 582 }, thickness: 1, color: green });
+
+  // Billed To
+  draw("BILLED TO", 40, 562, 9, bold, grey);
+  draw(o.studentName, 40, 545, 12, bold);
+  if (o.studentEmail) draw(o.studentEmail, 40, 530, 10, font, grey);
+
+  // Invoice
+  draw("INVOICE", 300, 562, 9, bold, grey);
+  draw(o.invoiceRef, 300, 545, 12, bold);
+  if (o.invoiceDescription) draw(o.invoiceDescription.slice(0, 40), 300, 530, 10, font, grey);
+  if (o.invoiceDueDate) draw(`Due: ${o.invoiceDueDate}`, 300, 516, 9, font, grey);
+
+  // Payment details box
+  page.drawRectangle({ x: 40, y: 380, width: 515, height: 110, color: light });
+  draw("PAYMENT DETAILS", 56, 470, 9, bold, grey);
+  const rows: [string, string][] = [
+    ["Method", o.provider.replace(/_/g, " ").toUpperCase()],
+    ["Reference", o.providerRef || "—"],
+    ["Date", o.paidAt.toLocaleDateString("en-KE")],
   ];
-  rows.forEach(([k, v], i) => { draw(k, 40, 310 - i*22, 11, bold); draw(v, 160, 310 - i*22, 11); });
-  page.drawRectangle({ x: 40, y: 140, width: 515, height: 60, color: rgb(0.96,0.94,0.88) });
-  draw("Amount Paid", 56, 170, 12, bold, grey);
-  draw(fmtKES(o.amountCents), 56, 150, 22, bold, green);
-  draw("System-generated receipt. Keep for your records.", 40, 60, 9, font, grey);
+  rows.forEach(([k, v], i) => {
+    draw(k, 56, 450 - i * 18, 10, bold);
+    draw(v, 200, 450 - i * 18, 10);
+  });
+
+  // Amount box
+  page.drawRectangle({ x: 40, y: 250, width: 515, height: 110, color: green });
+  draw("AMOUNT PAID", 56, 330, 10, bold, rgb(0.85, 0.92, 0.85));
+  draw(fmtKES(o.amountCents), 56, 295, 28, bold, rgb(1, 1, 1));
+  draw(`Invoice Total: ${fmtKES(o.invoiceTotalCents)}`, 56, 275, 10, font, rgb(0.85, 0.92, 0.85));
+  const balance = o.invoiceTotalCents - o.invoicePaidCents;
+  draw(`Balance: ${fmtKES(balance > 0 ? balance : 0)}`, 56, 262, 10, font, rgb(0.85, 0.92, 0.85));
+
+  // Footer
+  page.drawLine({ start: { x: 40, y: 100 }, end: { x: 555, y: 100 }, thickness: 0.5, color: grey });
+  draw("Thank you for your payment.", 40, 82, 10, bold, green);
+  draw(`This is a system-generated receipt from ${o.institutionName}. Please retain for your records.`, 40, 68, 9, font, grey);
+  draw(`Generated ${new Date().toISOString()}`, 40, 54, 8, font, grey);
   return await pdf.save();
 }
 
