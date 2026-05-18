@@ -183,8 +183,15 @@ const PayForm = ({ invoice, remaining, onDone, onCancel }: { invoice: any; remai
 
 const ReceiptLink = ({ payment }: { payment: any }) => {
   const open = async () => {
-    try { window.open(await feesApi.receiptUrl(payment.receipt_url), "_blank"); }
-    catch (e: any) { toast.error(e.message); }
+    try {
+      const { data, error } = await supabase.storage.from("receipts").download(payment.receipt_url);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) {
+      toast.error(e.message ?? "Could not open receipt");
+    }
   };
   return (
     <button onClick={open} className="flex items-center gap-2 text-sm text-primary hover:underline">
