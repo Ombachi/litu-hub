@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrandingPreview } from "@/components/BrandingProvider";
+import ContrastChecker from "@/components/admin/ContrastChecker";
 
 type Institution = {
   id: string;
@@ -270,6 +271,10 @@ const InstitutionsTab = () => {
           <input type="color" value={form.secondary_color} onChange={(e) => setForm(f => ({ ...f, secondary_color: e.target.value }))} className="h-10 w-14 rounded-md border cursor-pointer" />
           <Input value={form.secondary_color} onChange={(e) => setForm(f => ({ ...f, secondary_color: e.target.value }))} />
         </div>
+      </div>
+
+      <div className="sm:col-span-2 pt-2 border-t">
+        <ContrastChecker primary={form.primary_color} accent={form.secondary_color} />
       </div>
 
       <div className="sm:col-span-2 space-y-2 pt-2 border-t">
