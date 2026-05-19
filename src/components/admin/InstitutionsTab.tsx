@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   Building2, Loader2, Users, BookOpen, ChevronDown, ChevronRight, Upload, Plus, Pencil, Palette,
+  LayoutDashboard, FileText, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useBrandingPreview } from "@/components/BrandingProvider";
 
 type Institution = {
   id: string;
@@ -43,14 +45,82 @@ const blankForm = {
 const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+/**
+ * Mini-mock of the LMS chrome (sidebar + topbar + dashboard card + course card)
+ * rendered with the form's chosen colors so admins can preview branding before saving.
+ */
+const BrandPreview = ({ primary, accent, logoUrl, name }: { primary: string; accent: string; logoUrl: string | null; name: string }) => (
+  <div className="rounded-xl border overflow-hidden shadow-sm bg-card">
+    <div className="flex h-64">
+      {/* Sidebar */}
+      <div className="w-32 flex flex-col" style={{ background: primary }}>
+        <div className="flex items-center gap-2 p-3 text-white">
+          {logoUrl ? <img src={logoUrl} className="h-7 w-7 rounded object-cover bg-white/20" alt="" /> : <div className="h-7 w-7 rounded flex items-center justify-center" style={{ background: accent }}><BookOpen className="h-4 w-4 text-white" /></div>}
+          <span className="text-xs font-bold truncate">{name || "School"}</span>
+        </div>
+        <div className="px-2 space-y-1 mt-2">
+          <div className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[10px] text-white" style={{ background: accent }}>
+            <LayoutDashboard className="h-3 w-3" /> Dashboard
+          </div>
+          <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] text-white/70">
+            <FileText className="h-3 w-3" /> Assignments
+          </div>
+          <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] text-white/70">
+            <BookOpen className="h-3 w-3" /> Courses
+          </div>
+        </div>
+      </div>
+      {/* Content */}
+      <div className="flex-1 bg-background overflow-hidden">
+        <div className="h-8 border-b flex items-center justify-end px-3">
+          <div className="h-5 w-5 rounded-full" style={{ background: accent }} />
+        </div>
+        <div className="p-3 space-y-2">
+          <div className="text-xs font-bold" style={{ color: primary }}>Welcome back!</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded border p-2 text-[9px]" style={{ borderTopWidth: 3, borderTopColor: primary }}>
+              <div className="font-semibold">Math 101</div>
+              <div className="text-muted-foreground">5 lessons</div>
+            </div>
+            <div className="rounded border p-2 text-[9px]" style={{ borderTopWidth: 3, borderTopColor: accent }}>
+              <div className="font-semibold">Science</div>
+              <div className="text-muted-foreground">3 quizzes</div>
+            </div>
+          </div>
+          <div className="rounded p-2 text-[9px] text-white" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
+            <div className="font-bold">Upcoming</div>
+            <div className="opacity-90">Essay due Fri</div>
+          </div>
+          <div className="flex gap-1.5">
+            <button className="rounded px-2 py-1 text-[9px] text-white" style={{ background: primary }}>Continue</button>
+            <button className="rounded px-2 py-1 text-[9px] border" style={{ color: accent, borderColor: accent }}>View all</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const InstitutionsTab = () => {
   const [selectedInst, setSelectedInst] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Institution | null>(null);
   const [form, setForm] = useState({ ...blankForm });
+  const [livePreview, setLivePreview] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
+  const { setPreview } = useBrandingPreview();
+
+  // Push form colors into global theme when "live preview" is on, clear on close.
+  useEffect(() => {
+    if (livePreview && (createOpen || editing)) {
+      setPreview({ primary_color: form.primary_color, secondary_color: form.secondary_color, logo_url: editing?.logo_url ?? null, name: form.name });
+    } else {
+      setPreview(null);
+    }
+    return () => setPreview(null);
+  }, [livePreview, form.primary_color, form.secondary_color, form.name, createOpen, editing, setPreview]);
 
   const { data: institutions, isLoading } = useQuery({
     queryKey: ["institutions"],
@@ -201,6 +271,23 @@ const InstitutionsTab = () => {
           <Input value={form.secondary_color} onChange={(e) => setForm(f => ({ ...f, secondary_color: e.target.value }))} />
         </div>
       </div>
+
+      <div className="sm:col-span-2 space-y-2 pt-2 border-t">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-semibold flex items-center gap-1.5">
+            <Eye className="h-3.5 w-3.5" /> Live Preview
+          </Label>
+          <Button
+            type="button" variant={livePreview ? "default" : "outline"} size="sm"
+            onClick={() => setLivePreview(v => !v)}
+            className="gap-1.5"
+          >
+            {livePreview ? <><EyeOff className="h-3.5 w-3.5" /> Stop applying to app</> : <><Eye className="h-3.5 w-3.5" /> Apply to whole app</>}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">See how the dashboard and course pages look with this branding. Toggle "Apply to whole app" to temporarily theme the live LMS — your changes won't be saved until you click Save.</p>
+        <BrandPreview primary={form.primary_color} accent={form.secondary_color} logoUrl={editing?.logo_url ?? null} name={form.name} />
+      </div>
     </div>
   );
 
@@ -210,7 +297,7 @@ const InstitutionsTab = () => {
         <h3 className="font-semibold">Institutions</h3>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">{institutions?.length || 0} total</Badge>
-          <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) setForm({ ...blankForm }); }}>
+          <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) { setForm({ ...blankForm }); setLivePreview(false); } }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> New Institution</Button>
             </DialogTrigger>
@@ -233,7 +320,7 @@ const InstitutionsTab = () => {
       </div>
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); setLivePreview(false); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit {editing?.name}</DialogTitle>

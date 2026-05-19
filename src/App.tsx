@@ -9,6 +9,7 @@ import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleGuard from "./components/RoleGuard";
 import AppLayout from "./components/AppLayout";
+import BrandingProvider from "./components/BrandingProvider";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { DashboardSkeleton, ListPageSkeleton, DetailPageSkeleton, GradingQueueSkeleton } from "./components/PageSkeleton";
 
@@ -64,6 +65,7 @@ const App = () => (
                 path="/*"
                 element={
                   <ProtectedRoute>
+                    <BrandingProvider>
                     <AppLayout>
                       <ErrorBoundary>
                         <Routes>
@@ -117,6 +119,7 @@ const App = () => (
                         </Routes>
                       </ErrorBoundary>
                     </AppLayout>
+                    </BrandingProvider>
                   </ProtectedRoute>
                 }
               />
