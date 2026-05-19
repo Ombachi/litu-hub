@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -113,7 +113,7 @@ const InstitutionsTab = () => {
   const { setPreview } = useBrandingPreview();
 
   // Push form colors into global theme when "live preview" is on, clear on close.
-  React.useEffect(() => {
+  useEffect(() => {
     if (livePreview && (createOpen || editing)) {
       setPreview({ primary_color: form.primary_color, secondary_color: form.secondary_color, logo_url: editing?.logo_url ?? null, name: form.name });
     } else {
