@@ -271,6 +271,23 @@ const InstitutionsTab = () => {
           <Input value={form.secondary_color} onChange={(e) => setForm(f => ({ ...f, secondary_color: e.target.value }))} />
         </div>
       </div>
+
+      <div className="sm:col-span-2 space-y-2 pt-2 border-t">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-semibold flex items-center gap-1.5">
+            <Eye className="h-3.5 w-3.5" /> Live Preview
+          </Label>
+          <Button
+            type="button" variant={livePreview ? "default" : "outline"} size="sm"
+            onClick={() => setLivePreview(v => !v)}
+            className="gap-1.5"
+          >
+            {livePreview ? <><EyeOff className="h-3.5 w-3.5" /> Stop applying to app</> : <><Eye className="h-3.5 w-3.5" /> Apply to whole app</>}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">See how the dashboard and course pages look with this branding. Toggle "Apply to whole app" to temporarily theme the live LMS — your changes won't be saved until you click Save.</p>
+        <BrandPreview primary={form.primary_color} accent={form.secondary_color} logoUrl={editing?.logo_url ?? null} name={form.name} />
+      </div>
     </div>
   );
 
