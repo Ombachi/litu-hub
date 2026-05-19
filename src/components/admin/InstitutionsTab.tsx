@@ -297,7 +297,7 @@ const InstitutionsTab = () => {
         <h3 className="font-semibold">Institutions</h3>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">{institutions?.length || 0} total</Badge>
-          <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) setForm({ ...blankForm }); }}>
+          <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) { setForm({ ...blankForm }); setLivePreview(false); } }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> New Institution</Button>
             </DialogTrigger>
@@ -320,7 +320,7 @@ const InstitutionsTab = () => {
       </div>
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); setLivePreview(false); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit {editing?.name}</DialogTitle>
