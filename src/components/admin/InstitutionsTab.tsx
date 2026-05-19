@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   Building2, Loader2, Users, BookOpen, ChevronDown, ChevronRight, Upload, Plus, Pencil, Palette,
+  LayoutDashboard, FileText, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useBrandingPreview } from "@/components/BrandingProvider";
 
 type Institution = {
   id: string;
