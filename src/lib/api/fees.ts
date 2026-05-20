@@ -72,7 +72,22 @@ export const feesApi = {
     const { error } = await (supabase as any).from("invoices").update({ status: "cancelled" }).eq("id", id);
     if (error) throw error;
   },
-  recordManualPayment: async (input: { invoice_id: string; amount_cents: number; provider: "bank_transfer" | "cash" | "manual"; provider_reference?: string; notes?: string; }) => {
+  recordManualPayment: async (input: {
+    invoice_id: string;
+    amount_cents: number;
+    provider: "bank_transfer" | "cash" | "mpesa" | "manual";
+    provider_reference?: string;
+    payer_name?: string;
+    received_at?: string; // YYYY-MM-DD
+    method_label?: string; // e.g. "Cheque", "Cash at office"
+    notes?: string;
+  }) => {
+    const noteParts = [
+      input.method_label ? `Method: ${input.method_label}` : null,
+      input.payer_name ? `Received from: ${input.payer_name}` : null,
+      input.received_at ? `Received on: ${input.received_at}` : null,
+      input.notes ?? null,
+    ].filter(Boolean);
     const { data: pay, error } = await (supabase as any).from("payments").insert({
       invoice_id: input.invoice_id,
       provider: input.provider,
@@ -80,13 +95,13 @@ export const feesApi = {
       amount_cents: input.amount_cents,
       currency: "KES",
       status: "succeeded",
-      notes: input.notes ?? null,
-      raw_payload: { source: "bursar_manual" },
+      notes: noteParts.length ? noteParts.join(" · ") : null,
+      raw_payload: { source: "bursar_manual", payer_name: input.payer_name, method_label: input.method_label, received_at: input.received_at },
     }).select("id").single();
     if (error) throw error;
-    // Kick off PDF + notification asynchronously — failures don't block the manual record.
     try { await supabase.functions.invoke("fee-receipt-generate", { body: { payment_id: pay.id } }); }
     catch (e) { console.error("fee-receipt-generate failed", e); }
+    return pay.id as string;
   },
   generateReceipt: async (payment_id: string) => {
     const { data, error } = await supabase.functions.invoke("fee-receipt-generate", { body: { payment_id } });

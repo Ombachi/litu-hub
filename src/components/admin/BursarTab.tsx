@@ -7,8 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Plus, Trash2, CheckCircle2, Ban, RefreshCw, FileText, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Plus, Trash2, CheckCircle2, Ban, RefreshCw, FileText, XCircle, Banknote, Smartphone, Building2, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
+import FinancialAnalytics from "./FinancialAnalytics";
 
 const fmtKES = (cents: number) => `KES ${(cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
 
@@ -92,12 +96,9 @@ const BursarTab = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const recordPayment = useMutation({
-    mutationFn: (p: { invoice_id: string; amount_cents: number; ref: string }) =>
-      feesApi.recordManualPayment({ invoice_id: p.invoice_id, amount_cents: p.amount_cents, provider: "bank_transfer", provider_reference: p.ref }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inst-invoices"] }); qc.invalidateQueries({ queryKey: ["inv-payments"] }); toast.success("Payment recorded"); },
-    onError: (e: any) => toast.error(e.message),
-  });
+  const [reconcileInv, setReconcileInv] = useState<any | null>(null);
+
+
 
   const cancelInv = useMutation({
     mutationFn: (id: string) => feesApi.cancelInvoice(id),
@@ -120,6 +121,7 @@ const BursarTab = () => {
         <TabsTrigger value="structures">Structures</TabsTrigger>
         <TabsTrigger value="invoices">Invoices</TabsTrigger>
         <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
       </TabsList>
 
       <TabsContent value="structures" className="space-y-8">
@@ -201,11 +203,7 @@ const BursarTab = () => {
                         <td className="text-right">
                           {i.status !== "paid" && i.status !== "cancelled" && (
                             <div className="flex gap-1 justify-end">
-                              <button onClick={() => {
-                                const amt = prompt("Amount received (KES)", ((i.total_cents - i.paid_cents) / 100).toString());
-                                const ref = prompt("Bank reference", "");
-                                if (amt && ref) recordPayment.mutate({ invoice_id: i.id, amount_cents: Math.round(parseFloat(amt) * 100), ref });
-                              }} aria-label="Record payment" className="p-1 text-success hover:bg-success/10 rounded"><CheckCircle2 className="h-4 w-4" /></button>
+                              <button onClick={() => setReconcileInv(i)} aria-label="Record payment" title="Record cash/manual payment" className="p-1 text-success hover:bg-success/10 rounded"><Banknote className="h-4 w-4" /></button>
                               <button onClick={() => confirm("Cancel this invoice?") && cancelInv.mutate(i.id)} aria-label="Cancel invoice" className="p-1 text-destructive hover:bg-destructive/10 rounded"><Ban className="h-4 w-4" /></button>
                             </div>
                           )}
@@ -224,7 +222,146 @@ const BursarTab = () => {
       <TabsContent value="reconciliation">
         <ReconciliationView invoices={invoices ?? []} studentMap={studentMap} />
       </TabsContent>
+
+      <TabsContent value="analytics">
+        <FinancialAnalytics />
+      </TabsContent>
+
+      <ManualPaymentDialog
+        invoice={reconcileInv}
+        student={reconcileInv ? studentMap.get(reconcileInv.student_id) : null}
+        onClose={() => setReconcileInv(null)}
+        onSaved={() => {
+          setReconcileInv(null);
+          qc.invalidateQueries({ queryKey: ["inst-invoices"] });
+          qc.invalidateQueries({ queryKey: ["inv-payments"] });
+          qc.invalidateQueries({ queryKey: ["fa-invoices"] });
+          qc.invalidateQueries({ queryKey: ["fa-payments"] });
+        }}
+      />
     </Tabs>
+  );
+};
+
+const METHODS: { v: "cash" | "bank_transfer" | "mpesa" | "manual"; label: string; icon: any; needsRef: boolean; refLabel: string }[] = [
+  { v: "cash", label: "Cash", icon: Banknote, needsRef: false, refLabel: "Receipt book #" },
+  { v: "bank_transfer", label: "Bank transfer", icon: Building2, needsRef: true, refLabel: "Bank reference" },
+  { v: "mpesa", label: "M-Pesa", icon: Smartphone, needsRef: true, refLabel: "M-Pesa code" },
+  { v: "manual", label: "Cheque / other", icon: ReceiptText, needsRef: true, refLabel: "Cheque or doc #" },
+];
+
+const ManualPaymentDialog = ({ invoice, student, onClose, onSaved }: { invoice: any | null; student: any | null; onClose: () => void; onSaved: () => void }) => {
+  const remaining = invoice ? (invoice.total_cents - invoice.paid_cents) : 0;
+  const [method, setMethod] = useState<typeof METHODS[number]["v"]>("cash");
+  const [amount, setAmount] = useState("");
+  const [ref, setRef] = useState("");
+  const [payer, setPayer] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Reset on open
+  useMemo(() => {
+    if (invoice) {
+      setMethod("cash");
+      setAmount((remaining / 100).toString());
+      setRef("");
+      setPayer(student ? `${student.first_name} ${student.last_name}` : "");
+      setDate(new Date().toISOString().slice(0, 10));
+      setNotes("");
+    }
+  }, [invoice?.id]);
+
+  if (!invoice) return null;
+  const cfg = METHODS.find(m => m.v === method)!;
+
+  const submit = async () => {
+    const cents = Math.round(parseFloat(amount || "0") * 100);
+    if (!cents || cents <= 0) { toast.error("Enter a valid amount"); return; }
+    if (cents > remaining) { toast.error(`Amount exceeds outstanding (${fmtKES(remaining)})`); return; }
+    if (cfg.needsRef && !ref.trim()) { toast.error(`${cfg.refLabel} is required`); return; }
+    setBusy(true);
+    try {
+      await feesApi.recordManualPayment({
+        invoice_id: invoice.id,
+        amount_cents: cents,
+        provider: method,
+        provider_reference: ref.trim() || undefined,
+        payer_name: payer.trim() || undefined,
+        received_at: date,
+        method_label: cfg.label,
+        notes: notes.trim() || undefined,
+      });
+      toast.success(`Payment of ${fmtKES(cents)} recorded. Receipt is being generated.`);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message ?? "Could not record payment");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={!!invoice} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Record manual payment</DialogTitle>
+          <DialogDescription>
+            {invoice.reference} · {student ? `${student.first_name} ${student.last_name}` : "Student"} · Outstanding {fmtKES(remaining)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Method</Label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {METHODS.map(m => (
+                <button key={m.v} type="button" onClick={() => setMethod(m.v)} aria-pressed={method === m.v}
+                  className={`flex items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${method === m.v ? "border-primary bg-primary/5" : "hover:bg-secondary/50"}`}>
+                  <m.icon className="h-4 w-4" /> {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="mp-amount">Amount (KES)</Label>
+              <Input id="mp-amount" type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="mp-date">Date received</Label>
+              <Input id="mp-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="mp-payer">Received from</Label>
+              <Input id="mp-payer" value={payer} onChange={e => setPayer(e.target.value)} placeholder="e.g. Parent / Guardian name" />
+            </div>
+            <div>
+              <Label htmlFor="mp-ref">{cfg.refLabel}{cfg.needsRef && " *"}</Label>
+              <Input id="mp-ref" value={ref} onChange={e => setRef(e.target.value)} placeholder={cfg.needsRef ? "Required" : "Optional"} />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="mp-notes">Notes (optional)</Label>
+            <Textarea id="mp-notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional details (e.g. partial payment, term 2)" />
+          </div>
+
+          <div className="rounded-lg bg-secondary/30 p-3 text-xs text-muted-foreground">
+            <strong className="text-foreground">What happens next:</strong> The invoice paid amount and status update automatically. The student's fee status is recomputed — if this payment clears their balance, course access is restored immediately. A PDF receipt is generated and emailed to the student & linked parents.
+          </div>
+        </div>
+
+        <DialogFooter>
+          <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm">Cancel</button>
+          <button onClick={submit} disabled={busy} className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground inline-flex items-center gap-2 disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Record payment
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
