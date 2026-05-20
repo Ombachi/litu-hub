@@ -7,8 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Plus, Trash2, CheckCircle2, Ban, RefreshCw, FileText, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Plus, Trash2, CheckCircle2, Ban, RefreshCw, FileText, XCircle, Banknote, Smartphone, Building2, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
+import FinancialAnalytics from "./FinancialAnalytics";
 
 const fmtKES = (cents: number) => `KES ${(cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
 
