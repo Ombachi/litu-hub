@@ -96,12 +96,9 @@ const BursarTab = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const recordPayment = useMutation({
-    mutationFn: (p: { invoice_id: string; amount_cents: number; ref: string }) =>
-      feesApi.recordManualPayment({ invoice_id: p.invoice_id, amount_cents: p.amount_cents, provider: "bank_transfer", provider_reference: p.ref }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inst-invoices"] }); qc.invalidateQueries({ queryKey: ["inv-payments"] }); toast.success("Payment recorded"); },
-    onError: (e: any) => toast.error(e.message),
-  });
+  const [reconcileInv, setReconcileInv] = useState<any | null>(null);
+
+
 
   const cancelInv = useMutation({
     mutationFn: (id: string) => feesApi.cancelInvoice(id),
