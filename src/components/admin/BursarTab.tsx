@@ -121,6 +121,7 @@ const BursarTab = () => {
         <TabsTrigger value="structures">Structures</TabsTrigger>
         <TabsTrigger value="invoices">Invoices</TabsTrigger>
         <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
       </TabsList>
 
       <TabsContent value="structures" className="space-y-8">
