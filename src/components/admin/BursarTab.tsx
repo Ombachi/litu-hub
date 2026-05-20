@@ -203,11 +203,7 @@ const BursarTab = () => {
                         <td className="text-right">
                           {i.status !== "paid" && i.status !== "cancelled" && (
                             <div className="flex gap-1 justify-end">
-                              <button onClick={() => {
-                                const amt = prompt("Amount received (KES)", ((i.total_cents - i.paid_cents) / 100).toString());
-                                const ref = prompt("Bank reference", "");
-                                if (amt && ref) recordPayment.mutate({ invoice_id: i.id, amount_cents: Math.round(parseFloat(amt) * 100), ref });
-                              }} aria-label="Record payment" className="p-1 text-success hover:bg-success/10 rounded"><CheckCircle2 className="h-4 w-4" /></button>
+                              <button onClick={() => setReconcileInv(i)} aria-label="Record payment" title="Record cash/manual payment" className="p-1 text-success hover:bg-success/10 rounded"><Banknote className="h-4 w-4" /></button>
                               <button onClick={() => confirm("Cancel this invoice?") && cancelInv.mutate(i.id)} aria-label="Cancel invoice" className="p-1 text-destructive hover:bg-destructive/10 rounded"><Ban className="h-4 w-4" /></button>
                             </div>
                           )}
