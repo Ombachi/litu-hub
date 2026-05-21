@@ -146,6 +146,7 @@ const FeesPage = () => {
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </div>
