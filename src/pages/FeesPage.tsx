@@ -81,7 +81,10 @@ const FeesPage = () => {
           <p className="text-muted-foreground">No invoices on this account.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          <FeeStatement invoices={invoices as any[]} student={statementCtx?.student ?? null} institution={statementCtx?.institution ?? null} />
+          <div className="space-y-4">
+            <h2 className="font-display text-xl font-semibold">Invoices</h2>
           {(invoices as any[]).map(inv => {
             const remaining = inv.total_cents - inv.paid_cents;
             return (
