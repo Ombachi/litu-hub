@@ -36,6 +36,21 @@ const FeesPage = () => {
   const targetId = isStudent ? user?.id : (studentId || (children?.[0] as any)?.user_id);
   const { data: invoices, isLoading } = useStudentInvoices(targetId);
 
+  const { data: statementCtx } = useQuery({
+    queryKey: ["fee-statement-ctx", targetId],
+    enabled: !!targetId,
+    queryFn: async () => {
+      const { data: profs } = await (supabase as any).rpc("get_public_profiles", { _user_ids: [targetId] });
+      const student = profs?.[0] ?? null;
+      const { data: ui } = await (supabase as any)
+        .from("user_institutions")
+        .select("institutions(name, logo_url, address, contact_email, contact_phone)")
+        .eq("user_id", targetId)
+        .maybeSingle();
+      return { student, institution: ui?.institutions ?? null };
+    },
+  });
+
   const [paying, setPaying] = useState<string | null>(null);
 
   if (!user) return null;
