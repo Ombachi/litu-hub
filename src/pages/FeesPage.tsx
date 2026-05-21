@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Loader2, Wallet, Smartphone, CreditCard, Building2, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { FeeStatement } from "@/components/fees/FeeStatement";
 
 const fmtKES = (cents: number) => `KES ${(cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
 
