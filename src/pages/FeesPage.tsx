@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Loader2, Wallet, Smartphone, CreditCard, Building2, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { FeeStatement } from "@/components/fees/FeeStatement";
 
 const fmtKES = (cents: number) => `KES ${(cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
 
@@ -34,6 +35,21 @@ const FeesPage = () => {
   const [studentId, setStudentId] = useState<string>("");
   const targetId = isStudent ? user?.id : (studentId || (children?.[0] as any)?.user_id);
   const { data: invoices, isLoading } = useStudentInvoices(targetId);
+
+  const { data: statementCtx } = useQuery({
+    queryKey: ["fee-statement-ctx", targetId],
+    enabled: !!targetId,
+    queryFn: async () => {
+      const { data: profs } = await (supabase as any).rpc("get_public_profiles", { _user_ids: [targetId] });
+      const student = profs?.[0] ?? null;
+      const { data: ui } = await (supabase as any)
+        .from("user_institutions")
+        .select("institutions(name, logo_url, address, contact_email, contact_phone)")
+        .eq("user_id", targetId)
+        .maybeSingle();
+      return { student, institution: ui?.institutions ?? null };
+    },
+  });
 
   const [paying, setPaying] = useState<string | null>(null);
 
@@ -65,7 +81,10 @@ const FeesPage = () => {
           <p className="text-muted-foreground">No invoices on this account.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          <FeeStatement invoices={invoices as any[]} student={statementCtx?.student ?? null} institution={statementCtx?.institution ?? null} />
+          <div className="space-y-4">
+            <h2 className="font-display text-xl font-semibold">Invoices</h2>
           {(invoices as any[]).map(inv => {
             const remaining = inv.total_cents - inv.paid_cents;
             return (
@@ -127,6 +146,7 @@ const FeesPage = () => {
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </div>
