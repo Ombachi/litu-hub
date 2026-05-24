@@ -75,6 +75,11 @@ export function FeeStatement({ invoices, student, institution }: Props) {
         startY: 68,
         head: [["Summary", "Amount"]],
         body: [
+          ["Subtotal", fmtKES(totals.subtotal)],
+          ...(totals.discount ? [["Discount", `- ${fmtKES(totals.discount)}`]] : []),
+          ...(totals.scholarship ? [["Scholarship", `- ${fmtKES(totals.scholarship)}`]] : []),
+          ...(totals.bursary ? [["Bursary", `- ${fmtKES(totals.bursary)}`]] : []),
+          ...(totals.tax ? [["Tax / VAT", `+ ${fmtKES(totals.tax)}`]] : []),
           ["Total Billed", fmtKES(totals.billed)],
           ["Total Paid", fmtKES(totals.paid)],
           ["Outstanding Balance", fmtKES(totals.outstanding)],
@@ -84,6 +89,7 @@ export function FeeStatement({ invoices, student, institution }: Props) {
         headStyles: { fillColor: [32, 78, 56], textColor: 255 },
         styles: { fontSize: 10, cellPadding: 4 },
       });
+
 
       const yAfter = (doc as any).lastAutoTable.finalY + 8;
       doc.setFontSize(12);
