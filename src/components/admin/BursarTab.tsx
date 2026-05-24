@@ -54,7 +54,7 @@ const BursarTab = () => {
   });
 
   const [structForm, setStructForm] = useState({ name: "", amount: "", due: "", term: "" });
-  const [invForm, setInvForm] = useState({ student: "", amount: "", description: "", due: "", installments: "1" });
+  const [invForm, setInvForm] = useState({ student: "", amount: "", description: "", due: "", installments: "1", discount: "", discountLabel: "", scholarship: "", scholarshipLabel: "", bursary: "", bursaryLabel: "", taxPct: "" });
 
   const createStructure = useMutation({
     mutationFn: () => feesApi.createStructure({
