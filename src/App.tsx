@@ -23,6 +23,8 @@ const DiscussionsPage = lazy(() => import("./pages/DiscussionsPage"));
 const DiscussionThreadPage = lazy(() => import("./pages/DiscussionThreadPage"));
 const CoachStudio = lazy(() => import("./pages/CoachStudio"));
 const GradesPage = lazy(() => import("./pages/GradesPage"));
+const CourseGradesPage = lazy(() => import("./pages/CourseGradesPage"));
+const SemesterGradesPage = lazy(() => import("./pages/SemesterGradesPage"));
 const CalendarPage = lazy(() => import("./pages/CalendarPage"));
 const LessonPage = lazy(() => import("./pages/LessonPage"));
 const GradingQueuePage = lazy(() => import("./pages/GradingQueuePage"));
