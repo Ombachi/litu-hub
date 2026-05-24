@@ -261,7 +261,10 @@ const GradesPage = () => {
                       <Badge variant="outline">No grades yet</Badge>
                     )}
                   </div>
+                  <Link to={`/grades/course/${cg.courseId}`} onClick={(e) => e.stopPropagation()} className="ml-2 text-xs text-primary hover:underline whitespace-nowrap">Details →</Link>
                 </button>
+
+
 
                 {isExpanded && (
                   <div className="p-4 space-y-2">
