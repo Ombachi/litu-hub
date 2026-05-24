@@ -18,16 +18,21 @@ interface Props {
 
 export function FeeStatement({ invoices, student, institution }: Props) {
   const totals = useMemo(() => {
-    let billed = 0, paid = 0, overdue = 0;
+    let subtotal = 0, discount = 0, scholarship = 0, bursary = 0, tax = 0, billed = 0, paid = 0, overdue = 0;
     const today = new Date().toISOString().slice(0, 10);
     for (const inv of invoices) {
       if (inv.status === "cancelled") continue;
+      subtotal += inv.subtotal_cents ?? inv.total_cents ?? 0;
+      discount += inv.discount_cents ?? 0;
+      scholarship += inv.scholarship_cents ?? 0;
+      bursary += inv.bursary_cents ?? 0;
+      tax += inv.tax_cents ?? 0;
       billed += inv.total_cents;
       paid += inv.paid_cents;
       const remaining = inv.total_cents - inv.paid_cents;
       if (remaining > 0 && inv.due_date && inv.due_date < today) overdue += remaining;
     }
-    return { billed, paid, outstanding: billed - paid, overdue };
+    return { subtotal, discount, scholarship, bursary, tax, billed, paid, outstanding: billed - paid, overdue };
   }, [invoices]);
 
   const allPayments = useMemo(() => {
@@ -39,6 +44,7 @@ export function FeeStatement({ invoices, student, institution }: Props) {
     }
     return list.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
   }, [invoices]);
+
 
   const studentName = `${student?.first_name ?? ""} ${student?.last_name ?? ""}`.trim() || "Student";
 
