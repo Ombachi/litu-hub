@@ -188,6 +188,22 @@ export function FeeStatement({ invoices, student, institution }: Props) {
         <SummaryCell icon={<AlertCircle className="h-4 w-4" />} label="Overdue" value={fmtKES(totals.overdue)} tone={totals.overdue > 0 ? "destructive" : "muted"} />
       </div>
 
+      {(totals.discount || totals.scholarship || totals.bursary || totals.tax) ? (
+        <div className="border-t p-5 bg-secondary/10">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Adjustments breakdown</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <BreakdownRow label="Subtotal" value={fmtKES(totals.subtotal)} />
+            {!!totals.discount && <BreakdownRow label="Discount" value={`- ${fmtKES(totals.discount)}`} tone="success" />}
+            {!!totals.scholarship && <BreakdownRow label="Scholarship" value={`- ${fmtKES(totals.scholarship)}`} tone="success" />}
+            {!!totals.bursary && <BreakdownRow label="Bursary" value={`- ${fmtKES(totals.bursary)}`} tone="success" />}
+            {!!totals.tax && <BreakdownRow label="Tax / VAT" value={`+ ${fmtKES(totals.tax)}`} />}
+            <BreakdownRow label="Net Billed" value={fmtKES(totals.billed)} strong />
+          </div>
+        </div>
+      ) : null}
+
+
+
       {allPayments.length > 0 && (
         <div className="p-5">
           <div className="text-xs uppercase text-muted-foreground mb-3">Payments & Receipts</div>
