@@ -70,7 +70,14 @@ const BursarTab = () => {
 
   const issueInvoice = useMutation({
     mutationFn: () => {
-      const total = Math.round(parseFloat(invForm.amount || "0") * 100);
+      const subtotal = Math.round(parseFloat(invForm.amount || "0") * 100);
+      const discount = Math.round(parseFloat(invForm.discount || "0") * 100);
+      const scholarship = Math.round(parseFloat(invForm.scholarship || "0") * 100);
+      const bursary = Math.round(parseFloat(invForm.bursary || "0") * 100);
+      const taxPct = parseFloat(invForm.taxPct || "0");
+      const taxableBase = Math.max(0, subtotal - discount - scholarship - bursary);
+      const tax = Math.round((taxableBase * taxPct) / 100);
+      const total = taxableBase + tax;
       const n = Math.max(1, parseInt(invForm.installments || "1", 10));
       const installments = n > 1
         ? Array.from({ length: n }).map((_, i) => {
@@ -87,14 +94,20 @@ const BursarTab = () => {
         institution_id: institutionId!,
         student_id: invForm.student,
         total_cents: total,
+        subtotal_cents: subtotal,
+        discount_cents: discount, discount_label: invForm.discountLabel || null,
+        scholarship_cents: scholarship, scholarship_label: invForm.scholarshipLabel || null,
+        bursary_cents: bursary, bursary_label: invForm.bursaryLabel || null,
+        tax_cents: tax, tax_rate_bps: Math.round(taxPct * 100),
         description: invForm.description,
         due_date: invForm.due || null,
         installments,
       });
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inst-invoices"] }); setInvForm({ student: "", amount: "", description: "", due: "", installments: "1" }); toast.success("Invoice issued"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inst-invoices"] }); setInvForm({ student: "", amount: "", description: "", due: "", installments: "1", discount: "", discountLabel: "", scholarship: "", scholarshipLabel: "", bursary: "", bursaryLabel: "", taxPct: "" }); toast.success("Invoice issued"); },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const [reconcileInv, setReconcileInv] = useState<any | null>(null);
 
