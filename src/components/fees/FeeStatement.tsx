@@ -258,6 +258,17 @@ function SummaryCell({ icon, label, value, tone = "muted" }: { icon: React.React
   );
 }
 
+function BreakdownRow({ label, value, tone, strong }: { label: string; value: string; tone?: "success"; strong?: boolean }) {
+  const cls = tone === "success" ? "text-success" : "text-foreground";
+  return (
+    <div className={`flex items-center justify-between rounded-md bg-background px-3 py-2 ${strong ? "border font-semibold" : ""}`}>
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`tabular-nums ${cls}`}>{value}</span>
+    </div>
+  );
+}
+
+
 function GenerateInlineReceipt({ paymentId }: { paymentId: string }) {
   const generate = async () => {
     try {
