@@ -87,6 +87,7 @@ const FeesPage = () => {
             <h2 className="font-display text-xl font-semibold">Invoices</h2>
           {(invoices as any[]).map(inv => {
             const remaining = inv.total_cents - inv.paid_cents;
+            const hasAdj = (inv.discount_cents || inv.scholarship_cents || inv.bursary_cents || inv.tax_cents);
             return (
               <div key={inv.id} className="rounded-xl border bg-card shadow-sm">
                 <div className="p-5 flex flex-wrap items-start justify-between gap-3 border-b">
@@ -101,6 +102,20 @@ const FeesPage = () => {
                     <div className="text-xs text-muted-foreground">Paid {fmtKES(inv.paid_cents)} · Outstanding {fmtKES(remaining)}</div>
                   </div>
                 </div>
+
+                {hasAdj ? (
+                  <div className="p-5 border-b bg-secondary/10">
+                    <div className="text-xs uppercase text-muted-foreground mb-2">Breakdown</div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">{fmtKES(inv.subtotal_cents ?? inv.total_cents)}</span></div>
+                      {!!inv.discount_cents && <div className="flex justify-between"><span className="text-muted-foreground">Discount{inv.discount_label ? ` · ${inv.discount_label}` : ""}</span><span className="tabular-nums text-success">- {fmtKES(inv.discount_cents)}</span></div>}
+                      {!!inv.scholarship_cents && <div className="flex justify-between"><span className="text-muted-foreground">Scholarship{inv.scholarship_label ? ` · ${inv.scholarship_label}` : ""}</span><span className="tabular-nums text-success">- {fmtKES(inv.scholarship_cents)}</span></div>}
+                      {!!inv.bursary_cents && <div className="flex justify-between"><span className="text-muted-foreground">Bursary{inv.bursary_label ? ` · ${inv.bursary_label}` : ""}</span><span className="tabular-nums text-success">- {fmtKES(inv.bursary_cents)}</span></div>}
+                      {!!inv.tax_cents && <div className="flex justify-between"><span className="text-muted-foreground">Tax / VAT{inv.tax_rate_bps ? ` (${(inv.tax_rate_bps / 100).toFixed(2)}%)` : ""}</span><span className="tabular-nums">+ {fmtKES(inv.tax_cents)}</span></div>}
+                      <div className="flex justify-between border-t pt-2 mt-2 font-semibold"><span>Net Billed</span><span className="tabular-nums">{fmtKES(inv.total_cents)}</span></div>
+                    </div>
+                  </div>
+                ) : null}
 
                 {inv.invoice_installments?.length > 0 && (
                   <div className="p-5 border-b">
@@ -117,6 +132,7 @@ const FeesPage = () => {
                     </div>
                   </div>
                 )}
+
 
                 {inv.payments?.some((p: any) => p.status === "succeeded") && (
                   <div className="p-5 border-b">

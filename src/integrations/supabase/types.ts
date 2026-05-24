@@ -753,10 +753,14 @@ export type Database = {
       }
       invoices: {
         Row: {
+          bursary_cents: number
+          bursary_label: string | null
           created_at: string
           created_by: string | null
           currency: string
           description: string | null
+          discount_cents: number
+          discount_label: string | null
           due_date: string | null
           fee_structure_id: string | null
           id: string
@@ -764,17 +768,26 @@ export type Database = {
           issued_at: string
           paid_cents: number
           reference: string
+          scholarship_cents: number
+          scholarship_label: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           student_id: string
+          subtotal_cents: number
+          tax_cents: number
+          tax_rate_bps: number
           term_id: string | null
           total_cents: number
           updated_at: string
         }
         Insert: {
+          bursary_cents?: number
+          bursary_label?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           description?: string | null
+          discount_cents?: number
+          discount_label?: string | null
           due_date?: string | null
           fee_structure_id?: string | null
           id?: string
@@ -782,17 +795,26 @@ export type Database = {
           issued_at?: string
           paid_cents?: number
           reference: string
+          scholarship_cents?: number
+          scholarship_label?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           student_id: string
+          subtotal_cents?: number
+          tax_cents?: number
+          tax_rate_bps?: number
           term_id?: string | null
           total_cents: number
           updated_at?: string
         }
         Update: {
+          bursary_cents?: number
+          bursary_label?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           description?: string | null
+          discount_cents?: number
+          discount_label?: string | null
           due_date?: string | null
           fee_structure_id?: string | null
           id?: string
@@ -800,8 +822,13 @@ export type Database = {
           issued_at?: string
           paid_cents?: number
           reference?: string
+          scholarship_cents?: number
+          scholarship_label?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           student_id?: string
+          subtotal_cents?: number
+          tax_cents?: number
+          tax_rate_bps?: number
           term_id?: string | null
           total_cents?: number
           updated_at?: string

@@ -46,13 +46,28 @@ export const feesApi = {
     institution_id: string; student_id: string; total_cents: number;
     description?: string; due_date?: string | null; fee_structure_id?: string | null;
     term_id?: string | null;
+    subtotal_cents?: number;
+    discount_cents?: number; discount_label?: string | null;
+    scholarship_cents?: number; scholarship_label?: string | null;
+    bursary_cents?: number; bursary_label?: string | null;
+    tax_cents?: number; tax_rate_bps?: number;
     installments?: { sequence: number; amount_cents: number; due_date: string }[];
   }) => {
     const reference = `INV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const subtotal = input.subtotal_cents ?? input.total_cents;
     const { data: inv, error } = await (supabase as any).from("invoices").insert({
       institution_id: input.institution_id,
       student_id: input.student_id,
       total_cents: input.total_cents,
+      subtotal_cents: subtotal,
+      discount_cents: input.discount_cents ?? 0,
+      discount_label: input.discount_label ?? null,
+      scholarship_cents: input.scholarship_cents ?? 0,
+      scholarship_label: input.scholarship_label ?? null,
+      bursary_cents: input.bursary_cents ?? 0,
+      bursary_label: input.bursary_label ?? null,
+      tax_cents: input.tax_cents ?? 0,
+      tax_rate_bps: input.tax_rate_bps ?? 0,
       description: input.description ?? "",
       due_date: input.due_date ?? null,
       fee_structure_id: input.fee_structure_id ?? null,

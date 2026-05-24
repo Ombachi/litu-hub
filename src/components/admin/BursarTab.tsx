@@ -54,7 +54,7 @@ const BursarTab = () => {
   });
 
   const [structForm, setStructForm] = useState({ name: "", amount: "", due: "", term: "" });
-  const [invForm, setInvForm] = useState({ student: "", amount: "", description: "", due: "", installments: "1" });
+  const [invForm, setInvForm] = useState({ student: "", amount: "", description: "", due: "", installments: "1", discount: "", discountLabel: "", scholarship: "", scholarshipLabel: "", bursary: "", bursaryLabel: "", taxPct: "" });
 
   const createStructure = useMutation({
     mutationFn: () => feesApi.createStructure({
@@ -70,7 +70,14 @@ const BursarTab = () => {
 
   const issueInvoice = useMutation({
     mutationFn: () => {
-      const total = Math.round(parseFloat(invForm.amount || "0") * 100);
+      const subtotal = Math.round(parseFloat(invForm.amount || "0") * 100);
+      const discount = Math.round(parseFloat(invForm.discount || "0") * 100);
+      const scholarship = Math.round(parseFloat(invForm.scholarship || "0") * 100);
+      const bursary = Math.round(parseFloat(invForm.bursary || "0") * 100);
+      const taxPct = parseFloat(invForm.taxPct || "0");
+      const taxableBase = Math.max(0, subtotal - discount - scholarship - bursary);
+      const tax = Math.round((taxableBase * taxPct) / 100);
+      const total = taxableBase + tax;
       const n = Math.max(1, parseInt(invForm.installments || "1", 10));
       const installments = n > 1
         ? Array.from({ length: n }).map((_, i) => {
@@ -87,14 +94,20 @@ const BursarTab = () => {
         institution_id: institutionId!,
         student_id: invForm.student,
         total_cents: total,
+        subtotal_cents: subtotal,
+        discount_cents: discount, discount_label: invForm.discountLabel || null,
+        scholarship_cents: scholarship, scholarship_label: invForm.scholarshipLabel || null,
+        bursary_cents: bursary, bursary_label: invForm.bursaryLabel || null,
+        tax_cents: tax, tax_rate_bps: Math.round(taxPct * 100),
         description: invForm.description,
         due_date: invForm.due || null,
         installments,
       });
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inst-invoices"] }); setInvForm({ student: "", amount: "", description: "", due: "", installments: "1" }); toast.success("Invoice issued"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inst-invoices"] }); setInvForm({ student: "", amount: "", description: "", due: "", installments: "1", discount: "", discountLabel: "", scholarship: "", scholarshipLabel: "", bursary: "", bursaryLabel: "", taxPct: "" }); toast.success("Invoice issued"); },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const [reconcileInv, setReconcileInv] = useState<any | null>(null);
 
@@ -162,18 +175,30 @@ const BursarTab = () => {
               <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
               <SelectContent>{(members ?? []).map((m: any) => <SelectItem key={m.user_id} value={m.user_id}>{m.first_name} {m.last_name}</SelectItem>)}</SelectContent>
             </Select>
-            <Input placeholder="Amount (KES)" type="number" value={invForm.amount} onChange={e => setInvForm({ ...invForm, amount: e.target.value })} aria-label="Invoice amount" />
+            <Input placeholder="Subtotal (KES)" type="number" value={invForm.amount} onChange={e => setInvForm({ ...invForm, amount: e.target.value })} aria-label="Invoice subtotal" />
             <Input placeholder="Description" value={invForm.description} onChange={e => setInvForm({ ...invForm, description: e.target.value })} aria-label="Description" />
             <Input type="date" value={invForm.due} onChange={e => setInvForm({ ...invForm, due: e.target.value })} aria-label="Due date" />
-            <div className="flex gap-2">
-              <Input type="number" min={1} max={12} placeholder="Installments" value={invForm.installments} onChange={e => setInvForm({ ...invForm, installments: e.target.value })} aria-label="Number of installments" />
-              <button onClick={() => issueInvoice.mutate()} disabled={!invForm.student || !invForm.amount || issueInvoice.isPending} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground inline-flex items-center gap-1 disabled:opacity-50">
-                {issueInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Issue
-              </button>
-            </div>
+            <Input type="number" min={1} max={12} placeholder="Installments" value={invForm.installments} onChange={e => setInvForm({ ...invForm, installments: e.target.value })} aria-label="Number of installments" />
+          </div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Adjustments (optional)</div>
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-2 mb-3">
+            <Input placeholder="Discount KES" type="number" value={invForm.discount} onChange={e => setInvForm({ ...invForm, discount: e.target.value })} aria-label="Discount amount" />
+            <Input placeholder="Discount label" value={invForm.discountLabel} onChange={e => setInvForm({ ...invForm, discountLabel: e.target.value })} aria-label="Discount label" />
+            <Input placeholder="Scholarship KES" type="number" value={invForm.scholarship} onChange={e => setInvForm({ ...invForm, scholarship: e.target.value })} aria-label="Scholarship amount" />
+            <Input placeholder="Scholarship label" value={invForm.scholarshipLabel} onChange={e => setInvForm({ ...invForm, scholarshipLabel: e.target.value })} aria-label="Scholarship label" />
+            <Input placeholder="Bursary KES" type="number" value={invForm.bursary} onChange={e => setInvForm({ ...invForm, bursary: e.target.value })} aria-label="Bursary amount" />
+            <Input placeholder="Bursary label" value={invForm.bursaryLabel} onChange={e => setInvForm({ ...invForm, bursaryLabel: e.target.value })} aria-label="Bursary label" />
+            <Input placeholder="VAT %" type="number" step="0.01" value={invForm.taxPct} onChange={e => setInvForm({ ...invForm, taxPct: e.target.value })} aria-label="VAT percent" />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <InvoicePreview form={invForm} />
+            <button onClick={() => issueInvoice.mutate()} disabled={!invForm.student || !invForm.amount || issueInvoice.isPending} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground inline-flex items-center gap-1 disabled:opacity-50">
+              {issueInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Issue Invoice
+            </button>
           </div>
         </section>
       </TabsContent>
+
 
       <TabsContent value="invoices">
         <section className="rounded-xl border bg-card p-5 shadow-sm">
@@ -451,3 +476,25 @@ const InvoicePayments = ({ invoiceId }: { invoiceId: string }) => {
 };
 
 export default BursarTab;
+
+const InvoicePreview = ({ form }: { form: any }) => {
+  const subtotal = Math.round(parseFloat(form.amount || "0") * 100);
+  const discount = Math.round(parseFloat(form.discount || "0") * 100);
+  const scholarship = Math.round(parseFloat(form.scholarship || "0") * 100);
+  const bursary = Math.round(parseFloat(form.bursary || "0") * 100);
+  const taxPct = parseFloat(form.taxPct || "0");
+  const base = Math.max(0, subtotal - discount - scholarship - bursary);
+  const tax = Math.round((base * taxPct) / 100);
+  const total = base + tax;
+  if (!subtotal) return <div className="text-xs text-muted-foreground">Enter a subtotal to preview the invoice total.</div>;
+  return (
+    <div className="text-xs text-muted-foreground">
+      Preview: <span className="font-mono">{fmtKES(subtotal)}</span>
+      {discount > 0 && <> − <span className="text-success font-mono">{fmtKES(discount)}</span></>}
+      {scholarship > 0 && <> − <span className="text-success font-mono">{fmtKES(scholarship)}</span></>}
+      {bursary > 0 && <> − <span className="text-success font-mono">{fmtKES(bursary)}</span></>}
+      {tax > 0 && <> + <span className="font-mono">{fmtKES(tax)}</span> ({taxPct}% VAT)</>}
+      {" = "}<span className="font-semibold text-foreground font-mono">{fmtKES(total)}</span>
+    </div>
+  );
+};

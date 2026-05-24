@@ -18,16 +18,21 @@ interface Props {
 
 export function FeeStatement({ invoices, student, institution }: Props) {
   const totals = useMemo(() => {
-    let billed = 0, paid = 0, overdue = 0;
+    let subtotal = 0, discount = 0, scholarship = 0, bursary = 0, tax = 0, billed = 0, paid = 0, overdue = 0;
     const today = new Date().toISOString().slice(0, 10);
     for (const inv of invoices) {
       if (inv.status === "cancelled") continue;
+      subtotal += inv.subtotal_cents ?? inv.total_cents ?? 0;
+      discount += inv.discount_cents ?? 0;
+      scholarship += inv.scholarship_cents ?? 0;
+      bursary += inv.bursary_cents ?? 0;
+      tax += inv.tax_cents ?? 0;
       billed += inv.total_cents;
       paid += inv.paid_cents;
       const remaining = inv.total_cents - inv.paid_cents;
       if (remaining > 0 && inv.due_date && inv.due_date < today) overdue += remaining;
     }
-    return { billed, paid, outstanding: billed - paid, overdue };
+    return { subtotal, discount, scholarship, bursary, tax, billed, paid, outstanding: billed - paid, overdue };
   }, [invoices]);
 
   const allPayments = useMemo(() => {
@@ -39,6 +44,7 @@ export function FeeStatement({ invoices, student, institution }: Props) {
     }
     return list.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
   }, [invoices]);
+
 
   const studentName = `${student?.first_name ?? ""} ${student?.last_name ?? ""}`.trim() || "Student";
 
@@ -69,6 +75,11 @@ export function FeeStatement({ invoices, student, institution }: Props) {
         startY: 68,
         head: [["Summary", "Amount"]],
         body: [
+          ["Subtotal", fmtKES(totals.subtotal)],
+          ...(totals.discount ? [["Discount", `- ${fmtKES(totals.discount)}`]] : []),
+          ...(totals.scholarship ? [["Scholarship", `- ${fmtKES(totals.scholarship)}`]] : []),
+          ...(totals.bursary ? [["Bursary", `- ${fmtKES(totals.bursary)}`]] : []),
+          ...(totals.tax ? [["Tax / VAT", `+ ${fmtKES(totals.tax)}`]] : []),
           ["Total Billed", fmtKES(totals.billed)],
           ["Total Paid", fmtKES(totals.paid)],
           ["Outstanding Balance", fmtKES(totals.outstanding)],
@@ -78,6 +89,7 @@ export function FeeStatement({ invoices, student, institution }: Props) {
         headStyles: { fillColor: [32, 78, 56], textColor: 255 },
         styles: { fontSize: 10, cellPadding: 4 },
       });
+
 
       const yAfter = (doc as any).lastAutoTable.finalY + 8;
       doc.setFontSize(12);
@@ -176,6 +188,22 @@ export function FeeStatement({ invoices, student, institution }: Props) {
         <SummaryCell icon={<AlertCircle className="h-4 w-4" />} label="Overdue" value={fmtKES(totals.overdue)} tone={totals.overdue > 0 ? "destructive" : "muted"} />
       </div>
 
+      {(totals.discount || totals.scholarship || totals.bursary || totals.tax) ? (
+        <div className="border-t p-5 bg-secondary/10">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Adjustments breakdown</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <BreakdownRow label="Subtotal" value={fmtKES(totals.subtotal)} />
+            {!!totals.discount && <BreakdownRow label="Discount" value={`- ${fmtKES(totals.discount)}`} tone="success" />}
+            {!!totals.scholarship && <BreakdownRow label="Scholarship" value={`- ${fmtKES(totals.scholarship)}`} tone="success" />}
+            {!!totals.bursary && <BreakdownRow label="Bursary" value={`- ${fmtKES(totals.bursary)}`} tone="success" />}
+            {!!totals.tax && <BreakdownRow label="Tax / VAT" value={`+ ${fmtKES(totals.tax)}`} />}
+            <BreakdownRow label="Net Billed" value={fmtKES(totals.billed)} strong />
+          </div>
+        </div>
+      ) : null}
+
+
+
       {allPayments.length > 0 && (
         <div className="p-5">
           <div className="text-xs uppercase text-muted-foreground mb-3">Payments & Receipts</div>
@@ -229,6 +257,17 @@ function SummaryCell({ icon, label, value, tone = "muted" }: { icon: React.React
     </div>
   );
 }
+
+function BreakdownRow({ label, value, tone, strong }: { label: string; value: string; tone?: "success"; strong?: boolean }) {
+  const cls = tone === "success" ? "text-success" : "text-foreground";
+  return (
+    <div className={`flex items-center justify-between rounded-md bg-background px-3 py-2 ${strong ? "border font-semibold" : ""}`}>
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`tabular-nums ${cls}`}>{value}</span>
+    </div>
+  );
+}
+
 
 function GenerateInlineReceipt({ paymentId }: { paymentId: string }) {
   const generate = async () => {
