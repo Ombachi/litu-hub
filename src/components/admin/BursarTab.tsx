@@ -175,18 +175,30 @@ const BursarTab = () => {
               <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
               <SelectContent>{(members ?? []).map((m: any) => <SelectItem key={m.user_id} value={m.user_id}>{m.first_name} {m.last_name}</SelectItem>)}</SelectContent>
             </Select>
-            <Input placeholder="Amount (KES)" type="number" value={invForm.amount} onChange={e => setInvForm({ ...invForm, amount: e.target.value })} aria-label="Invoice amount" />
+            <Input placeholder="Subtotal (KES)" type="number" value={invForm.amount} onChange={e => setInvForm({ ...invForm, amount: e.target.value })} aria-label="Invoice subtotal" />
             <Input placeholder="Description" value={invForm.description} onChange={e => setInvForm({ ...invForm, description: e.target.value })} aria-label="Description" />
             <Input type="date" value={invForm.due} onChange={e => setInvForm({ ...invForm, due: e.target.value })} aria-label="Due date" />
-            <div className="flex gap-2">
-              <Input type="number" min={1} max={12} placeholder="Installments" value={invForm.installments} onChange={e => setInvForm({ ...invForm, installments: e.target.value })} aria-label="Number of installments" />
-              <button onClick={() => issueInvoice.mutate()} disabled={!invForm.student || !invForm.amount || issueInvoice.isPending} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground inline-flex items-center gap-1 disabled:opacity-50">
-                {issueInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Issue
-              </button>
-            </div>
+            <Input type="number" min={1} max={12} placeholder="Installments" value={invForm.installments} onChange={e => setInvForm({ ...invForm, installments: e.target.value })} aria-label="Number of installments" />
+          </div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Adjustments (optional)</div>
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-2 mb-3">
+            <Input placeholder="Discount KES" type="number" value={invForm.discount} onChange={e => setInvForm({ ...invForm, discount: e.target.value })} aria-label="Discount amount" />
+            <Input placeholder="Discount label" value={invForm.discountLabel} onChange={e => setInvForm({ ...invForm, discountLabel: e.target.value })} aria-label="Discount label" />
+            <Input placeholder="Scholarship KES" type="number" value={invForm.scholarship} onChange={e => setInvForm({ ...invForm, scholarship: e.target.value })} aria-label="Scholarship amount" />
+            <Input placeholder="Scholarship label" value={invForm.scholarshipLabel} onChange={e => setInvForm({ ...invForm, scholarshipLabel: e.target.value })} aria-label="Scholarship label" />
+            <Input placeholder="Bursary KES" type="number" value={invForm.bursary} onChange={e => setInvForm({ ...invForm, bursary: e.target.value })} aria-label="Bursary amount" />
+            <Input placeholder="Bursary label" value={invForm.bursaryLabel} onChange={e => setInvForm({ ...invForm, bursaryLabel: e.target.value })} aria-label="Bursary label" />
+            <Input placeholder="VAT %" type="number" step="0.01" value={invForm.taxPct} onChange={e => setInvForm({ ...invForm, taxPct: e.target.value })} aria-label="VAT percent" />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <InvoicePreview form={invForm} />
+            <button onClick={() => issueInvoice.mutate()} disabled={!invForm.student || !invForm.amount || issueInvoice.isPending} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground inline-flex items-center gap-1 disabled:opacity-50">
+              {issueInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Issue Invoice
+            </button>
           </div>
         </section>
       </TabsContent>
+
 
       <TabsContent value="invoices">
         <section className="rounded-xl border bg-card p-5 shadow-sm">
