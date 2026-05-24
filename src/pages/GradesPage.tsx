@@ -169,6 +169,9 @@ const GradesPage = () => {
         </div>
         {courseGrades.length > 0 && (
           <div className="flex items-center gap-2">
+            <Link to="/grades/semester" className="flex items-center gap-2 rounded-lg border bg-secondary/50 px-3 py-2 text-sm hover:bg-secondary transition-colors">
+              <BarChart3 className="h-4 w-4" /> Semester view
+            </Link>
             <button onClick={exportCSV} className="flex items-center gap-2 rounded-lg border bg-secondary/50 px-3 py-2 text-sm hover:bg-secondary transition-colors">
               <Download className="h-4 w-4" /> CSV
             </button>
