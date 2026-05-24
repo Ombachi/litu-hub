@@ -476,3 +476,25 @@ const InvoicePayments = ({ invoiceId }: { invoiceId: string }) => {
 };
 
 export default BursarTab;
+
+const InvoicePreview = ({ form }: { form: any }) => {
+  const subtotal = Math.round(parseFloat(form.amount || "0") * 100);
+  const discount = Math.round(parseFloat(form.discount || "0") * 100);
+  const scholarship = Math.round(parseFloat(form.scholarship || "0") * 100);
+  const bursary = Math.round(parseFloat(form.bursary || "0") * 100);
+  const taxPct = parseFloat(form.taxPct || "0");
+  const base = Math.max(0, subtotal - discount - scholarship - bursary);
+  const tax = Math.round((base * taxPct) / 100);
+  const total = base + tax;
+  if (!subtotal) return <div className="text-xs text-muted-foreground">Enter a subtotal to preview the invoice total.</div>;
+  return (
+    <div className="text-xs text-muted-foreground">
+      Preview: <span className="font-mono">{fmtKES(subtotal)}</span>
+      {discount > 0 && <> − <span className="text-success font-mono">{fmtKES(discount)}</span></>}
+      {scholarship > 0 && <> − <span className="text-success font-mono">{fmtKES(scholarship)}</span></>}
+      {bursary > 0 && <> − <span className="text-success font-mono">{fmtKES(bursary)}</span></>}
+      {tax > 0 && <> + <span className="font-mono">{fmtKES(tax)}</span> ({taxPct}% VAT)</>}
+      {" = "}<span className="font-semibold text-foreground font-mono">{fmtKES(total)}</span>
+    </div>
+  );
+};
