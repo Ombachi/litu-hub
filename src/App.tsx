@@ -79,6 +79,8 @@ const App = () => (
                           <Route path="/discussions" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><DiscussionsPage /></Suspense></ErrorBoundary>} />
                           <Route path="/discussion/:discussionId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><DiscussionThreadPage /></Suspense></ErrorBoundary>} />
                           <Route path="/grades" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><GradesPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/grades/semester" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><SemesterGradesPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/grades/course/:courseId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><CourseGradesPage /></Suspense></ErrorBoundary>} />
                           <Route path="/calendar" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><CalendarPage /></Suspense></ErrorBoundary>} />
                           <Route path="/lesson/:lessonId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><LessonPage /></Suspense></ErrorBoundary>} />
                           <Route path="/messages" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><MessagesPage /></Suspense></ErrorBoundary>} />
