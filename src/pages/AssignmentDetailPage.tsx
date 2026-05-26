@@ -187,7 +187,7 @@ const AssignmentDetailPage = () => {
             </div>
             <button
               onClick={handleSubmit}
-              disabled={submitting || (!content && !file)}
+              disabled={submitting || (!content.replace(/<[^>]*>/g, "").trim() && !file)}
               className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
