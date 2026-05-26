@@ -43,14 +43,16 @@ const GradesPage = () => {
   const { data: allAssignments, isLoading: loadingAssign } = useAssignments();
   const { data: submissions, isLoading: loadingSubs } = useMySubmissions();
   const { data: quizAttempts, isLoading: loadingQuiz } = useMyQuizAttempts();
+  const { data: allQuizzes, isLoading: loadingQuizzes } = useQuizzes();
   const { data: profile } = useProfile();
   const displayName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : "Student";
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
-  const isLoading = loadingEnroll || loadingAssign || loadingSubs || loadingQuiz;
+  const isLoading = loadingEnroll || loadingAssign || loadingSubs || loadingQuiz || loadingQuizzes;
 
   const courseGrades = useMemo(() => {
     if (!enrollments || !allAssignments || !submissions || !quizAttempts) return [];
+    const quizzes = allQuizzes || [];
     return enrollments.map((enrollment) => {
       const course = enrollment.courses as any;
       if (!course) return null;
@@ -63,17 +65,33 @@ const GradesPage = () => {
       const gradedAssignments = gradedSubs.filter((g) => g.submission?.score !== null && g.submission?.score !== undefined);
       const assignmentEarned = gradedAssignments.reduce((s, g) => s + (g.submission!.score || 0), 0);
       const assignmentMax = gradedAssignments.reduce((s, g) => s + g.assignment.max_score, 0);
-      const pct = assignmentMax > 0 ? Math.round((assignmentEarned / assignmentMax) * 100) : null;
+
+      // Quiz scoring under this course
+      const courseQuizzes = quizzes.filter((q: any) => q.course_id === course.id);
+      const quizRows = courseQuizzes.map((q: any) => {
+        const best = quizAttempts
+          .filter((at: any) => at.quiz_id === q.id && at.status === "completed")
+          .sort((x: any, y: any) => (y.score ?? 0) - (x.score ?? 0))[0];
+        return { quiz: q, best: best || null };
+      });
+      const attemptedQuizzes = quizRows.filter((r) => r.best?.score != null);
+      const quizEarned = attemptedQuizzes.reduce((s, r) => s + (r.best!.score || 0), 0);
+      const quizMax = attemptedQuizzes.length * 100;
+
+      const totalEarned = assignmentEarned + quizEarned;
+      const totalMax = assignmentMax + quizMax;
+      const pct = totalMax > 0 ? Math.round((totalEarned / totalMax) * 100) : null;
       return {
         courseId: course.id, code: course.code, title: course.title, color: course.color,
         term: course.terms?.name || "—", pct,
         gpa: pct !== null ? pctToGpa(pct) : null,
         grade: pct !== null ? getLetterGrade(pct) : null,
         assignmentDetails: gradedSubs, totalAssignments: courseAssignments.length,
-        gradedCount: gradedAssignments.length, earned: assignmentEarned, max: assignmentMax,
+        gradedCount: gradedAssignments.length, earned: totalEarned, max: totalMax,
+        quizRows, totalQuizzes: courseQuizzes.length, attemptedCount: attemptedQuizzes.length,
       };
     }).filter(Boolean) as any[];
-  }, [enrollments, allAssignments, submissions, quizAttempts]);
+  }, [enrollments, allAssignments, submissions, quizAttempts, allQuizzes]);
 
   const overallGpa = useMemo(() => {
     const withGrades = courseGrades.filter((c) => c.gpa !== null);
@@ -83,7 +101,7 @@ const GradesPage = () => {
 
   const completedQuizzes = useMemo(() => {
     if (!quizAttempts) return [];
-    return quizAttempts.filter((a) => a.status === "completed").sort((a, b) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime());
+    return quizAttempts.filter((a) => a.status === "completed");
   }, [quizAttempts]);
 
   const exportCSV = useCallback(() => {
