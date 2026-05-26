@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Trophy, TrendingUp, BookOpen, FileText, Brain, CheckCircle2, Clock, XCircle, Loader2, BarChart3, ChevronDown, ChevronRight, MessageSquare, Download,
 } from "lucide-react";
-import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts, useProfile } from "@/hooks/useData";
+import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts, useProfile, useQuizzes } from "@/hooks/useData";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -43,14 +43,16 @@ const GradesPage = () => {
   const { data: allAssignments, isLoading: loadingAssign } = useAssignments();
   const { data: submissions, isLoading: loadingSubs } = useMySubmissions();
   const { data: quizAttempts, isLoading: loadingQuiz } = useMyQuizAttempts();
+  const { data: allQuizzes, isLoading: loadingQuizzes } = useQuizzes();
   const { data: profile } = useProfile();
   const displayName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : "Student";
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
-  const isLoading = loadingEnroll || loadingAssign || loadingSubs || loadingQuiz;
+  const isLoading = loadingEnroll || loadingAssign || loadingSubs || loadingQuiz || loadingQuizzes;
 
   const courseGrades = useMemo(() => {
     if (!enrollments || !allAssignments || !submissions || !quizAttempts) return [];
+    const quizzes = allQuizzes || [];
     return enrollments.map((enrollment) => {
       const course = enrollment.courses as any;
       if (!course) return null;
@@ -63,17 +65,33 @@ const GradesPage = () => {
       const gradedAssignments = gradedSubs.filter((g) => g.submission?.score !== null && g.submission?.score !== undefined);
       const assignmentEarned = gradedAssignments.reduce((s, g) => s + (g.submission!.score || 0), 0);
       const assignmentMax = gradedAssignments.reduce((s, g) => s + g.assignment.max_score, 0);
-      const pct = assignmentMax > 0 ? Math.round((assignmentEarned / assignmentMax) * 100) : null;
+
+      // Quiz scoring under this course
+      const courseQuizzes = quizzes.filter((q: any) => q.course_id === course.id);
+      const quizRows = courseQuizzes.map((q: any) => {
+        const best = quizAttempts
+          .filter((at: any) => at.quiz_id === q.id && at.status === "completed")
+          .sort((x: any, y: any) => (y.score ?? 0) - (x.score ?? 0))[0];
+        return { quiz: q, best: best || null };
+      });
+      const attemptedQuizzes = quizRows.filter((r) => r.best?.score != null);
+      const quizEarned = attemptedQuizzes.reduce((s, r) => s + (r.best!.score || 0), 0);
+      const quizMax = attemptedQuizzes.length * 100;
+
+      const totalEarned = assignmentEarned + quizEarned;
+      const totalMax = assignmentMax + quizMax;
+      const pct = totalMax > 0 ? Math.round((totalEarned / totalMax) * 100) : null;
       return {
         courseId: course.id, code: course.code, title: course.title, color: course.color,
         term: course.terms?.name || "—", pct,
         gpa: pct !== null ? pctToGpa(pct) : null,
         grade: pct !== null ? getLetterGrade(pct) : null,
         assignmentDetails: gradedSubs, totalAssignments: courseAssignments.length,
-        gradedCount: gradedAssignments.length, earned: assignmentEarned, max: assignmentMax,
+        gradedCount: gradedAssignments.length, earned: totalEarned, max: totalMax,
+        quizRows, totalQuizzes: courseQuizzes.length, attemptedCount: attemptedQuizzes.length,
       };
     }).filter(Boolean) as any[];
-  }, [enrollments, allAssignments, submissions, quizAttempts]);
+  }, [enrollments, allAssignments, submissions, quizAttempts, allQuizzes]);
 
   const overallGpa = useMemo(() => {
     const withGrades = courseGrades.filter((c) => c.gpa !== null);
@@ -83,7 +101,7 @@ const GradesPage = () => {
 
   const completedQuizzes = useMemo(() => {
     if (!quizAttempts) return [];
-    return quizAttempts.filter((a) => a.status === "completed").sort((a, b) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime());
+    return quizAttempts.filter((a) => a.status === "completed");
   }, [quizAttempts]);
 
   const exportCSV = useCallback(() => {
@@ -317,54 +335,36 @@ const GradesPage = () => {
                         </div>
                       );
                     })}
+
+                    {cg.quizRows.length > 0 && (
+                      <>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 mt-5">
+                          <span className="uppercase tracking-wider font-medium flex items-center gap-1"><Brain className="h-3 w-3" /> Quizzes</span>
+                          <span>{cg.attemptedCount}/{cg.totalQuizzes} attempted</span>
+                        </div>
+                        {cg.quizRows.map(({ quiz, best }: any) => {
+                          const attempted = !!best;
+                          return (
+                            <div key={quiz.id} className="rounded-lg border flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors">
+                              {attempted ? <CheckCircle2 className="h-4 w-4 text-success shrink-0" /> : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                              <Brain className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="flex-1 text-sm truncate">{quiz.title}</span>
+                              <Badge variant="secondary" className="text-[10px] uppercase hidden sm:inline-flex">{quiz.time_limit} min</Badge>
+                              {attempted ? (
+                                <span className="text-sm font-medium tabular-nums">{best.score ?? 0}/100</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not attempted</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
             );
           })
-        )}
-      </div>
-
-      {/* Quiz Scores */}
-      <div className="space-y-4">
-        <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-          <Brain className="h-5 w-5 text-primary" /> Quiz Scores
-        </h2>
-        {!completedQuizzes.length ? (
-          <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
-            <Brain className="mx-auto h-10 w-10 text-muted-foreground" />
-            <p className="mt-3 text-muted-foreground">Complete quizzes to see your scores here.</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border bg-card shadow-card overflow-x-auto">
-            <table className="w-full min-w-[400px]">
-              <thead>
-                <tr className="border-b bg-secondary/20 text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-3 text-left font-medium">Quiz</th>
-                  <th className="px-5 py-3 text-left font-medium">Date</th>
-                  <th className="px-5 py-3 text-right font-medium">Score</th>
-                  <th className="px-5 py-3 text-right font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedQuizzes.map((attempt) => (
-                  <tr key={attempt.id} className="border-b last:border-0 hover:bg-secondary/20 transition-colors">
-                    <td className="px-5 py-3 text-sm font-medium">Quiz Attempt</td>
-                    <td className="px-5 py-3 text-sm text-muted-foreground">
-                      {attempt.completed_at ? new Date(attempt.completed_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" }) : "—"}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <span className="font-display font-semibold">{attempt.score ?? 0}</span>
-                      <span className="text-muted-foreground text-xs"> pts</span>
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <Badge variant="default" className="capitalize">{attempt.status}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         )}
       </div>
     </div>
