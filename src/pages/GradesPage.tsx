@@ -335,54 +335,36 @@ const GradesPage = () => {
                         </div>
                       );
                     })}
+
+                    {cg.quizRows.length > 0 && (
+                      <>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 mt-5">
+                          <span className="uppercase tracking-wider font-medium flex items-center gap-1"><Brain className="h-3 w-3" /> Quizzes</span>
+                          <span>{cg.attemptedCount}/{cg.totalQuizzes} attempted</span>
+                        </div>
+                        {cg.quizRows.map(({ quiz, best }: any) => {
+                          const attempted = !!best;
+                          return (
+                            <div key={quiz.id} className="rounded-lg border flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors">
+                              {attempted ? <CheckCircle2 className="h-4 w-4 text-success shrink-0" /> : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                              <Brain className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="flex-1 text-sm truncate">{quiz.title}</span>
+                              <Badge variant="secondary" className="text-[10px] uppercase hidden sm:inline-flex">{quiz.time_limit} min</Badge>
+                              {attempted ? (
+                                <span className="text-sm font-medium tabular-nums">{best.score ?? 0}/100</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not attempted</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
             );
           })
-        )}
-      </div>
-
-      {/* Quiz Scores */}
-      <div className="space-y-4">
-        <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-          <Brain className="h-5 w-5 text-primary" /> Quiz Scores
-        </h2>
-        {!completedQuizzes.length ? (
-          <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
-            <Brain className="mx-auto h-10 w-10 text-muted-foreground" />
-            <p className="mt-3 text-muted-foreground">Complete quizzes to see your scores here.</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border bg-card shadow-card overflow-x-auto">
-            <table className="w-full min-w-[400px]">
-              <thead>
-                <tr className="border-b bg-secondary/20 text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-3 text-left font-medium">Quiz</th>
-                  <th className="px-5 py-3 text-left font-medium">Date</th>
-                  <th className="px-5 py-3 text-right font-medium">Score</th>
-                  <th className="px-5 py-3 text-right font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedQuizzes.map((attempt) => (
-                  <tr key={attempt.id} className="border-b last:border-0 hover:bg-secondary/20 transition-colors">
-                    <td className="px-5 py-3 text-sm font-medium">Quiz Attempt</td>
-                    <td className="px-5 py-3 text-sm text-muted-foreground">
-                      {attempt.completed_at ? new Date(attempt.completed_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" }) : "—"}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <span className="font-display font-semibold">{attempt.score ?? 0}</span>
-                      <span className="text-muted-foreground text-xs"> pts</span>
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <Badge variant="default" className="capitalize">{attempt.status}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         )}
       </div>
     </div>
