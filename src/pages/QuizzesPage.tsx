@@ -434,18 +434,19 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
           <Badge variant="outline" className="text-xs">{question.points} pts</Badge>
           {question.difficulty && <Badge variant="outline" className="text-xs capitalize">{question.difficulty}</Badge>}
         </div>
-        <p className="text-base font-medium leading-relaxed">{question.question_text}</p>
+        <RichContent html={question.question_text} className="text-base font-medium leading-relaxed" />
 
         {isSAQ ? (
           <div className="mt-4 space-y-3">
-            <textarea
-              value={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
-              onChange={(e) => {
+            <p className="text-xs text-muted-foreground">Use the editor below to type and format your answer (bold, lists, quotes, code, links).</p>
+            <RichTextEditor
+              content={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
+              onChange={(html) => {
                 const existing = typeof answers[question.id] === "object" ? answers[question.id] : {};
-                setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: e.target.value } }));
+                setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: html } }));
               }}
               placeholder="Type your answer here..."
-              className="w-full min-h-[120px] rounded-lg border bg-secondary/30 p-3 text-sm outline-none focus:border-primary resize-y"
+              minHeight="180px"
             />
             <div className="flex items-center gap-2">
               <input ref={fileRef} type="file" className="hidden" onChange={(e) => {
