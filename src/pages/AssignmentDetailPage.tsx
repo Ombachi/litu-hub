@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import RichTextEditor from "@/components/RichTextEditor";
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams();
