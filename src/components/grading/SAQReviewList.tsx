@@ -45,7 +45,18 @@ const SAQReviewList = ({ saqResponses, saqScores, setSaqScores, onGrade, isPendi
 
             <div className="mt-3 rounded-lg border bg-secondary/30 p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Student Answer</p>
-              <p className="text-sm whitespace-pre-wrap break-words">{responseText || <span className="italic text-muted-foreground">No text answer provided</span>}</p>
+              {responseText ? (
+                /<\/?[a-z][\s\S]*>/i.test(responseText) ? (
+                  <div
+                    className="prose prose-sm max-w-none text-foreground break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic"
+                    dangerouslySetInnerHTML={{ __html: responseText }}
+                  />
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap break-words">{responseText}</p>
+                )
+              ) : (
+                <p className="text-sm italic text-muted-foreground">No text answer provided</p>
+              )}
               {fileMatch && (
                 <a href={fileMatch[1]} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-primary underline text-xs">
                   📎 View attached file
