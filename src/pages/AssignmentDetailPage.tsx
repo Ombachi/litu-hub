@@ -162,11 +162,11 @@ const AssignmentDetailPage = () => {
           <h2 className="font-display font-semibold mb-3 flex items-center gap-2">
             <Send className="h-4 w-4" /> Your Submission
           </h2>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Type your work here or attach a file below..."
-            className="w-full rounded-lg border bg-secondary/30 p-4 text-sm outline-none focus:border-primary resize-none min-h-[200px]"
+          <RichTextEditor
+            content={content}
+            onChange={setContent}
+            placeholder="Type your work here — use formatting, lists, quotes, and code blocks. Attach a file below if needed."
+            minHeight="220px"
           />
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
