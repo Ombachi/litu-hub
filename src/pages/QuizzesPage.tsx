@@ -326,7 +326,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
                 const allCorrect = correctSet.size === selected.size && [...correctSet].every(c => selected.has(c));
                 return (
                   <div key={q.id} className={`rounded-lg border p-4 ${allCorrect ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
-                    <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                    <div className="text-sm font-medium flex gap-2"><span>{i + 1}.</span><RichContent html={q.question_text} /></div>
                     <div className="mt-2 space-y-1">
                       {options.map((opt) => (
                         <div key={opt} className={`text-sm px-3 py-1.5 rounded ${correctSet.has(opt) ? "text-success font-medium" : selected.has(opt) && !correctSet.has(opt) ? "text-destructive line-through" : "text-muted-foreground"}`}>
@@ -342,7 +342,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
               const correct = ans === q.correct_answer;
               return (
                 <div key={q.id} className={`rounded-lg border p-4 ${correct ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
-                  <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                  <div className="text-sm font-medium flex gap-2"><span>{i + 1}.</span><RichContent html={q.question_text} /></div>
                   <div className="mt-2 space-y-1">
                     {options.map((opt) => (
                       <div key={opt} className={`text-sm px-3 py-1.5 rounded ${opt === q.correct_answer ? "text-success font-medium" : opt === ans && !correct ? "text-destructive line-through" : "text-muted-foreground"}`}>
