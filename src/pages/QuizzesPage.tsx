@@ -308,9 +308,14 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
                 const textAnswer = typeof ans === "object" ? ans.text : ans;
                 return (
                   <div key={q.id} className="rounded-lg border border-muted/50 bg-muted/5 p-4">
-                    <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                    <div className="text-sm font-medium flex gap-2"><span>{i + 1}.</span><RichContent html={q.question_text} /></div>
                     <Badge variant="secondary" className="text-[10px] mt-1">Pending Manual Review</Badge>
-                    {textAnswer && <p className="mt-2 text-sm text-muted-foreground">Your answer: {textAnswer}</p>}
+                    {textAnswer && (
+                      <div className="mt-2 rounded-lg border bg-background/50 p-3">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Your answer</p>
+                        <RichContent html={textAnswer} className="text-sm" />
+                      </div>
+                    )}
                     {q.explanation && <p className="mt-2 text-xs text-muted-foreground italic">{q.explanation}</p>}
                   </div>
                 );
