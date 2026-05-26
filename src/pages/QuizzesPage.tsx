@@ -14,6 +14,21 @@ import { Brain, Clock, Play, RotateCcw, Loader2, ChevronLeft, ChevronRight, Chec
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import RichTextEditor from "@/components/RichTextEditor";
+
+// Render text that may contain HTML (from rich text editor / AI generation) safely as formatted content.
+const RichContent = ({ html, className = "" }: { html: string; className?: string }) => {
+  const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(html || "");
+  if (!looksLikeHtml) {
+    return <p className={`whitespace-pre-wrap break-words ${className}`}>{html}</p>;
+  }
+  return (
+    <div
+      className={`prose prose-sm max-w-none text-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_p]:my-1 ${className}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+};
 
 const QuizzesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -293,9 +308,14 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
                 const textAnswer = typeof ans === "object" ? ans.text : ans;
                 return (
                   <div key={q.id} className="rounded-lg border border-muted/50 bg-muted/5 p-4">
-                    <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                    <div className="text-sm font-medium flex gap-2"><span>{i + 1}.</span><RichContent html={q.question_text} /></div>
                     <Badge variant="secondary" className="text-[10px] mt-1">Pending Manual Review</Badge>
-                    {textAnswer && <p className="mt-2 text-sm text-muted-foreground">Your answer: {textAnswer}</p>}
+                    {textAnswer && (
+                      <div className="mt-2 rounded-lg border bg-background/50 p-3">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Your answer</p>
+                        <RichContent html={textAnswer} className="text-sm" />
+                      </div>
+                    )}
                     {q.explanation && <p className="mt-2 text-xs text-muted-foreground italic">{q.explanation}</p>}
                   </div>
                 );
@@ -306,7 +326,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
                 const allCorrect = correctSet.size === selected.size && [...correctSet].every(c => selected.has(c));
                 return (
                   <div key={q.id} className={`rounded-lg border p-4 ${allCorrect ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
-                    <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                    <div className="text-sm font-medium flex gap-2"><span>{i + 1}.</span><RichContent html={q.question_text} /></div>
                     <div className="mt-2 space-y-1">
                       {options.map((opt) => (
                         <div key={opt} className={`text-sm px-3 py-1.5 rounded ${correctSet.has(opt) ? "text-success font-medium" : selected.has(opt) && !correctSet.has(opt) ? "text-destructive line-through" : "text-muted-foreground"}`}>
@@ -322,7 +342,7 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
               const correct = ans === q.correct_answer;
               return (
                 <div key={q.id} className={`rounded-lg border p-4 ${correct ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
-                  <p className="text-sm font-medium">{i + 1}. {q.question_text}</p>
+                  <div className="text-sm font-medium flex gap-2"><span>{i + 1}.</span><RichContent html={q.question_text} /></div>
                   <div className="mt-2 space-y-1">
                     {options.map((opt) => (
                       <div key={opt} className={`text-sm px-3 py-1.5 rounded ${opt === q.correct_answer ? "text-success font-medium" : opt === ans && !correct ? "text-destructive line-through" : "text-muted-foreground"}`}>
@@ -419,18 +439,19 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
           <Badge variant="outline" className="text-xs">{question.points} pts</Badge>
           {question.difficulty && <Badge variant="outline" className="text-xs capitalize">{question.difficulty}</Badge>}
         </div>
-        <p className="text-base font-medium leading-relaxed">{question.question_text}</p>
+        <RichContent html={question.question_text} className="text-base font-medium leading-relaxed" />
 
         {isSAQ ? (
           <div className="mt-4 space-y-3">
-            <textarea
-              value={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
-              onChange={(e) => {
+            <p className="text-xs text-muted-foreground">Use the editor below to type and format your answer (bold, lists, quotes, code, links).</p>
+            <RichTextEditor
+              content={typeof answers[question.id] === "object" ? answers[question.id]?.text || "" : answers[question.id] || ""}
+              onChange={(html) => {
                 const existing = typeof answers[question.id] === "object" ? answers[question.id] : {};
-                setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: e.target.value } }));
+                setAnswers(prev => ({ ...prev, [question.id]: { ...existing, text: html } }));
               }}
               placeholder="Type your answer here..."
-              className="w-full min-h-[120px] rounded-lg border bg-secondary/30 p-3 text-sm outline-none focus:border-primary resize-y"
+              minHeight="180px"
             />
             <div className="flex items-center gap-2">
               <input ref={fileRef} type="file" className="hidden" onChange={(e) => {

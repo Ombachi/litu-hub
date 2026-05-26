@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import RichTextEditor from "@/components/RichTextEditor";
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams();
@@ -161,11 +162,11 @@ const AssignmentDetailPage = () => {
           <h2 className="font-display font-semibold mb-3 flex items-center gap-2">
             <Send className="h-4 w-4" /> Your Submission
           </h2>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Type your work here or attach a file below..."
-            className="w-full rounded-lg border bg-secondary/30 p-4 text-sm outline-none focus:border-primary resize-none min-h-[200px]"
+          <RichTextEditor
+            content={content}
+            onChange={setContent}
+            placeholder="Type your work here — use formatting, lists, quotes, and code blocks. Attach a file below if needed."
+            minHeight="220px"
           />
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -186,7 +187,7 @@ const AssignmentDetailPage = () => {
             </div>
             <button
               onClick={handleSubmit}
-              disabled={submitting || (!content && !file)}
+              disabled={submitting || (!content.replace(/<[^>]*>/g, "").trim() && !file)}
               className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -203,7 +204,16 @@ const AssignmentDetailPage = () => {
             <CheckCircle2 className="h-5 w-5 text-info" />
             <p className="text-sm font-medium">Submitted on {new Date(submission.submitted_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
           </div>
-          {submission.content && <p className="mt-2 text-sm text-muted-foreground">{submission.content}</p>}
+          {submission.content && (
+            /<\/?[a-z][\s\S]*>/i.test(submission.content) ? (
+              <div
+                className="mt-2 prose prose-sm max-w-none text-muted-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                dangerouslySetInnerHTML={{ __html: submission.content }}
+              />
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">{submission.content}</p>
+            )
+          )}
         </div>
       )}
     </div>
