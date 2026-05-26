@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Trophy, TrendingUp, BookOpen, FileText, Brain, CheckCircle2, Clock, XCircle, Loader2, BarChart3, ChevronDown, ChevronRight, MessageSquare, Download,
 } from "lucide-react";
-import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts, useProfile } from "@/hooks/useData";
+import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts, useProfile, useQuizzes } from "@/hooks/useData";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
