@@ -191,10 +191,7 @@ const AnnouncementsTab = ({ courseId, isManaging = false }: AnnouncementsTabProp
                   </div>
                 )}
               </div>
-              <div
-                className="mt-3 prose prose-sm max-w-none text-foreground [&_a]:text-primary [&_a]:underline"
-                dangerouslySetInnerHTML={{ __html: a.content }}
-              />
+              <RichContent html={a.content} className="mt-3" />
             </div>
           );
         })
