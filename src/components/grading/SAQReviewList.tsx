@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
+import RichContent from "@/components/RichContent";
 
 interface SAQReviewListProps {
   saqResponses: any[];
