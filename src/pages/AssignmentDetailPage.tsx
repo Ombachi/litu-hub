@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import RichTextEditor from "@/components/RichTextEditor";
+import RichContent from "@/components/RichContent";
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams();
