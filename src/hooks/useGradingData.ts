@@ -76,7 +76,7 @@ export function useGradingQuizAttempts() {
 
       if (filtered.length > 0) {
         const studentIds = [...new Set(filtered.map((a: any) => a.student_id))];
-        const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", studentIds);
+        const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email").in("user_id", studentIds);
         const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
         return filtered.map((a: any) => ({ ...a, profile: profileMap.get(a.student_id) || null }));
       }
