@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FileText, Eye, X, Send, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import RichContent from "@/components/RichContent";
 
 const FEEDBACK_TEMPLATES = [
   "Good work! Consider expanding on your analysis.",
