@@ -204,16 +204,7 @@ const AssignmentDetailPage = () => {
             <CheckCircle2 className="h-5 w-5 text-info" />
             <p className="text-sm font-medium">Submitted on {new Date(submission.submitted_at).toLocaleDateString("en-KE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
           </div>
-          {submission.content && (
-            /<\/?[a-z][\s\S]*>/i.test(submission.content) ? (
-              <div
-                className="mt-2 prose prose-sm max-w-none text-muted-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
-                dangerouslySetInnerHTML={{ __html: submission.content }}
-              />
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">{submission.content}</p>
-            )
-          )}
+          {submission.content && <RichContent html={submission.content} className="mt-2 text-muted-foreground" />}
         </div>
       )}
     </div>
