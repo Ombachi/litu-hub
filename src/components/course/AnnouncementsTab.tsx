@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Megaphone, Plus, Pin, Trash2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
+import RichContent from "@/components/RichContent";
 
 interface AnnouncementsTabProps {
   courseId: string;
