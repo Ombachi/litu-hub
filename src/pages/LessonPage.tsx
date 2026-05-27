@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLessonCompletions, useToggleLessonCompletion } from "@/hooks/useLessonCompletions";
+import RichContent, { stripMarkdown } from "@/components/RichContent";
 
 const ensureScheme = (url: string) => {
   if (!url) return url;
