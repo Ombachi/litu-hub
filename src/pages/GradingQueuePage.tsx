@@ -114,7 +114,7 @@ const GradingQueuePage = () => {
                 <tbody>
                   {quizAttempts.map((attempt: any) => (
                     <tr key={attempt.id} className="border-b last:border-0 hover:bg-secondary/20 transition-colors">
-                      <td className="px-5 py-3 text-sm">{attempt.profile ? `${attempt.profile.first_name || ""} ${attempt.profile.last_name || ""}`.trim() : "Student"}</td>
+                      <td className="px-5 py-3 text-sm">{attempt.profile ? (`${attempt.profile.first_name || ""} ${attempt.profile.last_name || ""}`.trim() || attempt.profile.email || "Student") : "Student"}</td>
                       <td className="px-5 py-3 text-sm font-medium">{attempt.quizzes?.title}</td>
                       <td className="px-5 py-3 text-sm text-muted-foreground">{attempt.quizzes?.courses?.code}</td>
                       <td className="px-5 py-3 text-right font-display font-semibold">{attempt.score ?? 0} pts</td>
