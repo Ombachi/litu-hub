@@ -98,16 +98,9 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
           {submission.content && (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Submission Content</p>
-              {/<\/?[a-z][\s\S]*>/i.test(submission.content) ? (
-                <div
-                  className="rounded-lg border-2 border-primary/20 bg-secondary/40 p-5 text-sm leading-relaxed max-h-[400px] overflow-y-auto break-words prose prose-sm max-w-none text-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic"
-                  dangerouslySetInnerHTML={{ __html: submission.content }}
-                />
-              ) : (
-                <div className="rounded-lg border-2 border-primary/20 bg-secondary/40 p-5 text-sm leading-relaxed whitespace-pre-wrap max-h-[400px] overflow-y-auto break-words font-medium">
-                  {submission.content}
-                </div>
-              )}
+              <div className="rounded-lg border-2 border-primary/20 bg-secondary/40 p-5 max-h-[400px] overflow-y-auto">
+                <RichContent html={submission.content} className="text-sm leading-relaxed" />
+              </div>
             </div>
           )}
 
