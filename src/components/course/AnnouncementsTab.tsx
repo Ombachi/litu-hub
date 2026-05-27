@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Megaphone, Plus, Pin, Trash2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
+import RichContent from "@/components/RichContent";
 
 interface AnnouncementsTabProps {
   courseId: string;
@@ -190,10 +191,7 @@ const AnnouncementsTab = ({ courseId, isManaging = false }: AnnouncementsTabProp
                   </div>
                 )}
               </div>
-              <div
-                className="mt-3 prose prose-sm max-w-none text-foreground [&_a]:text-primary [&_a]:underline"
-                dangerouslySetInnerHTML={{ __html: a.content }}
-              />
+              <RichContent html={a.content} className="mt-3" />
             </div>
           );
         })

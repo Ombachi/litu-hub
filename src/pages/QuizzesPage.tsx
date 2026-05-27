@@ -15,20 +15,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import RichTextEditor from "@/components/RichTextEditor";
-
-// Render text that may contain HTML (from rich text editor / AI generation) safely as formatted content.
-const RichContent = ({ html, className = "" }: { html: string; className?: string }) => {
-  const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(html || "");
-  if (!looksLikeHtml) {
-    return <p className={`whitespace-pre-wrap break-words ${className}`}>{html}</p>;
-  }
-  return (
-    <div
-      className={`prose prose-sm max-w-none text-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_p]:my-1 ${className}`}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-};
+import RichContent from "@/components/RichContent";
 
 const QuizzesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();

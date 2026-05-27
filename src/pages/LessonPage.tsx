@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLessonCompletions, useToggleLessonCompletion } from "@/hooks/useLessonCompletions";
+import RichContent, { stripMarkdown } from "@/components/RichContent";
 
 const ensureScheme = (url: string) => {
   if (!url) return url;
@@ -193,12 +194,11 @@ const LessonPage = () => {
 
       {isHtml && (
         <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
-          <div
-            className="prose prose-sm max-w-none text-foreground overflow-auto max-h-[70vh] break-words
-              [&_a]:text-primary [&_a]:underline [&_a]:cursor-pointer
+          <RichContent
+            html={content}
+            className="overflow-auto max-h-[70vh]
               [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs
               [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm"
-            dangerouslySetInnerHTML={{ __html: content }}
           />
         </div>
       )}
@@ -206,7 +206,7 @@ const LessonPage = () => {
       {content && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isDocUrl && !isExternalUrl && !isHtml && (
         <div className="rounded-xl border bg-card p-6 shadow-card overflow-hidden">
           <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap break-words overflow-auto max-h-[70vh]">
-            {content}
+            {stripMarkdown(content)}
           </div>
         </div>
       )}
