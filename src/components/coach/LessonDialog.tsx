@@ -113,7 +113,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
             </button>
           </div>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0">
           <div className="space-y-2">
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Lesson title" />
