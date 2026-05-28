@@ -98,10 +98,20 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
     : "application/pdf,.pdf,.doc,.docx,.ppt,.pptx,.txt,.md";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-display">{initial ? "Edit Lesson" : "Add Lesson"}</DialogTitle>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) setIsExpanded(false); onOpenChange(v); }}>
+      <DialogContent className={`${isExpanded ? "max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh]" : "sm:max-w-lg max-h-[90vh]"} overflow-hidden flex flex-col`}>
+        <DialogHeader className="shrink-0">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="font-display">{initial ? "Edit Lesson" : "Add Lesson"}</DialogTitle>
+            <button
+              type="button"
+              onClick={() => setIsExpanded((v) => !v)}
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              title={isExpanded ? "Collapse" : "Expand to full screen"}
+            >
+              {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
+          </div>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
