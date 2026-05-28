@@ -166,7 +166,8 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
                 content={content}
                 onChange={setContent}
                 placeholder="Write or paste the lesson content here..."
-                minHeight="200px"
+                minHeight={isExpanded ? "60vh" : "200px"}
+                maxHeight={isExpanded ? "70vh" : "50vh"}
               />
             </div>
           )}
