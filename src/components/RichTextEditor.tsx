@@ -37,7 +37,7 @@ const MenuButton = ({
   </button>
 );
 
-const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px" }: RichTextEditorProps) => {
+const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px", maxHeight = "60vh" }: RichTextEditorProps) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
