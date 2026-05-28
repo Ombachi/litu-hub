@@ -18,6 +18,7 @@ interface RichTextEditorProps {
   onChange: (html: string) => void;
   placeholder?: string;
   minHeight?: string;
+  maxHeight?: string;
 }
 
 const MenuButton = ({
