@@ -27,6 +27,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
   const [uploading, setUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isExpanded, setIsExpanded] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
