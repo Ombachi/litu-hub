@@ -213,7 +213,7 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
           e.target.value = "";
         }}
       />
-      <EditorContent editor={editor} className="px-3 py-2 max-h-[60vh] overflow-y-auto" />
+      <EditorContent editor={editor} className={`px-3 py-2 overflow-y-auto max-h-[${maxHeight}]`} />
     </div>
   );
 };
