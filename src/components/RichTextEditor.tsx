@@ -18,6 +18,7 @@ interface RichTextEditorProps {
   onChange: (html: string) => void;
   placeholder?: string;
   minHeight?: string;
+  maxHeight?: string;
 }
 
 const MenuButton = ({
@@ -36,7 +37,7 @@ const MenuButton = ({
   </button>
 );
 
-const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px" }: RichTextEditorProps) => {
+const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px", maxHeight = "60vh" }: RichTextEditorProps) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -212,7 +213,9 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
           e.target.value = "";
         }}
       />
-      <EditorContent editor={editor} className="px-3 py-2 max-h-[60vh] overflow-y-auto" />
+      <div style={{ maxHeight }} className="overflow-y-auto">
+        <EditorContent editor={editor} className="px-3 py-2" />
+      </div>
     </div>
   );
 };
