@@ -106,7 +106,10 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
     if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return; }
     setUploadingImage(true);
     try {
-      const path = `editor/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${user.id}/editor/${Date.now()}_${safeName}`;
       const { error } = await supabase.storage.from("submissions").upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = await supabase.storage.from("submissions").createSignedUrl(path, 60 * 60 * 24 * 365);
@@ -118,6 +121,7 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
     }
     setUploadingImage(false);
   };
+
 
   if (!editor) return null;
 
