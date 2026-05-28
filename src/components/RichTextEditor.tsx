@@ -71,11 +71,7 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
     content,
     editorProps: {
       attributes: {
-        class: `prose prose-sm max-w-none focus:outline-none text-foreground
-          [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
-          [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground
-          [&_img]:rounded-lg [&_img]:max-w-full [&_img]:h-auto
-          [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg`,
+        class: "prose prose-sm max-w-none focus:outline-none text-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_img]:rounded-lg [&_img]:max-w-full [&_img]:h-auto [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg",
         style: `min-height: ${minHeight}`,
         "data-placeholder": placeholder,
       },
