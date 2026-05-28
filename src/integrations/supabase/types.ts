@@ -1679,6 +1679,7 @@ export type Database = {
         Args: { _student_email: string }
         Returns: string
       }
+      sanitize_html: { Args: { input: string }; Returns: string }
       school_admin_can_access_course: {
         Args: { _course_id: string; _user_id: string }
         Returns: boolean
