@@ -445,7 +445,11 @@ const CoachStudio = () => {
                   <div key={q.id} className="rounded-xl border bg-card p-5 shadow-card">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-display font-semibold">{q.title}</h4>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-display font-semibold">{q.title}</h4>
+                          <Badge variant="secondary" className="text-[10px]">{(q as any).assessment_category || "General"}</Badge>
+                          {(q as any).exam_period && <Badge variant="outline" className="text-[10px]">{(q as any).exam_period}</Badge>}
+                        </div>
                         <p className="text-sm text-muted-foreground">{q.time_limit} min • {q.max_attempts} attempts max</p>
                       </div>
                       <div className="flex items-center gap-2">
