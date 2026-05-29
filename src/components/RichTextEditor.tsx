@@ -19,6 +19,7 @@ interface RichTextEditorProps {
   placeholder?: string;
   minHeight?: string;
   maxHeight?: string;
+  autoFocus?: boolean;
 }
 
 const MenuButton = ({
@@ -37,8 +38,9 @@ const MenuButton = ({
   </button>
 );
 
-const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px", maxHeight = "60vh" }: RichTextEditorProps) => {
+const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px", maxHeight = "60vh", autoFocus }: RichTextEditorProps) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const editor = useEditor({
@@ -102,6 +104,15 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
       editor.commands.setContent(content || "");
     }
   }, [content, editor]);
+
+  const prevAutoFocus = useRef(autoFocus);
+  useEffect(() => {
+    if (autoFocus && !prevAutoFocus.current && editor) {
+      editor.commands.focus("end");
+      contentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    prevAutoFocus.current = autoFocus;
+  }, [autoFocus, editor]);
 
   const uploadImage = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return; }
@@ -213,7 +224,7 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
           e.target.value = "";
         }}
       />
-      <div style={{ maxHeight }} className="overflow-y-auto">
+      <div ref={contentRef} style={{ maxHeight }} className="overflow-y-auto">
         <EditorContent editor={editor} className="px-3 py-2" />
       </div>
     </div>
