@@ -168,6 +168,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
                 placeholder="Write or paste the lesson content here..."
                 minHeight={isExpanded ? "60vh" : "200px"}
                 maxHeight={isExpanded ? "70vh" : "50vh"}
+                autoFocus={isExpanded}
               />
             </div>
           )}
