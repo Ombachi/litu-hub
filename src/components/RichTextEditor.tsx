@@ -19,6 +19,7 @@ interface RichTextEditorProps {
   placeholder?: string;
   minHeight?: string;
   maxHeight?: string;
+  autoFocus?: boolean;
 }
 
 const MenuButton = ({
@@ -37,8 +38,9 @@ const MenuButton = ({
   </button>
 );
 
-const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px", maxHeight = "60vh" }: RichTextEditorProps) => {
+const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", minHeight = "150px", maxHeight = "60vh", autoFocus }: RichTextEditorProps) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const editor = useEditor({
