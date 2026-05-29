@@ -105,6 +105,15 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
     }
   }, [content, editor]);
 
+  const prevAutoFocus = useRef(autoFocus);
+  useEffect(() => {
+    if (autoFocus && !prevAutoFocus.current && editor) {
+      editor.commands.focus("end");
+      contentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    prevAutoFocus.current = autoFocus;
+  }, [autoFocus, editor]);
+
   const uploadImage = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return; }
     setUploadingImage(true);
