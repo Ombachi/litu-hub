@@ -4,8 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen, Pin,
+  BookOpen, Plus, FileText, Brain, Layers, Settings, Edit, Trash2, GripVertical, Loader2, HelpCircle, MessageSquare, Send, X, Megaphone, FolderOpen, Pin, Search, ChevronDown, ChevronRight,
 } from "lucide-react";
+import { ASSESSMENT_CATEGORIES } from "@/lib/validations";
 import { useCourses, useModules, useAssignments, useQuizzes, useQuizQuestions, useDiscussions } from "@/hooks/queries";
 import {
   useCreateModule, useUpdateModule, useDeleteModule,
@@ -83,8 +84,15 @@ const CoachStudio = () => {
 
   // Question bank: select quiz to manage questions
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
-  const activeQuizId = selectedQuizId || quizzes?.[0]?.id;
+  const activeQuizId = selectedQuizId || undefined;
   const { data: questions } = useQuizQuestions(activeQuizId);
+  const [bankSearch, setBankSearch] = useState("");
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set(["CAT 1"]));
+  const toggleCat = (c: string) => {
+    const next = new Set(expandedCats);
+    next.has(c) ? next.delete(c) : next.add(c);
+    setExpandedCats(next);
+  };
 
   // Mutations
   const createModule = useCreateModule();
@@ -202,7 +210,7 @@ const CoachStudio = () => {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const handleQuizSubmit = async (data: { title: string; description: string; time_limit: number; max_attempts: number; due_date: string }) => {
+  const handleQuizSubmit = async (data: { title: string; description: string; time_limit: number; max_attempts: number; due_date: string; assessment_category: string; exam_period: string }) => {
     try {
       if (quizDialog.editing) {
         await updateQuiz.mutateAsync({ id: quizDialog.editing.id, ...data, due_date: data.due_date || undefined });
@@ -437,7 +445,11 @@ const CoachStudio = () => {
                   <div key={q.id} className="rounded-xl border bg-card p-5 shadow-card">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-display font-semibold">{q.title}</h4>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-display font-semibold">{q.title}</h4>
+                          <Badge variant="secondary" className="text-[10px]">{(q as any).assessment_category || "General"}</Badge>
+                          {(q as any).exam_period && <Badge variant="outline" className="text-[10px]">{(q as any).exam_period}</Badge>}
+                        </div>
                         <p className="text-sm text-muted-foreground">{q.time_limit} min • {q.max_attempts} attempts max</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -488,37 +500,60 @@ const CoachStudio = () => {
             {/* Question Bank Tab */}
             <TabsContent value="questions" className="mt-6 space-y-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <h3 className="font-display font-semibold">Question Bank</h3>
+                <div>
+                  <h3 className="font-display font-semibold">Question Bank</h3>
+                  <p className="text-xs text-muted-foreground">Organize quizzes by assessment category and exam period.</p>
+                </div>
                 <div className="flex items-center gap-2">
-                  {activeQuizId && (
-                    <AIGenerateButton
-                      type="questions"
-                      courseTitle={selectedCourse?.title || ""}
-                      courseCode={selectedCourse?.code || ""}
-                      onAcceptQuestions={async (aiQuestions) => {
-                        for (const q of aiQuestions) {
-                          const order = (questions?.length || 0) + 1;
-                          await createQuestion.mutateAsync({
-                            quiz_id: activeQuizId!,
-                            question_text: q.question_text,
-                            question_type: q.question_type,
-                            options: q.options || [],
-                            correct_answer: q.correct_answer || "",
-                            explanation: q.explanation || "",
-                            points: q.points || 1,
-                            order,
-                            difficulty: q.difficulty || "medium",
-                            competency_tag: "",
-                            pool_name: "",
-                          });
-                        }
-                        toast.success(`${aiQuestions.length} AI questions added!`);
-                      }}
-                    />
-                  )}
+                  <AIGenerateButton
+                    type="questions"
+                    courseTitle={selectedCourse?.title || ""}
+                    courseCode={selectedCourse?.code || ""}
+                    onAcceptQuestions={async (aiQuestions, meta) => {
+                      const category = meta?.assessment_category || "General";
+                      const period = meta?.exam_period || "";
+                      const topic = meta?.topic || "AI Questions";
+                      // Reuse the active quiz if it matches the chosen category+period, otherwise create a new one.
+                      let targetQuizId = activeQuizId;
+                      const activeQuiz: any = quizzes?.find((q: any) => q.id === activeQuizId);
+                      const matches = activeQuiz && activeQuiz.assessment_category === category && (activeQuiz.exam_period || "") === period;
+                      if (!matches) {
+                        const created = await createQuiz.mutateAsync({
+                          course_id: courseId!,
+                          title: `${category}${period ? ` — ${period}` : ""}: ${topic}`,
+                          description: `AI-generated ${category} questions on ${topic}.`,
+                          time_limit: 30,
+                          max_attempts: 1,
+                          assessment_category: category,
+                          exam_period: period,
+                        });
+                        targetQuizId = (created as any)?.id;
+                        if (targetQuizId) setSelectedQuizId(targetQuizId);
+                        setExpandedCats(new Set([...expandedCats, category]));
+                      }
+                      for (let i = 0; i < aiQuestions.length; i++) {
+                        const q = aiQuestions[i];
+                        await createQuestion.mutateAsync({
+                          quiz_id: targetQuizId!,
+                          question_text: q.question_text,
+                          question_type: q.question_type,
+                          options: q.options || [],
+                          correct_answer: q.correct_answer || "",
+                          explanation: q.explanation || "",
+                          points: q.points || 1,
+                          order: (questions?.length || 0) + i + 1,
+                          difficulty: q.difficulty || "medium",
+                          competency_tag: "",
+                          pool_name: "",
+                        });
+                      }
+                      toast.success(`${aiQuestions.length} questions filed under ${category}${period ? ` (${period})` : ""}`);
+                    }}
+                  />
                   <button
                     onClick={() => setQuestionDialog({ open: true, editing: null })}
                     disabled={!activeQuizId}
+                    title={!activeQuizId ? "Select a quiz first" : undefined}
                     className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                   >
                     <Plus className="h-4 w-4" /> Add Question
@@ -526,66 +561,103 @@ const CoachStudio = () => {
                 </div>
               </div>
 
-              {quizzes && quizzes.length > 0 ? (
-                <div className="flex gap-2 flex-wrap">
-                  {quizzes.map((q) => (
-                    <button
-                      key={q.id}
-                      onClick={() => setSelectedQuizId(q.id)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
-                        activeQuizId === q.id ? "border-primary bg-primary/5 text-primary" : "hover:bg-secondary/50"
-                      }`}
-                    >
-                      {q.title}
-                    </button>
-                  ))}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={bankSearch}
+                  onChange={(e) => setBankSearch(e.target.value)}
+                  placeholder="Search quizzes by title, category, or period..."
+                  className="pl-9"
+                />
+              </div>
+
+              {!quizzes?.length ? (
+                <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
+                  <HelpCircle className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <p className="mt-3 text-sm text-muted-foreground">No quizzes yet. Create a quiz under the Quizzes tab or generate questions with AI to start building this bank.</p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Create a quiz first to manage questions.</p>
-              )}
-
-              {activeQuizId && (
                 <div className="space-y-3">
-                  {!questions?.length ? (
-                    <div className="rounded-xl border border-dashed bg-secondary/20 p-12 text-center">
-                      <HelpCircle className="mx-auto h-10 w-10 text-muted-foreground" />
-                      <p className="mt-3 text-muted-foreground">No questions yet. Add your first question!</p>
-                    </div>
-                  ) : (
-                    questions.map((q: any, i: number) => (
-                      <div key={q.id} className="rounded-xl border bg-card p-4 shadow-card">
-                        <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-xs font-bold shrink-0">{i + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">{q.question_text}</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              <Badge variant="secondary" className="text-[10px] capitalize">{q.question_type?.replace("_", " ")}</Badge>
-                              <Badge variant="outline" className="text-[10px]">{q.points} pts</Badge>
-                              {q.difficulty && <Badge variant="outline" className="text-[10px] capitalize">{q.difficulty}</Badge>}
-                              {q.competency_tag && <Badge className="text-[10px]">{q.competency_tag}</Badge>}
-                              {q.pool_name && <Badge variant="secondary" className="text-[10px]">{q.pool_name}</Badge>}
-                            </div>
-                            {Array.isArray(q.options) && q.options.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {(q.options as string[]).map((opt: string) => (
-                                  <div key={opt} className={`text-xs px-2 py-1 rounded ${opt === q.correct_answer ? "bg-success/10 text-success font-medium" : "text-muted-foreground"}`}>
-                                    {opt === q.correct_answer ? "✓ " : "  "}{opt}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                  {ASSESSMENT_CATEGORIES.map((cat) => {
+                    const term = bankSearch.trim().toLowerCase();
+                    const inCat = (quizzes as any[]).filter((q) => (q.assessment_category || "General") === cat);
+                    const matching = term
+                      ? inCat.filter((q) =>
+                          (q.title || "").toLowerCase().includes(term) ||
+                          (q.exam_period || "").toLowerCase().includes(term) ||
+                          cat.toLowerCase().includes(term)
+                        )
+                      : inCat;
+                    if (term && matching.length === 0) return null;
+                    const isOpen = expandedCats.has(cat) || !!term;
+                    return (
+                      <div key={cat} className="rounded-xl border bg-card shadow-card overflow-hidden">
+                        <button
+                          onClick={() => toggleCat(cat)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors text-left"
+                        >
+                          {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          <FolderOpen className="h-4 w-4 text-primary" />
+                          <span className="font-display font-semibold text-sm">{cat}</span>
+                          <Badge variant="secondary" className="ml-auto text-[10px]">{matching.length} quiz{matching.length === 1 ? "" : "zes"}</Badge>
+                        </button>
+                        {isOpen && (
+                          <div className="border-t bg-secondary/10 px-3 py-2 space-y-2">
+                            {matching.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-4 text-center">No quizzes filed under {cat}. Use AI Generate or create a quiz with this category.</p>
+                            ) : matching.map((quiz: any) => {
+                              const isActive = activeQuizId === quiz.id;
+                              return (
+                                <div key={quiz.id} className="rounded-lg border bg-card">
+                                  <button
+                                    onClick={() => setSelectedQuizId(isActive ? null : quiz.id)}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${isActive ? "bg-primary/5" : "hover:bg-secondary/40"}`}
+                                  >
+                                    {isActive ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-sm font-medium truncate flex-1">{quiz.title}</span>
+                                    {quiz.exam_period && <Badge variant="outline" className="text-[10px]">{quiz.exam_period}</Badge>}
+                                  </button>
+                                  {isActive && (
+                                    <div className="border-t px-3 py-3 space-y-2">
+                                      {!questions?.length ? (
+                                        <p className="text-xs text-muted-foreground py-3 text-center">No questions yet — add one or generate with AI.</p>
+                                      ) : (
+                                        questions.map((q: any, i: number) => (
+                                          <div key={q.id} className="rounded-lg border bg-background p-3">
+                                            <div className="flex items-start gap-3">
+                                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-[11px] font-bold shrink-0">{i + 1}</span>
+                                              <div className="flex-1 min-w-0">
+                                                <p className="text-sm">{q.question_text}</p>
+                                                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                                  <Badge variant="secondary" className="text-[10px] capitalize">{q.question_type?.replace("_", " ")}</Badge>
+                                                  <Badge variant="outline" className="text-[10px]">{q.points} pts</Badge>
+                                                  {q.difficulty && <Badge variant="outline" className="text-[10px] capitalize">{q.difficulty}</Badge>}
+                                                  {q.competency_tag && <Badge className="text-[10px]">{q.competency_tag}</Badge>}
+                                                </div>
+                                              </div>
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <button onClick={() => setQuestionDialog({ open: true, editing: q })} className="p-1 hover:bg-secondary rounded"><Edit className="h-3.5 w-3.5" /></button>
+                                                <button onClick={() => setDeleteDialog({ open: true, type: "question", id: q.id, name: q.question_text.slice(0, 30) })} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => setQuestionDialog({ open: true, editing: q })} className="p-1 hover:bg-secondary rounded"><Edit className="h-3.5 w-3.5" /></button>
-                            <button onClick={() => setDeleteDialog({ open: true, type: "question", id: q.id, name: q.question_text.slice(0, 30) })} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="h-3.5 w-3.5" /></button>
-                          </div>
-                        </div>
+                        )}
                       </div>
-                    ))
-                  )}
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
+
 
             {/* Discussions Tab */}
             <TabsContent value="discussions" className="mt-6 space-y-4">
@@ -715,7 +787,7 @@ const CoachStudio = () => {
       <ModuleDialog open={moduleDialog.open} onOpenChange={(open) => !open && setModuleDialog({ open: false, editing: null })} onSubmit={handleModuleSubmit} isPending={createModule.isPending || updateModule.isPending} initial={moduleDialog.editing ? { title: moduleDialog.editing.title, description: moduleDialog.editing.description || "" } : null} />
       <LessonDialog open={lessonDialog.open} onOpenChange={(open) => !open && setLessonDialog({ open: false, editing: null, moduleId: null })} onSubmit={handleLessonSubmit} isPending={createLesson.isPending || updateLesson.isPending} initial={lessonDialog.editing ? { title: lessonDialog.editing.title, type: lessonDialog.editing.type, duration: lessonDialog.editing.duration || "", content: lessonDialog.editing.content || "" } : null} />
       <AssignmentDialog open={assignmentDialog.open} onOpenChange={(open) => !open && setAssignmentDialog({ open: false, editing: null })} onSubmit={handleAssignmentSubmit} isPending={createAssignment.isPending || updateAssignment.isPending} initial={assignmentDialog.editing ? { title: assignmentDialog.editing.title, description: assignmentDialog.editing.description || "", type: assignmentDialog.editing.type, due_date: assignmentDialog.editing.due_date || "", max_score: assignmentDialog.editing.max_score } : null} />
-      <QuizDialog open={quizDialog.open} onOpenChange={(open) => !open && setQuizDialog({ open: false, editing: null })} onSubmit={handleQuizSubmit} isPending={createQuiz.isPending || updateQuiz.isPending} initial={quizDialog.editing ? { title: quizDialog.editing.title, description: quizDialog.editing.description || "", time_limit: quizDialog.editing.time_limit, max_attempts: quizDialog.editing.max_attempts, due_date: quizDialog.editing.due_date || "" } : null} />
+      <QuizDialog open={quizDialog.open} onOpenChange={(open) => !open && setQuizDialog({ open: false, editing: null })} onSubmit={handleQuizSubmit} isPending={createQuiz.isPending || updateQuiz.isPending} initial={quizDialog.editing ? { title: quizDialog.editing.title, description: quizDialog.editing.description || "", time_limit: quizDialog.editing.time_limit, max_attempts: quizDialog.editing.max_attempts, due_date: quizDialog.editing.due_date || "", assessment_category: quizDialog.editing.assessment_category || "General", exam_period: quizDialog.editing.exam_period || "" } : null} />
       <QuestionBankDialog open={questionDialog.open} onOpenChange={(open) => !open && setQuestionDialog({ open: false, editing: null })} onSubmit={handleQuestionSubmit} isPending={createQuestion.isPending || updateQuestion.isPending} initial={questionDialog.editing} />
       <DeleteConfirmDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, type: "", id: "", name: "" })} onConfirm={handleDelete} isPending={isDeletePending} itemName={deleteDialog.name} />
     </div>

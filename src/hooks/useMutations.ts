@@ -161,7 +161,7 @@ export function useDeleteAssignment() {
 export function useCreateQuiz() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { course_id: string; title: string; description?: string; time_limit?: number; max_attempts?: number; due_date?: string }) => {
+    mutationFn: async (params: { course_id: string; title: string; description?: string; time_limit?: number; max_attempts?: number; due_date?: string; assessment_category?: string; exam_period?: string }) => {
       const { data, error } = await supabase.from("quizzes").insert(params).select().single();
       if (error) throw error;
       return data;
@@ -173,7 +173,7 @@ export function useCreateQuiz() {
 export function useUpdateQuiz() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { id: string; title?: string; description?: string; time_limit?: number; max_attempts?: number; due_date?: string }) => {
+    mutationFn: async (params: { id: string; title?: string; description?: string; time_limit?: number; max_attempts?: number; due_date?: string; assessment_category?: string; exam_period?: string }) => {
       const { id, ...rest } = params;
       const { error } = await supabase.from("quizzes").update(rest).eq("id", id);
       if (error) throw error;

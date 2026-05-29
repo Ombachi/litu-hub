@@ -1244,30 +1244,36 @@ export type Database = {
       }
       quizzes: {
         Row: {
+          assessment_category: string
           course_id: string
           created_at: string
           description: string | null
           due_date: string | null
+          exam_period: string
           id: string
           max_attempts: number
           time_limit: number
           title: string
         }
         Insert: {
+          assessment_category?: string
           course_id: string
           created_at?: string
           description?: string | null
           due_date?: string | null
+          exam_period?: string
           id?: string
           max_attempts?: number
           time_limit?: number
           title: string
         }
         Update: {
+          assessment_category?: string
           course_id?: string
           created_at?: string
           description?: string | null
           due_date?: string | null
+          exam_period?: string
           id?: string
           max_attempts?: number
           time_limit?: number

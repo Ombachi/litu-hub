@@ -30,12 +30,17 @@ export const assignmentSchema = z.object({
 export type AssignmentFormData = z.infer<typeof assignmentSchema>;
 
 // ---- Quiz ----
+export const ASSESSMENT_CATEGORIES = ["CAT 1", "CAT 2", "RAT", "Main Exam", "General"] as const;
+export type AssessmentCategory = typeof ASSESSMENT_CATEGORIES[number];
+
 export const quizSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200, "Title must be under 200 characters"),
   description: z.string().max(2000, "Description must be under 2000 characters").optional().default(""),
   time_limit: z.number().min(1, "Time limit must be at least 1 minute").max(600, "Time limit cannot exceed 10 hours"),
   max_attempts: z.number().min(1, "Must allow at least 1 attempt").max(100, "Too many attempts"),
   due_date: z.string().optional().default(""),
+  assessment_category: z.enum(ASSESSMENT_CATEGORIES).default("General"),
+  exam_period: z.string().max(100).optional().default(""),
 });
 export type QuizFormData = z.infer<typeof quizSchema>;
 

@@ -9,13 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { ASSESSMENT_CATEGORIES } from "@/lib/validations";
+
 type GenerateType = "questions" | "assignment" | "discussion";
 
 interface AIGenerateButtonProps {
   type: GenerateType;
   courseTitle: string;
   courseCode: string;
-  onAcceptQuestions?: (questions: any[]) => void;
+  onAcceptQuestions?: (questions: any[], meta?: { assessment_category: string; exam_period: string; topic: string }) => void;
   onAcceptAssignment?: (data: { title: string; description: string; type: string; max_score: number }) => void;
   onAcceptDiscussions?: (titles: string[]) => void;
   className?: string;
@@ -30,6 +32,8 @@ const AIGenerateButton = ({
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   const [count, setCount] = useState(3);
+  const [assessmentCategory, setAssessmentCategory] = useState<string>("CAT 1");
+  const [examPeriod, setExamPeriod] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
@@ -64,7 +68,11 @@ const AIGenerateButton = ({
   const handleAccept = () => {
     if (type === "questions" && results?.questions && onAcceptQuestions) {
       const selected = results.questions.filter((_: any, i: number) => selectedIndices.has(i));
-      onAcceptQuestions(selected);
+      onAcceptQuestions(selected, {
+        assessment_category: assessmentCategory,
+        exam_period: examPeriod,
+        topic: topic.trim(),
+      });
     } else if (type === "assignment" && results && onAcceptAssignment) {
       onAcceptAssignment(results);
     } else if (type === "discussion" && results?.discussions && onAcceptDiscussions) {
@@ -94,6 +102,30 @@ const AIGenerateButton = ({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {type === "questions" && (
+              <div className="rounded-lg border bg-secondary/30 p-3 space-y-3">
+                <p className="text-xs font-medium text-muted-foreground">Where should these questions be filed?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Assessment Category</Label>
+                    <Select value={assessmentCategory} onValueChange={setAssessmentCategory}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {ASSESSMENT_CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Exam Period</Label>
+                    <Input value={examPeriod} onChange={(e) => setExamPeriod(e.target.value)} placeholder="e.g. Sem 1 2026" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Course: <span className="font-medium">{courseCode} — {courseTitle}</span></p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Topic / Subject Area</Label>
               <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={`e.g. "Photosynthesis", "Data Structures", "Kenya's economy"`} />
