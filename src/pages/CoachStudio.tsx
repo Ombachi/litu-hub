@@ -202,7 +202,7 @@ const CoachStudio = () => {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const handleQuizSubmit = async (data: { title: string; description: string; time_limit: number; max_attempts: number; due_date: string }) => {
+  const handleQuizSubmit = async (data: { title: string; description: string; time_limit: number; max_attempts: number; due_date: string; assessment_category: string; exam_period: string }) => {
     try {
       if (quizDialog.editing) {
         await updateQuiz.mutateAsync({ id: quizDialog.editing.id, ...data, due_date: data.due_date || undefined });
