@@ -84,8 +84,15 @@ const CoachStudio = () => {
 
   // Question bank: select quiz to manage questions
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
-  const activeQuizId = selectedQuizId || quizzes?.[0]?.id;
+  const activeQuizId = selectedQuizId || undefined;
   const { data: questions } = useQuizQuestions(activeQuizId);
+  const [bankSearch, setBankSearch] = useState("");
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set(["CAT 1"]));
+  const toggleCat = (c: string) => {
+    const next = new Set(expandedCats);
+    next.has(c) ? next.delete(c) : next.add(c);
+    setExpandedCats(next);
+  };
 
   // Mutations
   const createModule = useCreateModule();
