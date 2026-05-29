@@ -68,7 +68,11 @@ const AIGenerateButton = ({
   const handleAccept = () => {
     if (type === "questions" && results?.questions && onAcceptQuestions) {
       const selected = results.questions.filter((_: any, i: number) => selectedIndices.has(i));
-      onAcceptQuestions(selected);
+      onAcceptQuestions(selected, {
+        assessment_category: assessmentCategory,
+        exam_period: examPeriod,
+        topic: topic.trim(),
+      });
     } else if (type === "assignment" && results && onAcceptAssignment) {
       onAcceptAssignment(results);
     } else if (type === "discussion" && results?.discussions && onAcceptDiscussions) {
