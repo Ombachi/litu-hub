@@ -99,7 +99,7 @@ const LessonDialog = ({ open, onOpenChange, onSubmit, isPending, initial }: Less
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) setIsExpanded(false); onOpenChange(v); }}>
-      <DialogContent className={`${isExpanded ? "max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh]" : "sm:max-w-lg max-h-[90vh]"} overflow-hidden flex flex-col`}>
+      <DialogContent className={`${isExpanded ? "fixed inset-0 left-0 top-0 translate-x-0 translate-y-0 w-screen h-screen max-w-none max-h-screen rounded-none border-0 p-4 sm:p-6 sm:max-w-none md:max-w-[95vw] md:w-[95vw] md:h-[95vh] md:max-h-[95vh] md:left-[50%] md:top-[50%] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border" : "sm:max-w-lg max-h-[90vh]"} overflow-hidden flex flex-col`}>
         <DialogHeader className="shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="font-display">{initial ? "Edit Lesson" : "Add Lesson"}</DialogTitle>
