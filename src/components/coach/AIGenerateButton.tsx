@@ -9,13 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { ASSESSMENT_CATEGORIES } from "@/lib/validations";
+
 type GenerateType = "questions" | "assignment" | "discussion";
 
 interface AIGenerateButtonProps {
   type: GenerateType;
   courseTitle: string;
   courseCode: string;
-  onAcceptQuestions?: (questions: any[]) => void;
+  onAcceptQuestions?: (questions: any[], meta?: { assessment_category: string; exam_period: string; topic: string }) => void;
   onAcceptAssignment?: (data: { title: string; description: string; type: string; max_score: number }) => void;
   onAcceptDiscussions?: (titles: string[]) => void;
   className?: string;
@@ -30,6 +32,8 @@ const AIGenerateButton = ({
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   const [count, setCount] = useState(3);
+  const [assessmentCategory, setAssessmentCategory] = useState<string>("CAT 1");
+  const [examPeriod, setExamPeriod] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
