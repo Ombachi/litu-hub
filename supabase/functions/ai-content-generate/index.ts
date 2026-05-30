@@ -238,6 +238,18 @@ Create thought-provoking discussion titles that encourage critical thinking, deb
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       const result = JSON.parse(toolCall.function.arguments);
+      // Store in cache (questions only)
+      if (cacheKey && type === "questions") {
+        adminClient.from("ai_question_cache").upsert({
+          cache_key: cacheKey,
+          course_id: courseId ?? null,
+          topic: (topic ?? "").slice(0, 500),
+          difficulty: difficulty ?? "medium",
+          assessment_category: assessmentCategory ?? "General",
+          question_count: count ?? 3,
+          payload: result,
+        }).then(() => {}, (e: unknown) => console.error("ai cache store failed", e));
+      }
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
