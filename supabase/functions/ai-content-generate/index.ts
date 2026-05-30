@@ -58,9 +58,38 @@ serve(async (req) => {
       });
     }
 
-    const { type, topic, courseTitle, courseCode, difficulty, count } = await req.json();
+    const { type, topic, courseTitle, courseCode, courseId, difficulty, count, assessmentCategory } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // ---- Cache lookup (questions only) — avoids paying the AI gateway twice for the same prompt ----
+    let cacheKey: string | null = null;
+    if (type === "questions") {
+      const keyMaterial = JSON.stringify({
+        c: courseId ?? courseCode ?? "",
+        t: (topic ?? "").trim().toLowerCase(),
+        d: difficulty ?? "medium",
+        a: assessmentCategory ?? "General",
+        n: count ?? 3,
+      });
+      const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(keyMaterial));
+      cacheKey = Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+      const { data: cached } = await adminClient
+        .from("ai_question_cache")
+        .select("payload, hit_count")
+        .eq("cache_key", cacheKey)
+        .maybeSingle();
+      if (cached?.payload) {
+        adminClient.from("ai_question_cache")
+          .update({ hit_count: (cached.hit_count ?? 0) + 1, last_used_at: new Date().toISOString() })
+          .eq("cache_key", cacheKey)
+          .then(() => {}, (e: unknown) => console.error("ai cache bump failed", e));
+        return new Response(JSON.stringify({ ...cached.payload, _cached: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     let systemPrompt = "";
     let tools: any[] = [];
@@ -209,6 +238,18 @@ Create thought-provoking discussion titles that encourage critical thinking, deb
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       const result = JSON.parse(toolCall.function.arguments);
+      // Store in cache (questions only)
+      if (cacheKey && type === "questions") {
+        adminClient.from("ai_question_cache").upsert({
+          cache_key: cacheKey,
+          course_id: courseId ?? null,
+          topic: (topic ?? "").slice(0, 500),
+          difficulty: difficulty ?? "medium",
+          assessment_category: assessmentCategory ?? "General",
+          question_count: count ?? 3,
+          payload: result,
+        }).then(() => {}, (e: unknown) => console.error("ai cache store failed", e));
+      }
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

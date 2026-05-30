@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_question_cache: {
+        Row: {
+          assessment_category: string
+          cache_key: string
+          course_id: string | null
+          created_at: string
+          difficulty: string
+          hit_count: number
+          last_used_at: string
+          payload: Json
+          question_count: number
+          topic: string
+        }
+        Insert: {
+          assessment_category?: string
+          cache_key: string
+          course_id?: string | null
+          created_at?: string
+          difficulty: string
+          hit_count?: number
+          last_used_at?: string
+          payload: Json
+          question_count?: number
+          topic: string
+        }
+        Update: {
+          assessment_category?: string
+          cache_key?: string
+          course_id?: string | null
+          created_at?: string
+          difficulty?: string
+          hit_count?: number
+          last_used_at?: string
+          payload?: Json
+          question_count?: number
+          topic?: string
+        }
+        Relationships: []
+      }
       ai_usage: {
         Row: {
           day: string
@@ -665,6 +704,56 @@ export type Database = {
         }
         Relationships: []
       }
+      institution_subscriptions: {
+        Row: {
+          auto_renew: boolean
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          institution_id: string
+          plan_id: string | null
+          status: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          auto_renew?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          institution_id: string
+          plan_id?: string | null
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auto_renew?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          institution_id?: string
+          plan_id?: string | null
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institutions: {
         Row: {
           address: string | null
@@ -1289,6 +1378,39 @@ export type Database = {
           },
         ]
       }
+      receipt_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          payment_id: string
+          processed_at: string | null
+          scheduled_for: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          payment_id: string
+          processed_at?: string | null
+          scheduled_for?: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          payment_id?: string
+          processed_at?: string | null
+          scheduled_for?: string
+          status?: string
+        }
+        Relationships: []
+      }
       student_fee_overrides: {
         Row: {
           blocked: boolean
@@ -1315,6 +1437,126 @@ export type Database = {
           reason?: string | null
           set_by?: string | null
           student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscription_payments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          id: string
+          institution_id: string
+          paid_at: string | null
+          payer_id: string | null
+          period_end: string | null
+          period_start: string | null
+          plan_id: string | null
+          provider: string
+          provider_reference: string | null
+          raw_payload: Json | null
+          status: string
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          currency?: string
+          id?: string
+          institution_id: string
+          paid_at?: string | null
+          payer_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id?: string | null
+          provider: string
+          provider_reference?: string | null
+          raw_payload?: Json | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          institution_id?: string
+          paid_at?: string | null
+          payer_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id?: string | null
+          provider?: string
+          provider_reference?: string | null
+          raw_payload?: Json | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "institution_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          active: boolean
+          billing_period: string
+          created_at: string
+          currency: string
+          description: string | null
+          features: Json
+          id: string
+          max_students: number | null
+          name: string
+          price_cents: number
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          billing_period?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          max_students?: number | null
+          name: string
+          price_cents: number
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          billing_period?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          max_students?: number | null
+          name?: string
+          price_cents?: number
+          slug?: string
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []
@@ -1469,6 +1711,16 @@ export type Database = {
         Returns: boolean
       }
       cleanup_old_notifications: { Args: never; Returns: number }
+      create_bulk_notifications: {
+        Args: {
+          _link?: string
+          _message: string
+          _title: string
+          _type?: string
+          _user_ids: string[]
+        }
+        Returns: number
+      }
       expire_stale_quiz_attempts: { Args: never; Returns: undefined }
       gdpr_delete_user_account: { Args: never; Returns: Json }
       gdpr_export_user_data: { Args: never; Returns: Json }
@@ -1594,6 +1846,10 @@ export type Database = {
         }[]
       }
       get_user_institution_id: { Args: { _user_id: string }; Returns: string }
+      has_active_subscription: {
+        Args: { _institution_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
