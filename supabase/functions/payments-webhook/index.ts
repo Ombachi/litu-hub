@@ -65,30 +65,88 @@ Deno.serve(async (req) => {
   const { data: payment } = await admin.from("payments")
     .select("id,status,amount_cents,invoice_id,provider,provider_reference,receipt_url")
     .eq("provider_reference", providerRef).maybeSingle();
-  if (!payment) return json(404, { error: "payment not found" });
 
-  await admin.from("webhook_events").insert({
-    provider: provider || "unknown", event_id: eventId, payment_id: payment.id, payload: body,
-  });
-
-  if (payment.status === "succeeded" && payment.receipt_url) return json(200, { ok: true, idempotent: true });
-
-  await admin.from("payments").update({
-    status: outcome,
-    raw_payload: body,
-    ...(amountCents && amountCents !== payment.amount_cents ? { amount_cents: amountCents } : {}),
-  }).eq("id", payment.id);
-
-  if (outcome === "succeeded") {
-    try {
-      const genUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/fee-receipt-generate`;
-      fetch(genUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-        body: JSON.stringify({ payment_id: payment.id }),
-      }).catch((e) => console.error("[payments-webhook] generate dispatch failed", e));
-    } catch (e) { console.error("[payments-webhook] generate invoke failed", e); }
+  // If not a fee payment, try a subscription payment
+  let subPayment: any = null;
+  if (!payment) {
+    const { data: sp } = await admin.from("subscription_payments")
+      .select("id,status,amount_cents,subscription_id,institution_id,plan_id,period_start,period_end")
+      .eq("provider_reference", providerRef).maybeSingle();
+    subPayment = sp;
   }
 
-  return json(200, { ok: true, status: outcome });
+  if (!payment && !subPayment) return json(404, { error: "payment not found" });
+
+  await admin.from("webhook_events").insert({
+    provider: provider || "unknown", event_id: eventId,
+    payment_id: payment?.id ?? null,
+    payload: { ...body, ...(subPayment ? { subscription_payment_id: subPayment.id } : {}) },
+  });
+
+  // --- Fee payment path ---
+  if (payment) {
+    if (payment.status === "succeeded" && payment.receipt_url) return json(200, { ok: true, idempotent: true });
+
+    await admin.from("payments").update({
+      status: outcome,
+      raw_payload: body,
+      ...(amountCents && amountCents !== payment.amount_cents ? { amount_cents: amountCents } : {}),
+    }).eq("id", payment.id);
+
+    if (outcome === "succeeded") {
+      try {
+        const genUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/fee-receipt-generate`;
+        fetch(genUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({ payment_id: payment.id }),
+        }).catch((e) => console.error("[payments-webhook] generate dispatch failed", e));
+      } catch (e) { console.error("[payments-webhook] generate invoke failed", e); }
+    }
+
+    return json(200, { ok: true, status: outcome, kind: "fee" });
+  }
+
+  // --- Subscription payment path ---
+  if (subPayment.status === "succeeded") return json(200, { ok: true, idempotent: true, kind: "subscription" });
+
+  await admin.from("subscription_payments").update({
+    status: outcome,
+    raw_payload: body,
+    paid_at: outcome === "succeeded" ? new Date().toISOString() : null,
+    ...(amountCents && amountCents !== subPayment.amount_cents ? { amount_cents: amountCents } : {}),
+  }).eq("id", subPayment.id);
+
+  if (outcome === "succeeded") {
+    await admin.from("institution_subscriptions").update({
+      plan_id: subPayment.plan_id,
+      status: "active",
+      current_period_start: subPayment.period_start,
+      current_period_end: subPayment.period_end,
+      canceled_at: null,
+      auto_renew: true,
+      updated_at: new Date().toISOString(),
+    }).eq("id", subPayment.subscription_id);
+
+    // Notify school admins of the institution
+    const { data: admins } = await admin
+      .from("user_institutions")
+      .select("user_id, user_roles!inner(role)")
+      .eq("institution_id", subPayment.institution_id)
+      .eq("user_roles.role", "school_admin");
+    const ids = (admins ?? []).map((a: any) => a.user_id);
+    if (ids.length) {
+      await admin.from("notifications").insert(
+        ids.map((uid: string) => ({
+          user_id: uid,
+          title: "Subscription activated",
+          message: `Your Litu Hub subscription is now active until ${new Date(subPayment.period_end).toLocaleDateString()}.`,
+          type: "success",
+          link: "/admin?tab=subscription",
+        }))
+      );
+    }
+  }
+
+  return json(200, { ok: true, status: outcome, kind: "subscription" });
 });
