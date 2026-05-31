@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CheckCircle2, AlertCircle, Plus, Pencil } from "lucide-react";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+
+import { Loader2, CheckCircle2, AlertCircle, Plus, Pencil, ChevronDown, Activity, Clock, XCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 const fmtKES = (c: number) => `KES ${(c / 100).toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
@@ -341,31 +343,268 @@ const SubscriptionsTab = () => {
         </Card>
       )}
 
-      {/* Platform admin: all subscriptions */}
-      {isPlatformAdmin && allSubs && (
-        <Card>
-          <CardHeader>
-            <CardTitle>All institution subscriptions</CardTitle>
-            <CardDescription>{allSubs.length} schools</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {allSubs.map((s: any) => (
-              <div key={s.id} className="flex items-center justify-between text-sm border-b last:border-0 py-2">
-                <div>
-                  <div className="font-medium">{s.institutions?.name ?? "—"}</div>
-                  <div className="text-xs text-muted-foreground">{s.subscription_plans?.name ?? "No plan"} · {s.subscription_plans?.billing_period ?? ""}</div>
-                </div>
-                <div className="text-right">
-                  {statusBadge(s.status)}
-                  <div className="text-xs text-muted-foreground">
-                    {s.current_period_end ? `Renews ${new Date(s.current_period_end).toLocaleDateString()}` : "—"}
-                  </div>
-                </div>
+      {/* Platform admin: management view */}
+      {isPlatformAdmin && <PlatformSubscriptionsManagement subs={allSubs ?? []} statusBadge={statusBadge} />}
+    </div>
+  );
+};
+
+// ---------- Platform admin management view ----------
+
+const PlatformSubscriptionsManagement = ({
+  subs,
+  statusBadge,
+}: {
+  subs: any[];
+  statusBadge: (s: string) => JSX.Element;
+}) => {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Processing health: receipt_jobs (cron worker drains this) + recent subscription_payments
+  const { data: jobStats, isFetching: jobsLoading } = useQuery({
+    queryKey: ["receipt-jobs-stats"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("receipt_jobs" as any)
+        .select("status, attempts, scheduled_for, processed_at, created_at, last_error")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      const counts: Record<string, number> = { queued: 0, processing: 0, done: 0, failed: 0 };
+      let oldestPending: string | null = null;
+      let lastProcessedAt: string | null = null;
+      const recentFailures: any[] = [];
+      for (const r of rows) {
+        counts[r.status] = (counts[r.status] ?? 0) + 1;
+        if ((r.status === "queued" || r.status === "processing") &&
+            (!oldestPending || r.created_at < oldestPending)) oldestPending = r.created_at;
+        if (r.processed_at && (!lastProcessedAt || r.processed_at > lastProcessedAt)) lastProcessedAt = r.processed_at;
+        if (r.status === "failed" && recentFailures.length < 5) recentFailures.push(r);
+      }
+      return { counts, oldestPending, lastProcessedAt, recentFailures, total: rows.length };
+    },
+  });
+
+  const { data: recentSubPayments } = useQuery({
+    queryKey: ["recent-sub-payments-all"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("subscription_payments" as any)
+        .select("id, status, provider, created_at, amount_cents, institution_id")
+        .order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const webhookStats = (() => {
+    const rows = recentSubPayments ?? [];
+    const succeeded = rows.filter((r) => r.status === "succeeded").length;
+    const pending = rows.filter((r) => r.status === "pending" || r.status === "processing").length;
+    const failed = rows.filter((r) => r.status === "failed").length;
+    const last = rows[0];
+    return { succeeded, pending, failed, total: rows.length, lastEvent: last };
+  })();
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["receipt-jobs-stats"] });
+    qc.invalidateQueries({ queryKey: ["recent-sub-payments-all"] });
+    qc.invalidateQueries({ queryKey: ["all-subscriptions"] });
+    toast.success("Refreshed");
+  };
+
+  const fmtRelative = (iso?: string | null) => {
+    if (!iso) return "—";
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Processing health */}
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" /> Processing status
+            </CardTitle>
+            <CardDescription>Webhook ingestion &amp; receipt cron worker health</CardDescription>
+          </div>
+          <Button size="sm" variant="outline" onClick={refresh} disabled={jobsLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${jobsLoading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-2">
+            {/* Webhook side */}
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="text-sm font-semibold">Subscription payments webhook</div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <Stat label="Succeeded" value={webhookStats.succeeded} tone="default" />
+                <Stat label="Pending" value={webhookStats.pending} tone="secondary" />
+                <Stat label="Failed" value={webhookStats.failed} tone={webhookStats.failed ? "destructive" : "outline"} />
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Last event: {fmtRelative(webhookStats.lastEvent?.created_at)}
+                {webhookStats.lastEvent && ` · ${webhookStats.lastEvent.provider} · ${webhookStats.lastEvent.status}`}
+              </div>
+            </div>
+            {/* Cron / receipt jobs */}
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="text-sm font-semibold">Receipt jobs (cron worker)</div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <Stat label="Queued" value={jobStats?.counts.queued ?? 0} tone="secondary" />
+                <Stat label="Running" value={jobStats?.counts.processing ?? 0} tone="secondary" />
+                <Stat label="Done" value={jobStats?.counts.done ?? 0} tone="default" />
+                <Stat label="Failed" value={jobStats?.counts.failed ?? 0} tone={jobStats?.counts.failed ? "destructive" : "outline"} />
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Last processed: {fmtRelative(jobStats?.lastProcessedAt)}
+                {jobStats?.oldestPending && ` · oldest pending ${fmtRelative(jobStats.oldestPending)}`}
+              </div>
+            </div>
+          </div>
+
+          {jobStats?.recentFailures && jobStats.recentFailures.length > 0 && (
+            <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+              <div className="text-sm font-semibold flex items-center gap-1 mb-2">
+                <XCircle className="h-4 w-4 text-destructive" /> Recent failed jobs
+              </div>
+              <ul className="space-y-1 text-xs">
+                {jobStats.recentFailures.map((j: any, i: number) => (
+                  <li key={i} className="text-muted-foreground">
+                    <span className="text-foreground">{new Date(j.created_at).toLocaleString()}</span>
+                    {" · "}attempts {j.attempts}{" · "}
+                    <span className="font-mono">{j.last_error?.slice(0, 120) ?? "no error"}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Subscriptions management table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All institution subscriptions</CardTitle>
+          <CardDescription>{subs.length} schools — click a row for payment history</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Institution</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Next renewal</TableHead>
+                <TableHead>Auto-renew</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {subs.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No subscriptions yet</TableCell></TableRow>
+              )}
+              {subs.map((s: any) => {
+                const isOpen = expanded === s.id;
+                return (
+                  <>
+                    <TableRow key={s.id} className="cursor-pointer" onClick={() => setExpanded(isOpen ? null : s.id)}>
+                      <TableCell className="font-medium">{s.institutions?.name ?? "—"}</TableCell>
+                      <TableCell>
+                        {s.subscription_plans?.name ?? <span className="text-muted-foreground">No plan</span>}
+                        {s.subscription_plans?.billing_period && (
+                          <span className="text-xs text-muted-foreground"> · {s.subscription_plans.billing_period}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{statusBadge(s.status)}</TableCell>
+                      <TableCell className="text-sm">
+                        {s.current_period_end
+                          ? <>
+                              {new Date(s.current_period_end).toLocaleDateString()}
+                              <div className="text-xs text-muted-foreground">{fmtRelative(s.current_period_end)}</div>
+                            </>
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {s.auto_renew
+                          ? <Badge variant="outline" className="text-xs">On</Badge>
+                          : <Badge variant="secondary" className="text-xs">Off</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                      </TableCell>
+                    </TableRow>
+                    {isOpen && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="bg-muted/30">
+                          <InstitutionPaymentHistory institutionId={s.institution_id} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+const Stat = ({ label, value, tone }: { label: string; value: number; tone: any }) => (
+  <div className="rounded-md bg-muted/40 py-2">
+    <div className="text-lg font-bold tabular-nums">{value}</div>
+    <Badge variant={tone} className="text-[10px]">{label}</Badge>
+  </div>
+);
+
+const InstitutionPaymentHistory = ({ institutionId }: { institutionId: string }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["inst-sub-payments", institutionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("subscription_payments" as any)
+        .select("id, amount_cents, currency, provider, provider_reference, status, paid_at, created_at, period_end")
+        .eq("institution_id", institutionId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  if (isLoading) return <div className="py-4 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Loading payments…</div>;
+  if (!data || data.length === 0) return <div className="py-4 text-sm text-muted-foreground">No payments recorded.</div>;
+
+  return (
+    <div className="space-y-1 py-2">
+      <div className="text-xs font-semibold text-muted-foreground mb-2">Payment history</div>
+      {data.map((p: any) => (
+        <div key={p.id} className="flex items-center justify-between text-sm border-b last:border-0 py-2">
+          <div>
+            <div className="font-medium">{fmtKES(p.amount_cents)}</div>
+            <div className="text-xs text-muted-foreground">{p.provider} · {p.provider_reference ?? "—"}</div>
+          </div>
+          <div className="text-right">
+            <Badge variant={p.status === "succeeded" ? "default" : p.status === "failed" ? "destructive" : "secondary"}>{p.status}</Badge>
+            <div className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleString()}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
