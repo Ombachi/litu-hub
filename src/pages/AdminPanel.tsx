@@ -522,6 +522,11 @@ const AdminPanel = () => {
           </TabsContent>
         )}
 
+        {/* Subscription Tab (both roles) */}
+        <TabsContent value="subscription" className="mt-6">
+          <Suspense fallback={<TabFallback />}><SubscriptionsTab /></Suspense>
+        </TabsContent>
+
         {/* Parent Approvals Tab (both roles) */}
         <TabsContent value="parent-approvals" className="mt-6">
           <Suspense fallback={<TabFallback />}><ParentApprovalsTab /></Suspense>
