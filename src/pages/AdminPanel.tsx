@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck, Wallet,
+  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck, Wallet, CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ const SchoolAdminDashboard = lazy(() => import("@/components/admin/SchoolAdminDa
 const SchoolAdminCoursesTab = lazy(() => import("@/components/admin/SchoolAdminCoursesTab"));
 const ParentApprovalsTab = lazy(() => import("@/components/admin/ParentApprovalsTab"));
 const BursarTab = lazy(() => import("@/components/admin/BursarTab"));
+const SubscriptionsTab = lazy(() => import("@/components/admin/SubscriptionsTab"));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -271,6 +272,7 @@ const AdminPanel = () => {
         { value: "institutions", icon: Building2, label: "Institutions" },
         { value: "school-admins", icon: Shield, label: "School Admins" },
         { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
+        { value: "subscription", icon: CreditCard, label: "Subscriptions" },
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ]
@@ -282,6 +284,7 @@ const AdminPanel = () => {
         { value: "terms", icon: Calendar, label: "Terms" },
         { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
         { value: "fees", icon: Wallet, label: "Fees" },
+        { value: "subscription", icon: CreditCard, label: "Subscription" },
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ];
@@ -518,6 +521,11 @@ const AdminPanel = () => {
             <Suspense fallback={<TabFallback />}><BursarTab /></Suspense>
           </TabsContent>
         )}
+
+        {/* Subscription Tab (both roles) */}
+        <TabsContent value="subscription" className="mt-6">
+          <Suspense fallback={<TabFallback />}><SubscriptionsTab /></Suspense>
+        </TabsContent>
 
         {/* Parent Approvals Tab (both roles) */}
         <TabsContent value="parent-approvals" className="mt-6">
