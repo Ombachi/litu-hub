@@ -24,6 +24,7 @@ const SchoolAdminDashboard = lazy(() => import("@/components/admin/SchoolAdminDa
 const SchoolAdminCoursesTab = lazy(() => import("@/components/admin/SchoolAdminCoursesTab"));
 const ParentApprovalsTab = lazy(() => import("@/components/admin/ParentApprovalsTab"));
 const BursarTab = lazy(() => import("@/components/admin/BursarTab"));
+const SubscriptionsTab = lazy(() => import("@/components/admin/SubscriptionsTab"));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
