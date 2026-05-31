@@ -272,6 +272,7 @@ const AdminPanel = () => {
         { value: "institutions", icon: Building2, label: "Institutions" },
         { value: "school-admins", icon: Shield, label: "School Admins" },
         { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
+        { value: "subscription", icon: CreditCard, label: "Subscriptions" },
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ]
@@ -283,6 +284,7 @@ const AdminPanel = () => {
         { value: "terms", icon: Calendar, label: "Terms" },
         { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
         { value: "fees", icon: Wallet, label: "Fees" },
+        { value: "subscription", icon: CreditCard, label: "Subscription" },
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ];
