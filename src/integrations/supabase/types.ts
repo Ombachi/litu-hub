@@ -1762,6 +1762,18 @@ export type Database = {
         Returns: Database["public"]["Enums"]["fee_status"]
       }
       get_parent_link_audit: { Args: { _link_id: string }; Returns: Json }
+      get_parent_tutor_contacts: {
+        Args: { _student_id: string }
+        Returns: {
+          course_code: string
+          course_id: string
+          course_title: string
+          first_name: string
+          last_name: string
+          role: string
+          tutor_id: string
+        }[]
+      }
       get_public_profiles: {
         Args: { _user_ids: string[] }
         Returns: {
