@@ -314,10 +314,79 @@ const ParentPortal = () => {
 
           {/* Course Grades */}
           <div className="space-y-4">
-            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              {selectedProfile?.first_name}'s Course Grades
-            </h2>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                {selectedProfile?.first_name}'s Course Grades
+              </h2>
+              <button
+                onClick={() => {
+                  const studentName = `${selectedProfile?.first_name || ""} ${selectedProfile?.last_name || ""}`.trim() || "Student";
+                  const overall = courseStats.filter(c => c.pct !== null);
+                  const avg = overall.length
+                    ? Math.round(overall.reduce((s, c) => s + (c.pct || 0), 0) / overall.length)
+                    : null;
+                  const gradedTotal = childSubmissions?.filter(s => s.score !== null).length || 0;
+                  exportReportCardPDF({
+                    studentName,
+                    childEmail: selectedProfile?.email || null,
+                    institutionName: "Litu Hub",
+                    summary: [
+                      { label: "Courses", value: String(childEnrollments?.length || 0) },
+                      { label: "Submissions", value: String(childSubmissions?.length || 0) },
+                      { label: "Quizzes", value: String(childQuizAttempts?.length || 0) },
+                      { label: "Avg", value: avg !== null ? `${avg}%` : "—" },
+                    ],
+                    sections: [
+                      {
+                        heading: "Course Performance",
+                        headers: ["Course", "Graded", "Submitted", "Points", "%", "Grade"],
+                        rows: courseStats.map(cs => ({
+                          Course: `${cs.course.code} — ${cs.course.title}`,
+                          Graded: cs.graded.length,
+                          Submitted: cs.submissions.length,
+                          Points: `${cs.earned}/${cs.max}`,
+                          "%": cs.pct !== null ? `${cs.pct}%` : "—",
+                          Grade: cs.grade?.letter || "—",
+                        })),
+                        emptyText: "No enrolled courses yet.",
+                      },
+                      {
+                        heading: "Recent Quiz Scores",
+                        headers: ["Quiz", "Course", "Date", "Score"],
+                        rows: (childQuizAttempts || []).slice(0, 25).map(a => ({
+                          Quiz: (a.quizzes as any)?.title || "—",
+                          Course: (a.quizzes as any)?.courses?.code || "—",
+                          Date: a.completed_at ? new Date(a.completed_at).toLocaleDateString("en-KE") : "—",
+                          Score: `${a.score ?? 0} pts`,
+                        })),
+                        emptyText: "No completed quizzes yet.",
+                      },
+                      {
+                        heading: "Engagement Summary",
+                        headers: ["Metric", "Value"],
+                        rows: [
+                          { Metric: "Total submissions", Value: childSubmissions?.length || 0 },
+                          { Metric: "Graded submissions", Value: gradedTotal },
+                          { Metric: "Quizzes completed", Value: childQuizAttempts?.length || 0 },
+                          { Metric: "Average grade", Value: avg !== null ? `${avg}%` : "—" },
+                        ],
+                      },
+                    ],
+                    tutorComments: (childSubmissions || [])
+                      .filter((s: any) => s.feedback && s.score !== null)
+                      .slice(0, 8)
+                      .map((s: any) => `${(s.assignments as any)?.courses?.code || "Course"} — ${(s.assignments as any)?.title || "Assignment"}: ${s.feedback}`),
+                    filename: `report-card-${studentName.replace(/\s+/g, "_")}-${new Date().toISOString().slice(0, 10)}`,
+                  });
+                }}
+                className="flex items-center gap-2 rounded-lg border bg-secondary/50 px-3 py-2 text-sm font-medium hover:bg-secondary transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                Report card (PDF)
+              </button>
+            </div>
+
             {courseStats.map((cs) => (
               <div key={cs.course.id} className="rounded-xl border bg-card p-5 shadow-card">
                 <div className="flex items-center justify-between mb-3">
