@@ -527,10 +527,13 @@ const AdminPanel = () => {
           <Suspense fallback={<TabFallback />}><SubscriptionsTab /></Suspense>
         </TabsContent>
 
-        {/* Parent Approvals Tab (both roles) */}
-        <TabsContent value="parent-approvals" className="mt-6">
-          <Suspense fallback={<TabFallback />}><ParentApprovalsTab /></Suspense>
-        </TabsContent>
+        {/* Parent Approvals Tab (school admin only) */}
+        {isSchoolAdmin && (
+          <TabsContent value="parent-approvals" className="mt-6">
+            <Suspense fallback={<TabFallback />}><ParentApprovalsTab /></Suspense>
+          </TabsContent>
+        )}
+
 
         {/* Audit Logs Tab (both roles) */}
         <TabsContent value="audit" className="mt-6">
