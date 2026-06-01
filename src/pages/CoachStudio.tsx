@@ -306,7 +306,7 @@ const CoachStudio = () => {
           </div>
 
           <Tabs defaultValue="modules" className="w-full">
-            <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
+            <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none flex-wrap gap-y-0">
               {[
                 { value: "modules", icon: Layers, label: "Modules & Lessons" },
                 { value: "assignments", icon: FileText, label: `Assignments (${assignments?.length || 0})` },
