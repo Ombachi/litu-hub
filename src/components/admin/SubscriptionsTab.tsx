@@ -12,9 +12,11 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-import { Loader2, CheckCircle2, AlertCircle, Plus, Pencil, ChevronDown, Activity, Clock, XCircle, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Plus, Pencil, ChevronDown, Activity, Clock, XCircle, RefreshCw, Download } from "lucide-react";
 import { toast } from "sonner";
+import { exportCSV, exportPDF } from "@/lib/exportReports";
 
 const fmtKES = (c: number) => `KES ${(c / 100).toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
 
