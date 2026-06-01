@@ -449,8 +449,221 @@ const ParentPortal = () => {
               </div>
             </div>
           )}
+
+          {/* Fees & Pay-for-Child */}
+          <div className="space-y-4">
+            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              {selectedProfile?.first_name}'s Fees
+            </h2>
+            {!childInvoices?.length ? (
+              <div className="rounded-xl border border-dashed bg-secondary/20 p-8 text-center text-sm text-muted-foreground">
+                No invoices on file for this child.
+              </div>
+            ) : (
+              <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-secondary/20 text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="px-5 py-3 text-left font-medium">Reference</th>
+                      <th className="px-5 py-3 text-left font-medium">Due</th>
+                      <th className="px-5 py-3 text-right font-medium">Total</th>
+                      <th className="px-5 py-3 text-right font-medium">Outstanding</th>
+                      <th className="px-5 py-3 text-left font-medium">Status</th>
+                      <th className="px-5 py-3 text-right font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {childInvoices.map((inv: any) => {
+                      const outstanding = Math.max(0, (inv.total_cents || 0) - (inv.paid_cents || 0));
+                      const isPayable = inv.status !== "paid" && inv.status !== "cancelled" && outstanding > 0;
+                      return (
+                        <tr key={inv.id} className="border-b last:border-0 hover:bg-secondary/20">
+                          <td className="px-5 py-3 text-sm font-medium">{inv.reference}</td>
+                          <td className="px-5 py-3 text-sm text-muted-foreground">
+                            {inv.due_date ? new Date(inv.due_date).toLocaleDateString("en-KE") : "—"}
+                          </td>
+                          <td className="px-5 py-3 text-right text-sm">
+                            KES {((inv.total_cents || 0) / 100).toLocaleString()}
+                          </td>
+                          <td className="px-5 py-3 text-right text-sm font-semibold">
+                            KES {(outstanding / 100).toLocaleString()}
+                          </td>
+                          <td className="px-5 py-3">
+                            <Badge variant={inv.status === "paid" ? "default" : "secondary"} className="capitalize text-xs">
+                              {inv.status}
+                            </Badge>
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            {isPayable ? (
+                              <button
+                                onClick={() => {
+                                  setPayInvoice({ ...inv, _outstanding: outstanding });
+                                  setPayProvider("mpesa");
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                              >
+                                <Phone className="h-3 w-3" /> Pay now
+                              </button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Teacher messaging */}
+          <div className="space-y-4">
+            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Message {selectedProfile?.first_name}'s Teachers
+            </h2>
+            {!tutorContacts?.length ? (
+              <div className="rounded-xl border border-dashed bg-secondary/20 p-8 text-center text-sm text-muted-foreground">
+                No tutors assigned to your child's courses yet.
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {tutorContacts.map((t) => (
+                  <div key={`${t.tutor_id}-${t.course_id}`} className="rounded-xl border bg-card p-4 shadow-card flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                          {t.first_name?.[0] || "?"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{t.first_name} {t.last_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {t.role} • {t.course_code}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setMsgTutor(t)}
+                      className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors"
+                    >
+                      <Send className="h-3 w-3" /> Message
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
+
+      {/* Pay invoice dialog */}
+      <Dialog open={!!payInvoice} onOpenChange={(o) => !o && setPayInvoice(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pay invoice {payInvoice?.reference}</DialogTitle>
+          </DialogHeader>
+          {payInvoice && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-secondary/30 p-3 text-sm">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider">Amount due</p>
+                <p className="font-display text-2xl font-bold">
+                  KES {((payInvoice._outstanding || 0) / 100).toLocaleString()}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Payment method</label>
+                <Select value={payProvider} onValueChange={setPayProvider}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mpesa">M-Pesa (STK Push)</SelectItem>
+                    <SelectItem value="flutterwave">Flutterwave</SelectItem>
+                    <SelectItem value="paystack">Paystack</SelectItem>
+                    <SelectItem value="bank_transfer">Bank transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {payProvider === "mpesa" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">M-Pesa phone number</label>
+                  <Input
+                    value={payPhone}
+                    onChange={(e) => setPayPhone(e.target.value)}
+                    placeholder="07XXXXXXXX or 2547XXXXXXXX"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    You'll receive an STK push on this phone to approve the payment.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <button
+              onClick={() => setPayInvoice(null)}
+              className="rounded-lg border px-4 py-2 text-sm hover:bg-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={payMutation.isPending || (payProvider === "mpesa" && !payPhone.trim())}
+              onClick={() => payInvoice && payMutation.mutate({
+                invoice_id: payInvoice.id,
+                provider: payProvider,
+                amount_cents: payInvoice._outstanding,
+                phone: payProvider === "mpesa" ? payPhone.trim() : undefined,
+              })}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+              Pay now
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message tutor dialog */}
+      <Dialog open={!!msgTutor} onOpenChange={(o) => !o && setMsgTutor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Message {msgTutor?.first_name} {msgTutor?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {msgTutor && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                {msgTutor.role} • {msgTutor.course_code} — {msgTutor.course_title}
+              </p>
+              <Textarea
+                value={msgBody}
+                onChange={(e) => setMsgBody(e.target.value)}
+                placeholder={`Hi ${msgTutor.first_name}, I'd like to ask about ${selectedProfile?.first_name}'s progress in ${msgTutor.course_code}...`}
+                rows={5}
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <button
+              onClick={() => setMsgTutor(null)}
+              className="rounded-lg border px-4 py-2 text-sm hover:bg-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={!msgBody.trim() || sendMessage.isPending}
+              onClick={() => msgTutor && sendMessage.mutate({ receiver_id: msgTutor.tutor_id, content: msgBody.trim() })}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {sendMessage.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Send
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
