@@ -123,6 +123,64 @@ const ParentPortal = () => {
     },
   });
 
+  // Outstanding invoices for the selected child (RLS: is_parent_of)
+  const { data: childInvoices, refetch: refetchInvoices } = useQuery({
+    queryKey: ["parent-child-invoices", childId],
+    enabled: !!childId,
+    queryFn: () => feesApi.listForStudent(childId!),
+  });
+
+  // Tutors of the child's enrolled courses (parent can message them)
+  const { data: tutorContacts } = useQuery({
+    queryKey: ["parent-child-tutors", childId],
+    enabled: !!childId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_parent_tutor_contacts", { _student_id: childId });
+      if (error) throw error;
+      return data as Array<{
+        tutor_id: string; first_name: string; last_name: string; role: string;
+        course_id: string; course_code: string; course_title: string;
+      }>;
+    },
+  });
+
+  // Pay-now dialog state
+  const [payInvoice, setPayInvoice] = useState<any | null>(null);
+  const [payProvider, setPayProvider] = useState<string>("mpesa");
+  const [payPhone, setPayPhone] = useState("");
+  const payMutation = useMutation({
+    mutationFn: (input: { invoice_id: string; provider: string; amount_cents: number; phone?: string }) =>
+      feesApi.initiatePayment(input),
+    onSuccess: (res) => {
+      toast.success(res.message || "Payment initiated");
+      setPayInvoice(null);
+      setPayPhone("");
+      refetchInvoices();
+    },
+    onError: (e: any) => toast.error(e.message || "Payment failed"),
+  });
+
+  // Messaging dialog
+  const [msgTutor, setMsgTutor] = useState<any | null>(null);
+  const [msgBody, setMsgBody] = useState("");
+  const sendMessage = useMutation({
+    mutationFn: async (input: { receiver_id: string; content: string }) => {
+      const { error } = await supabase.from("direct_messages").insert({
+        sender_id: user!.id,
+        receiver_id: input.receiver_id,
+        content: input.content,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Message sent");
+      setMsgTutor(null);
+      setMsgBody("");
+    },
+    onError: (e: any) => toast.error(e.message || "Could not send"),
+  });
+
+
   const selectedProfile = links?.find((l) => l.student_id === childId)?.profiles as any;
 
   const courseStats = useMemo(() => {
