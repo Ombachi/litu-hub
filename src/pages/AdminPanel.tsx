@@ -273,7 +273,6 @@ const AdminPanel = () => {
         { value: "school-admins", icon: Shield, label: "School Admins" },
         { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
         { value: "subscription", icon: CreditCard, label: "Subscriptions" },
-        { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ]
     : [
@@ -288,6 +287,7 @@ const AdminPanel = () => {
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ];
+
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
