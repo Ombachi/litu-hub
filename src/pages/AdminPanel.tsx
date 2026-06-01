@@ -308,7 +308,7 @@ const AdminPanel = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full">
-        <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
+        <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none flex flex-wrap gap-y-1">
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.value}
