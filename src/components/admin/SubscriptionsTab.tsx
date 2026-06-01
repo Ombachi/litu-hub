@@ -506,9 +506,15 @@ const PlatformSubscriptionsManagement = ({
 
       {/* Subscriptions management table */}
       <Card>
-        <CardHeader>
-          <CardTitle>All institution subscriptions</CardTitle>
-          <CardDescription>{subs.length} schools — click a row for payment history</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>All institution subscriptions</CardTitle>
+            <CardDescription>{subs.length} schools — click a row for payment history</CardDescription>
+          </div>
+          <ExportDropdown
+            csv={() => exportAllSubscriptionsCSV("institution-subscriptions", subs)}
+            pdf={() => exportAllSubscriptionsPDF("institution-subscriptions", subs)}
+          />
         </CardHeader>
         <CardContent className="p-0">
           <Table>
