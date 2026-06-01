@@ -273,7 +273,6 @@ const AdminPanel = () => {
         { value: "school-admins", icon: Shield, label: "School Admins" },
         { value: "users", icon: Users, label: `Users (${profiles?.length || 0})` },
         { value: "subscription", icon: CreditCard, label: "Subscriptions" },
-        { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ]
     : [
@@ -288,6 +287,7 @@ const AdminPanel = () => {
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
       ];
+
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -308,7 +308,7 @@ const AdminPanel = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full">
-        <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
+        <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none flex flex-wrap gap-y-1">
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.value}
@@ -527,10 +527,13 @@ const AdminPanel = () => {
           <Suspense fallback={<TabFallback />}><SubscriptionsTab /></Suspense>
         </TabsContent>
 
-        {/* Parent Approvals Tab (both roles) */}
-        <TabsContent value="parent-approvals" className="mt-6">
-          <Suspense fallback={<TabFallback />}><ParentApprovalsTab /></Suspense>
-        </TabsContent>
+        {/* Parent Approvals Tab (school admin only) */}
+        {isSchoolAdmin && (
+          <TabsContent value="parent-approvals" className="mt-6">
+            <Suspense fallback={<TabFallback />}><ParentApprovalsTab /></Suspense>
+          </TabsContent>
+        )}
+
 
         {/* Audit Logs Tab (both roles) */}
         <TabsContent value="audit" className="mt-6">
