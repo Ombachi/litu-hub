@@ -624,4 +624,85 @@ const InstitutionPaymentHistory = ({ institutionId }: { institutionId: string })
   );
 };
 
+// ---------- Export helpers ----------
+
+const ExportDropdown = ({ csv, pdf }: { csv: () => void; pdf: () => void }) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button size="sm" variant="outline">
+        <Download className="h-4 w-4 mr-2" /> Export
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem onClick={csv}>Download CSV</DropdownMenuItem>
+      <DropdownMenuItem onClick={pdf}>Download PDF</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
+
+function exportSubscriptionPaymentsCSV(filename: string, mySub: any, payments: any[]) {
+  const headers = ["Plan", "Status", "Renewal Date", "Amount (KES)", "Provider", "Reference", "Payment Status", "Date"];
+  const rows: any[] = [];
+  if (mySub) {
+    rows.push({
+      Plan: mySub.subscription_plans?.name ?? "—",
+      Status: mySub.status ?? "—",
+      "Renewal Date": mySub.current_period_end ? new Date(mySub.current_period_end).toLocaleDateString() : "—",
+      "Amount (KES)": "", "Provider": "", "Reference": "", "Payment Status": "", "Date": "",
+    });
+  }
+  payments.forEach((p) => {
+    rows.push({
+      Plan: "", Status: "", "Renewal Date": "",
+      "Amount (KES)": (p.amount_cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 }),
+      Provider: p.provider,
+      Reference: p.provider_reference ?? "—",
+      "Payment Status": p.status,
+      Date: new Date(p.created_at).toLocaleString(),
+    });
+  });
+  exportCSV(filename, headers, rows);
+}
+
+function exportSubscriptionPaymentsPDF(filename: string, mySub: any, payments: any[]) {
+  const title = "Subscription Payment History";
+  const headers = ["Amount (KES)", "Provider", "Reference", "Status", "Date"];
+  const rows = payments.map((p) => ({
+    "Amount (KES)": fmtKES(p.amount_cents),
+    Provider: p.provider,
+    Reference: p.provider_reference ?? "—",
+    Status: p.status,
+    Date: new Date(p.created_at).toLocaleString(),
+  }));
+  exportPDF(title, filename, headers, rows);
+}
+
+function exportAllSubscriptionsCSV(filename: string, subs: any[]) {
+  const headers = ["Institution", "Plan", "Billing", "Status", "Current Period Start", "Current Period End", "Auto Renew", "Updated At"];
+  const rows = subs.map((s) => ({
+    Institution: s.institutions?.name ?? "—",
+    Plan: s.subscription_plans?.name ?? "—",
+    Billing: s.subscription_plans?.billing_period ?? "—",
+    Status: s.status,
+    "Current Period Start": s.current_period_start ? new Date(s.current_period_start).toLocaleDateString() : "—",
+    "Current Period End": s.current_period_end ? new Date(s.current_period_end).toLocaleDateString() : "—",
+    "Auto Renew": s.auto_renew ? "Yes" : "No",
+    "Updated At": new Date(s.updated_at).toLocaleString(),
+  }));
+  exportCSV(filename, headers, rows);
+}
+
+function exportAllSubscriptionsPDF(filename: string, subs: any[]) {
+  const title = "Institution Subscriptions";
+  const headers = ["Institution", "Plan", "Status", "Renewal", "Auto Renew"];
+  const rows = subs.map((s) => ({
+    Institution: s.institutions?.name ?? "—",
+    Plan: `${s.subscription_plans?.name ?? "—"} · ${s.subscription_plans?.billing_period ?? ""}`,
+    Status: s.status,
+    Renewal: s.current_period_end ? new Date(s.current_period_end).toLocaleDateString() : "—",
+    "Auto Renew": s.auto_renew ? "Yes" : "No",
+  }));
+  exportPDF(title, filename, headers, rows);
+}
+
 export default SubscriptionsTab;
