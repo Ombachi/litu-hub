@@ -325,8 +325,15 @@ const SubscriptionsTab = () => {
       {/* School admin: payments history */}
       {isSchoolAdmin && subPayments && subPayments.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Payment history</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Payment history</CardTitle>
+              <CardDescription>{subPayments.length} payments</CardDescription>
+            </div>
+            <ExportDropdown
+              csv={() => exportSubscriptionPaymentsCSV("subscription-payments", mySub, subPayments)}
+              pdf={() => exportSubscriptionPaymentsPDF("subscription-payments", mySub, subPayments)}
+            />
           </CardHeader>
           <CardContent className="space-y-2">
             {subPayments.map((p: any) => (
