@@ -37,6 +37,8 @@ const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
 const FeesPage = lazy(() => import("./pages/FeesPage"));
+const EngagementPage = lazy(() => import("./pages/EngagementPage"));
+const ExamIntegrityPage = lazy(() => import("./pages/ExamIntegrityPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -87,6 +89,22 @@ const App = () => (
                           <Route path="/analytics" element={<ErrorBoundary><Suspense fallback={<DashboardSkeleton />}><AnalyticsPage /></Suspense></ErrorBoundary>} />
                           <Route path="/profile" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><ProfilePage /></Suspense></ErrorBoundary>} />
                           <Route path="/fees" element={<RoleGuard allowedRoles={["student","parent","school_admin","platform_admin"]}><ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><FeesPage /></Suspense></ErrorBoundary></RoleGuard>} />
+                          <Route
+                            path="/engagement"
+                            element={
+                              <RoleGuard allowedRoles={["platform_admin", "school_admin", "tutor", "ta"]}>
+                                <ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><EngagementPage /></Suspense></ErrorBoundary>
+                              </RoleGuard>
+                            }
+                          />
+                          <Route
+                            path="/exam-integrity"
+                            element={
+                              <RoleGuard allowedRoles={["platform_admin", "school_admin", "tutor", "ta"]}>
+                                <ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><ExamIntegrityPage /></Suspense></ErrorBoundary>
+                              </RoleGuard>
+                            }
+                          />
                           <Route
                             path="/parent"
                             element={

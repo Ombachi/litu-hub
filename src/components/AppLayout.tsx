@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, FileText, Brain, MessageSquare, GraduationCap,
-  TrendingUp, Calendar, ClipboardCheck, Settings, Users, Mail, Wallet,
+  TrendingUp, Calendar, ClipboardCheck, Settings, Users, Mail, Wallet, Activity, ShieldAlert,
 } from "lucide-react";
 import FeeStatusBanner from "@/components/FeeStatusBanner";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +31,8 @@ const ALL_NAV_ITEMS: RoleScopedNavItem[] = [
   { to: "/parent", icon: Users, label: "Parent Portal", roles: ["parent"] },
   { to: "/grading-queue", icon: ClipboardCheck, label: "Grading Queue", roles: ["tutor", "ta"] },
   { to: "/coach-studio", icon: GraduationCap, label: "Coach Studio", roles: ["tutor", "ta"] },
+  { to: "/engagement", icon: Activity, label: "Engagement", roles: ["tutor", "ta", "school_admin"] },
+  { to: "/exam-integrity", icon: ShieldAlert, label: "Exam Integrity", roles: ["tutor", "ta", "school_admin"] },
   { to: "/fees", icon: Wallet, label: "Fees", roles: ["student", "parent"] },
   { to: "/admin", icon: Settings, label: "Admin Panel", roles: ["platform_admin", "school_admin"] },
 ];
