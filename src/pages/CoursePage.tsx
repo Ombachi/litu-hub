@@ -12,6 +12,7 @@ import { useCourse, useModules, useAssignments, useQuizzes, useDiscussions, useM
 import { useLessonCompletions } from "@/hooks/useLessonCompletions";
 import AnnouncementsTab from "@/components/course/AnnouncementsTab";
 import ResourcesTab from "@/components/course/ResourcesTab";
+import CourseProgressCard from "@/components/course/CourseProgressCard";
 import { useRole } from "@/hooks/useRole";
 
 const CoursePage = () => {
@@ -110,6 +111,10 @@ const CoursePage = () => {
           </div>
         </div>
       </div>
+
+      {!isTutor && (
+        <CourseProgressCard modules={modules as any[]} completedLessonIds={completedLessonIds} />
+      )}
 
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none overflow-x-auto">
