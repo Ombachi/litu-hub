@@ -232,3 +232,4 @@ const RichTextEditor = ({ content, onChange, placeholder = "Start writing...", m
 };
 
 export default RichTextEditor;
+
