@@ -44,12 +44,8 @@ const AuthPage = () => {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sidebar-primary mx-auto">
             <BookOpen className="h-8 w-8 text-sidebar-primary-foreground" />
           </div>
-          <h1 className="mt-6 font-display text-4xl font-bold text-primary-foreground">
-            Litu Hub
-          </h1>
-          <p className="mt-3 text-lg text-primary-foreground/80">
-            Kenya's premier learning management system. Access courses, assignments, quizzes, and more.
-          </p>
+          <h1 className="mt-6 font-display text-4xl font-bold text-primary-foreground">Litu Hub</h1>
+          <p className="mt-3 text-lg text-primary-foreground/80">Kenya's premier learning management system.</p>
         </div>
       </div>
 
@@ -63,9 +59,7 @@ const AuthPage = () => {
             <span className="font-display text-2xl font-bold">Litu Hub</span>
           </div>
 
-          <h2 className="font-display text-2xl font-bold">
-            {isLogin ? "Welcome back" : "Create your account"}
-          </h2>
+          <h2 className="font-display text-2xl font-bold">{isLogin ? "Welcome back" : "Create your account"}</h2>
           <p className="mt-1 text-muted-foreground">
             {isLogin ? "Sign in to continue learning" : "Join Litu Hub to start learning"}
           </p>
@@ -155,10 +149,7 @@ const AuthPage = () => {
 
           <p className="mt-4 text-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="font-medium text-primary hover:underline"
-            >
+            <button onClick={() => setIsLogin(!isLogin)} className="font-medium text-primary hover:underline">
               {isLogin ? "Sign up" : "Sign in"}
             </button>
           </p>
