@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791475179047,
+      "tag": "0000_harden_receipts_grading_sanitizer",
+      "breakpoints": true
+    }
+  ]
+}

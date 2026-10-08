@@ -799,6 +799,24 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_tokens: {
+        Row: {
+          created_at: string
+          name: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          token?: string
+        }
+        Relationships: []
+      }
       invoice_installments: {
         Row: {
           amount_cents: number
@@ -1976,6 +1994,7 @@ export type Database = {
         Args: { _attempt_id: string; _responses: Json }
         Returns: Json
       }
+      verify_cron_token: { Args: { _token: string }; Returns: boolean }
     }
     Enums: {
       app_role:
