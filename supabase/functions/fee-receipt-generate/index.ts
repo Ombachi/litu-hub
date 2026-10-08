@@ -3,6 +3,7 @@
 // from the bursar UI after a manual reconciliation, or from the
 // "Regenerate" button on the fees page.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveCaller, isFinanceAdmin } from "../_shared/auth.ts";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 
 const corsHeaders = {
@@ -93,13 +94,21 @@ Deno.serve(async (req) => {
 
   // Auth: allow service-role (webhook) OR an authenticated admin/bursar/parent
   // who can already see the payment via RLS. We just verify a JWT exists.
-  const auth = req.headers.get("Authorization") ?? "";
-  if (!auth.startsWith("Bearer ")) return json(401, { error: "unauthorized" });
+  const caller = await resolveCaller(req);
+  if (!caller) return json(401, { error: "unauthorized" });
 
   let body: any = {};
   try { body = await req.json(); } catch { return json(400, { error: "invalid json" }); }
   const paymentId = body?.payment_id;
   if (!paymentId) return json(400, { error: "payment_id required" });
+
+  if (caller.kind === "user") {
+    const uc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${caller.token}` } },
+    });
+    const { data: visible } = await uc.from("payments").select("id").eq("id", paymentId).maybeSingle();
+    if (!visible) return json(403, { error: "forbidden" });
+  }
 
   const { data: payment } = await admin.from("payments")
     .select("id,status,amount_cents,provider,provider_reference,invoice_id,receipt_url,receipt_number")

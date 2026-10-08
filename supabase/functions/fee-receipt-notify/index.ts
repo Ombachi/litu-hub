@@ -2,6 +2,7 @@
 // and SMS (Twilio). Every attempt — successful or failed — is recorded in
 // `email_delivery_log` so failures can be retried by `fee-receipt-retry`.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveCaller, isFinanceAdmin } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -78,7 +79,9 @@ async function sendSMS(to: string, message: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "method not allowed" });
-  if (!(req.headers.get("Authorization") ?? "").startsWith("Bearer ")) return json(401, { error: "unauthorized" });
+  const caller = await resolveCaller(req);
+  if (!caller) return json(401, { error: "unauthorized" });
+  if (!isFinanceAdmin(caller)) return json(403, { error: "forbidden" });
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -86,6 +89,14 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json(400, { error: "invalid json" }); }
   const paymentId = body?.payment_id;
   if (!paymentId) return json(400, { error: "payment_id required" });
+
+  if (caller.kind === "user") {
+    const uc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${caller.token}` } },
+    });
+    const { data: visible } = await uc.from("payments").select("id").eq("id", paymentId).maybeSingle();
+    if (!visible) return json(403, { error: "forbidden" });
+  }
 
   const { data: payment } = await admin.from("payments")
     .select("id,amount_cents,provider,receipt_url,receipt_number,invoice_id,status")
