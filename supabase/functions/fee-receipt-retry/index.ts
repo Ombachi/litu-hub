@@ -4,6 +4,7 @@
 // to status='dlq'. Invoke this function on a cron (e.g. every 5 min) or
 // from a bursar-side "Retry now" button.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveCaller, isFinanceAdmin } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +17,9 @@ const MAX_ATTEMPTS = 5;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (!(req.headers.get("Authorization") ?? "").startsWith("Bearer ")) return json(401, { error: "unauthorized" });
+  const caller = await resolveCaller(req);
+  if (!caller) return json(401, { error: "unauthorized" });
+  if (!isFinanceAdmin(caller)) return json(403, { error: "forbidden" });
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 

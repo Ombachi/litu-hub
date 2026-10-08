@@ -11,7 +11,9 @@ export function exportCSV(filename: string, headers: string[], rows: ReportRow[]
     ...rows.map((row) =>
       headers.map((h) => {
         const val = row[h] ?? "";
-        const str = String(val).replace(/"/g, '""');
+        let str = String(val);
+        if (typeof val !== "number" && /^[=+\-@\t\r]/.test(str)) str = "'" + str;
+        str = str.replace(/"/g, '""');
         return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str}"` : str;
       }).join(",")
     ),

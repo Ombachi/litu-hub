@@ -21,10 +21,25 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = JSON.parse(bodyText); } catch {}
 
-  // Signature checks
+  // Signature checks — every provider must be authenticated; unknown providers are rejected.
   if (provider === "flutterwave") {
     const expected = Deno.env.get("FLW_WEBHOOK_SECRET");
-    if (expected && req.headers.get("verif-hash") !== expected) return json(401, { error: "invalid signature" });
+    if (!expected || req.headers.get("verif-hash") !== expected) return json(401, { error: "invalid signature" });
+  } else if (provider === "paystack") {
+    const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+    const sig = req.headers.get("x-paystack-signature") ?? "";
+    if (!secret || !sig) return json(401, { error: "invalid signature" });
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
+    const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(bodyText)));
+    const hex = Array.from(mac).map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (hex !== sig.toLowerCase()) return json(401, { error: "invalid signature" });
+  } else if (provider === "mpesa") {
+    // Daraja does not sign callbacks; require a secret token embedded in MPESA_CALLBACK_URL (?token=...).
+    const expected = Deno.env.get("MPESA_CALLBACK_TOKEN");
+    if (!expected || url.searchParams.get("token") !== expected) return json(401, { error: "invalid callback token" });
+    if (!body?.Body?.stkCallback) return json(400, { error: "invalid callback" });
+  } else {
+    return json(400, { error: "unsupported provider" });
   }
 
   let providerRef: string | null = null;
@@ -34,8 +49,8 @@ Deno.serve(async (req) => {
 
   if (provider === "mpesa") {
     const stk = body?.Body?.stkCallback;
-    providerRef = stk?.CheckoutRequestID || stk?.MerchantRequestID || body?.provider_reference;
-    eventId = stk?.CheckoutRequestID || body?.event_id || providerRef;
+    providerRef = stk?.CheckoutRequestID || null;
+    eventId = stk?.CheckoutRequestID || null;
     outcome = stk?.ResultCode === 0 ? "succeeded" : "failed";
     const amount = stk?.CallbackMetadata?.Item?.find((i: any) => i.Name === "Amount")?.Value;
     if (amount) amountCents = Math.round(Number(amount) * 100);

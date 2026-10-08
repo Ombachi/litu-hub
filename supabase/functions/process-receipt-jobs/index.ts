@@ -3,6 +3,7 @@
 // jobs, marks them processing, invokes fee-receipt-generate, and records
 // success/failure. Failed jobs are retried up to MAX_ATTEMPTS with backoff.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveCaller, isFinanceAdmin } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,9 @@ const MAX_ATTEMPTS = 5;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const caller = await resolveCaller(req);
+  if (!caller) return json(401, { error: "unauthorized" });
+  if (!isFinanceAdmin(caller)) return json(403, { error: "forbidden" });
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
