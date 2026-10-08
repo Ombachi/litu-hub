@@ -12,7 +12,7 @@ export function exportCSV(filename: string, headers: string[], rows: ReportRow[]
       headers.map((h) => {
         const val = row[h] ?? "";
         let str = String(val);
-        if (/^[=+\-@\t\r]/.test(str)) str = "'" + str;
+        if (typeof val !== "number" && /^[=+\-@\t\r]/.test(str)) str = "'" + str;
         str = str.replace(/"/g, '""');
         return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str}"` : str;
       }).join(",")
