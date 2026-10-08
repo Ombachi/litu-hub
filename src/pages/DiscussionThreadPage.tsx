@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,7 +39,7 @@ const renderPostContent = (content: string) => {
   while ((match = attachRegex.exec(content)) !== null) {
     if (match.index > lastIdx) {
       const htmlPart = content.slice(lastIdx, match.index);
-      parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: htmlPart }} />);
+      parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlPart) }} />);
     }
     parts.push(<AttachmentLink key={key++} path={match[1]} />);
     lastIdx = match.index + match[0].length;
@@ -47,7 +48,7 @@ const renderPostContent = (content: string) => {
   if (lastIdx < content.length) {
     const remaining = content.slice(lastIdx);
     if (remaining.includes("<p") || remaining.includes("<strong") || remaining.includes("<ul") || remaining.includes("<h")) {
-      parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: remaining }} />);
+      parts.push(<span key={key++} dangerouslySetInnerHTML={{ __html: sanitizeHtml(remaining) }} />);
     } else {
       const urlRegex = /(https?:\/\/[^\s<]+)/g;
       const textParts = remaining.split(urlRegex);

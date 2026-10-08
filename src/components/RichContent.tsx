@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 /**
  * Renders rich content stored as HTML (TipTap output) safely.
  * Strips raw markdown symbols (#, *, _, ~~) from legacy plain-text content
@@ -38,7 +39,7 @@ const RichContent = ({ html, className = "" }: Props) => {
         [&_img]:rounded-lg [&_img]:my-3 [&_img]:max-w-full [&_img]:h-auto
         [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-lg [&_iframe]:my-3
         [&_p]:my-1 ${className}`}
-      dangerouslySetInnerHTML={{ __html: value }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(value) }}
     />
   );
 };
