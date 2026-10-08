@@ -147,7 +147,7 @@ const FinancialAnalytics = () => {
         ];
       }),
     ];
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = rows.map((r) => r.map((c) => { let v = String(c); if (/^[=+@\t\r]/.test(v) || (/^-/.test(v) && isNaN(Number(v)))) v = "'" + v; return `"${v.replace(/"/g, '""')}"`; }).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
