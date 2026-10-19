@@ -11,32 +11,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import FeeGate from "@/components/FeeGate";
 
-const gradeScale = [
-  { min: 90, letter: "A", color: "text-success" },
-  { min: 80, letter: "B", color: "text-info" },
-  { min: 70, letter: "C", color: "text-accent" },
-  { min: 60, letter: "D", color: "text-warning" },
-  { min: 0, letter: "F", color: "text-destructive" },
-];
-
-function getLetterGrade(pct: number) {
-  return gradeScale.find((g) => pct >= g.min) || gradeScale[gradeScale.length - 1];
-}
-
-function pctToGpa(pct: number) {
-  if (pct >= 93) return 4.0;
-  if (pct >= 90) return 3.7;
-  if (pct >= 87) return 3.3;
-  if (pct >= 83) return 3.0;
-  if (pct >= 80) return 2.7;
-  if (pct >= 77) return 2.3;
-  if (pct >= 73) return 2.0;
-  if (pct >= 70) return 1.7;
-  if (pct >= 67) return 1.3;
-  if (pct >= 63) return 1.0;
-  if (pct >= 60) return 0.7;
-  return 0.0;
-}
+import { gradeFor, aggregateGrade, aggregateLabel, pointsSuffix } from "@/lib/grading";
+import { useGradingSystem } from "@/hooks/useGradingSystem";
 
 const GradesPage = () => {
   const { data: enrollments, isLoading: loadingEnroll } = useEnrollments();
@@ -48,6 +24,7 @@ const GradesPage = () => {
   const displayName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : "Student";
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
+  const system = useGradingSystem();
   const isLoading = loadingEnroll || loadingAssign || loadingSubs || loadingQuiz || loadingQuizzes;
 
   const courseGrades = useMemo(() => {
@@ -84,20 +61,17 @@ const GradesPage = () => {
       return {
         courseId: course.id, code: course.code, title: course.title, color: course.color,
         term: course.terms?.name || "—", pct,
-        gpa: pct !== null ? pctToGpa(pct) : null,
-        grade: pct !== null ? getLetterGrade(pct) : null,
+        credits: course.credits ?? 1,
+        gpa: pct !== null ? gradeFor(pct, system).points : null,
+        grade: pct !== null ? gradeFor(pct, system) : null,
         assignmentDetails: gradedSubs, totalAssignments: courseAssignments.length,
         gradedCount: gradedAssignments.length, earned: totalEarned, max: totalMax,
         quizRows, totalQuizzes: courseQuizzes.length, attemptedCount: attemptedQuizzes.length,
       };
     }).filter(Boolean) as any[];
-  }, [enrollments, allAssignments, submissions, quizAttempts, allQuizzes]);
+  }, [enrollments, allAssignments, submissions, quizAttempts, allQuizzes, system]);
 
-  const overallGpa = useMemo(() => {
-    const withGrades = courseGrades.filter((c) => c.gpa !== null);
-    if (!withGrades.length) return null;
-    return withGrades.reduce((s, c) => s + c.gpa, 0) / withGrades.length;
-  }, [courseGrades]);
+  const overallGpa = useMemo(() => aggregateGrade(courseGrades, system), [courseGrades, system]);
 
   const completedQuizzes = useMemo(() => {
     if (!quizAttempts) return [];
@@ -109,7 +83,7 @@ const GradesPage = () => {
     courseGrades.forEach((cg) => {
       rows.push([cg.title, cg.code, cg.term, cg.grade?.letter || "N/A", cg.pct !== null ? `${cg.pct}%` : "N/A", cg.gpa?.toFixed(2) || "N/A", String(cg.earned), String(cg.max)]);
     });
-    if (overallGpa !== null) rows.push(["", "", "", "", "", `Overall GPA: ${overallGpa.toFixed(2)}`, "", ""]);
+    if (overallGpa !== null) rows.push(["", "", "", "", "", `${aggregateLabel(system)}: ${overallGpa.toFixed(2)}`, "", ""]);
     const csv = rows.map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -142,7 +116,7 @@ const GradesPage = () => {
     doc.text(`Generated: ${new Date().toLocaleDateString("en-KE", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`, 14, 42);
     if (overallGpa !== null) {
       doc.setFont("helvetica", "bold");
-      doc.text(`Overall GPA: ${overallGpa.toFixed(2)} / 4.0`, 14, 48);
+      doc.text(`${aggregateLabel(system)}: ${overallGpa.toFixed(2)}`, 14, 48);
       doc.setFont("helvetica", "normal");
     }
     doc.text(`Total Courses: ${courseGrades.length}`, 120, 36);
@@ -208,7 +182,7 @@ const GradesPage = () => {
               <Trophy className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Overall GPA</p>
+              <p className="text-sm text-muted-foreground">{aggregateLabel(system)}</p>
               <p className="font-display text-2xl font-bold">{overallGpa !== null ? overallGpa.toFixed(2) : "—"}</p>
             </div>
           </div>
@@ -273,7 +247,7 @@ const GradesPage = () => {
                           <p className={`font-display text-2xl font-bold ${cg.grade.color}`}>{cg.grade.letter}</p>
                           <p className="text-xs text-muted-foreground">{cg.pct}%</p>
                         </div>
-                        <Badge variant="secondary" className="font-mono hidden sm:inline-flex">{cg.gpa?.toFixed(1)} GPA</Badge>
+                        <Badge variant="secondary" className="font-mono hidden sm:inline-flex">{system === "cbc" ? cg.gpa : cg.gpa?.toFixed(1)} {pointsSuffix(system)}</Badge>
                       </div>
                     ) : (
                       <Badge variant="outline">No grades yet</Badge>
