@@ -17,19 +17,11 @@ import {
 import { toast } from "sonner";
 
 
-const gradeScale = [
-  { min: 90, letter: "A", color: "text-success" },
-  { min: 80, letter: "B", color: "text-info" },
-  { min: 70, letter: "C", color: "text-accent" },
-  { min: 60, letter: "D", color: "text-warning" },
-  { min: 0, letter: "F", color: "text-destructive" },
-];
-
-function getLetterGrade(pct: number) {
-  return gradeScale.find((g) => pct >= g.min) || gradeScale[gradeScale.length - 1];
-}
+import { gradeFor, aggregateGrade, aggregateLabel } from "@/lib/grading";
+import { useGradingSystem } from "@/hooks/useGradingSystem";
 
 const ParentPortal = () => {
+  const system = useGradingSystem();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [studentEmail, setStudentEmail] = useState("");
@@ -192,9 +184,9 @@ const ParentPortal = () => {
       const earned = graded.reduce((sum, s) => sum + (s.score || 0), 0);
       const max = graded.reduce((sum, s) => sum + ((s.assignments as any)?.max_score || 0), 0);
       const pct = max > 0 ? Math.round((earned / max) * 100) : null;
-      return { course, submissions: subs, graded, pct, earned, max, grade: pct !== null ? getLetterGrade(pct) : null };
+      return { course, submissions: subs, graded, pct, earned, max, credits: course?.credits ?? 1, grade: pct !== null ? gradeFor(pct, system) : null };
     });
-  }, [childEnrollments, childSubmissions]);
+  }, [childEnrollments, childSubmissions, system]);
 
   if (loadingLinks) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -336,6 +328,7 @@ const ParentPortal = () => {
                       { label: "Submissions", value: String(childSubmissions?.length || 0) },
                       { label: "Quizzes", value: String(childQuizAttempts?.length || 0) },
                       { label: "Avg", value: avg !== null ? `${avg}%` : "—" },
+                      { label: system === "cbc" ? "Mean Points" : "GPA", value: (() => { const g = aggregateGrade(courseStats, system); return g !== null ? g.toFixed(2) : "—"; })() },
                     ],
                     sections: [
                       {

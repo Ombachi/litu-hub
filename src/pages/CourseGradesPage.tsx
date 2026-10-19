@@ -7,16 +7,12 @@ import { useCourse, useModules, useAssignments, useQuizzes, useMySubmissions, us
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-function pctToLetter(pct: number) {
-  if (pct >= 90) return { letter: "A", color: "text-success" };
-  if (pct >= 80) return { letter: "B", color: "text-info" };
-  if (pct >= 70) return { letter: "C", color: "text-accent" };
-  if (pct >= 60) return { letter: "D", color: "text-warning" };
-  return { letter: "F", color: "text-destructive" };
-}
+import { gradeFor } from "@/lib/grading";
+import { useGradingSystem } from "@/hooks/useGradingSystem";
 
 const CourseGradesPage = () => {
   const { courseId } = useParams();
+  const system = useGradingSystem();
   const { data: course, isLoading } = useCourse(courseId);
   const { data: modules } = useModules(courseId);
   const { data: assignments } = useAssignments(courseId);
@@ -54,8 +50,8 @@ const CourseGradesPage = () => {
       if (best?.score != null) { earned += best.score; max += 100; }
     }
     const pct = max > 0 ? Math.round((earned / max) * 100) : null;
-    return { earned, max, pct, grade: pct !== null ? pctToLetter(pct) : null };
-  }, [assignmentRows, quizRows]);
+    return { earned, max, pct, grade: pct !== null ? gradeFor(pct, system) : null };
+  }, [assignmentRows, quizRows, system]);
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!course) return <p className="text-muted-foreground py-12 text-center">Course not found.</p>;
@@ -80,6 +76,7 @@ const CourseGradesPage = () => {
               <div className={`font-display text-3xl font-bold ${totals.grade?.color ?? ""}`}>{totals.grade?.letter ?? "—"}</div>
               <div className="text-lg font-semibold">{totals.pct != null ? `${totals.pct}%` : "No grades yet"}</div>
               <div className="text-sm text-muted-foreground">{totals.earned}/{totals.max} pts</div>
+              {totals.grade && <Badge variant="secondary">{totals.grade.label} · {totals.grade.points} {system === "cbc" ? "pts" : "GPA"}</Badge>}
             </div>
             {totals.pct != null && <Progress value={totals.pct} className="h-2 mt-2" />}
           </div>
