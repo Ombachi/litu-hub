@@ -6,25 +6,15 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEnrollments, useAssignments, useMySubmissions, useMyQuizAttempts } from "@/hooks/useData";
 
-function pctToGpa(pct: number) {
-  if (pct >= 93) return 4.0; if (pct >= 90) return 3.7; if (pct >= 87) return 3.3;
-  if (pct >= 83) return 3.0; if (pct >= 80) return 2.7; if (pct >= 77) return 2.3;
-  if (pct >= 73) return 2.0; if (pct >= 70) return 1.7; if (pct >= 67) return 1.3;
-  if (pct >= 63) return 1.0; if (pct >= 60) return 0.7; return 0.0;
-}
-function pctToLetter(pct: number) {
-  if (pct >= 90) return { letter: "A", color: "text-success" };
-  if (pct >= 80) return { letter: "B", color: "text-info" };
-  if (pct >= 70) return { letter: "C", color: "text-accent" };
-  if (pct >= 60) return { letter: "D", color: "text-warning" };
-  return { letter: "F", color: "text-destructive" };
-}
+import { gradeFor, aggregateGrade, aggregateLabel, pointsSuffix } from "@/lib/grading";
+import { useGradingSystem } from "@/hooks/useGradingSystem";
 
 const SemesterGradesPage = () => {
   const { data: enrollments, isLoading: l1 } = useEnrollments();
   const { data: assignments, isLoading: l2 } = useAssignments();
   const { data: submissions, isLoading: l3 } = useMySubmissions();
   const { data: attempts, isLoading: l4 } = useMyQuizAttempts();
+  const system = useGradingSystem();
   const [termFilter, setTermFilter] = useState<string>("all");
 
   const courseGrades = useMemo(() => (enrollments ?? []).map((e: any) => {
@@ -44,10 +34,11 @@ const SemesterGradesPage = () => {
       id: c.id, code: c.code, title: c.title, color: c.color,
       term: c.terms?.name ?? "No term", termId: c.term_id ?? "no-term",
       earned, max, pct,
-      gpa: pct != null ? pctToGpa(pct) : null,
-      letter: pct != null ? pctToLetter(pct) : null,
+      credits: c.credits ?? 1,
+      gpa: pct != null ? gradeFor(pct, system).points : null,
+      letter: pct != null ? gradeFor(pct, system) : null,
     };
-  }).filter(Boolean) as any[], [enrollments, assignments, submissions, attempts]);
+  }).filter(Boolean) as any[], [enrollments, assignments, submissions, attempts, system]);
 
   const terms = useMemo(() => {
     const seen = new Map<string, string>();
@@ -57,11 +48,7 @@ const SemesterGradesPage = () => {
 
   const filtered = useMemo(() => termFilter === "all" ? courseGrades : courseGrades.filter(c => c.termId === termFilter), [courseGrades, termFilter]);
 
-  const semesterGpa = useMemo(() => {
-    const g = filtered.filter(c => c.gpa != null);
-    if (!g.length) return null;
-    return g.reduce((s, c) => s + c.gpa, 0) / g.length;
-  }, [filtered]);
+  const semesterGpa = useMemo(() => aggregateGrade(filtered, system), [filtered, system]);
 
   if (l1 || l2 || l3 || l4) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -72,7 +59,7 @@ const SemesterGradesPage = () => {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="font-display text-3xl font-bold">Semester Grades</h1>
-            <p className="text-muted-foreground">Aggregate GPA across all courses in a semester.</p>
+            <p className="text-muted-foreground">{system === "cbc" ? "Achievement levels and mean points across learning areas." : "Credit-weighted GPA across all courses in a semester."}</p>
           </div>
           <Select value={termFilter} onValueChange={setTermFilter}>
             <SelectTrigger className="w-56" aria-label="Filter by semester"><SelectValue /></SelectTrigger>
@@ -88,7 +75,7 @@ const SemesterGradesPage = () => {
         <div className="rounded-xl border bg-card p-5 shadow-card">
           <div className="flex items-center gap-3"><Trophy className="h-5 w-5 text-primary" />
             <div>
-              <div className="text-sm text-muted-foreground">Semester GPA</div>
+              <div className="text-sm text-muted-foreground">{aggregateLabel(system)}</div>
               <div className="font-display text-2xl font-bold">{semesterGpa != null ? semesterGpa.toFixed(2) : "—"}</div>
             </div>
           </div>
@@ -130,7 +117,7 @@ const SemesterGradesPage = () => {
                       <div className={`font-display text-2xl font-bold ${cg.letter.color}`}>{cg.letter.letter}</div>
                       <div className="text-xs text-muted-foreground">{cg.pct}%</div>
                     </div>
-                    <Badge variant="secondary" className="font-mono hidden sm:inline-flex">{cg.gpa?.toFixed(1)} GPA</Badge>
+                    <Badge variant="secondary" className="font-mono hidden sm:inline-flex">{system === "cbc" ? cg.gpa : cg.gpa?.toFixed(1)} {pointsSuffix(system)}</Badge>
                   </div>
                 ) : <Badge variant="outline">No grades</Badge>}
               </div>
