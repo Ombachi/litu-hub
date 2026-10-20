@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck, Wallet, CreditCard,
+  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck, Wallet, CreditCard, GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ const SchoolAdminCoursesTab = lazy(() => import("@/components/admin/SchoolAdminC
 const ParentApprovalsTab = lazy(() => import("@/components/admin/ParentApprovalsTab"));
 const BursarTab = lazy(() => import("@/components/admin/BursarTab"));
 const SubscriptionsTab = lazy(() => import("@/components/admin/SubscriptionsTab"));
+const GradingSettingsTab = lazy(() => import("@/components/admin/GradingSettingsTab"));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -281,6 +282,7 @@ const AdminPanel = () => {
         { value: "courses", icon: BookOpen, label: `Courses (${displayCourses?.length || 0})` },
         { value: "enrollment", icon: UserPlus, label: "Enrollment" },
         { value: "terms", icon: Calendar, label: "Terms" },
+        { value: "grading", icon: GraduationCap, label: "Grading" },
         { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
         { value: "fees", icon: Wallet, label: "Fees" },
         { value: "subscription", icon: CreditCard, label: "Subscription" },
@@ -339,6 +341,12 @@ const AdminPanel = () => {
         {isPlatformAdmin && (
           <TabsContent value="school-admins" className="mt-6">
             <Suspense fallback={<TabFallback />}><SchoolAdminsTab /></Suspense>
+          </TabsContent>
+        )}
+
+        {isSchoolAdmin && (
+          <TabsContent value="grading" className="mt-6">
+            <Suspense fallback={<TabFallback />}><GradingSettingsTab /></Suspense>
           </TabsContent>
         )}
 
