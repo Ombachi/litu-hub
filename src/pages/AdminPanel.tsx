@@ -25,6 +25,7 @@ const SchoolAdminCoursesTab = lazy(() => import("@/components/admin/SchoolAdminC
 const ParentApprovalsTab = lazy(() => import("@/components/admin/ParentApprovalsTab"));
 const BursarTab = lazy(() => import("@/components/admin/BursarTab"));
 const SubscriptionsTab = lazy(() => import("@/components/admin/SubscriptionsTab"));
+const PaymentSettingsTab = lazy(() => import("@/components/admin/PaymentSettingsTab"));
 const GradingSettingsTab = lazy(() => import("@/components/admin/GradingSettingsTab"));
 
 const TabFallback = () => (
@@ -285,6 +286,7 @@ const AdminPanel = () => {
         { value: "grading", icon: GraduationCap, label: "Grading" },
         { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
         { value: "fees", icon: Wallet, label: "Fees" },
+        { value: "payment-settings", icon: CreditCard, label: "Payment Settings" },
         { value: "subscription", icon: CreditCard, label: "Subscription" },
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
@@ -341,6 +343,12 @@ const AdminPanel = () => {
         {isPlatformAdmin && (
           <TabsContent value="school-admins" className="mt-6">
             <Suspense fallback={<TabFallback />}><SchoolAdminsTab /></Suspense>
+          </TabsContent>
+        )}
+
+        {isSchoolAdmin && (
+          <TabsContent value="payment-settings" className="mt-6">
+            <Suspense fallback={<TabFallback />}><PaymentSettingsTab /></Suspense>
           </TabsContent>
         )}
 
