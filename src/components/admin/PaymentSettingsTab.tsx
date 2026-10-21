@@ -12,6 +12,7 @@ import { Eye, EyeOff, ShieldAlert, Smartphone, CreditCard, Landmark, CheckCircle
 import { useToast } from "@/hooks/use-toast";
 import { useMyInstitution } from "@/hooks/useInstitution";
 import { useRole } from "@/hooks/useRole";
+import { ReceiptPreview, PaymentChartsPreview, NotificationPreviews } from "./PaymentPreviews";
 import {
   isValidShortcode, isValidPrefix, isValidCallbackToken, buildReference, MPESA_REF_MAX,
   maskSecret, normalizeKenyanPhone, RECON_COLUMNS, validateReconCsv,
@@ -265,6 +266,9 @@ export default function PaymentSettingsTab() {
             <CardContent><p className="py-8 text-center text-sm text-muted-foreground">No changes recorded yet.</p></CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="receipt" className="mt-4"><ReceiptPreview /></TabsContent>
+        <TabsContent value="charts" className="mt-4"><PaymentChartsPreview /></TabsContent>
+        <TabsContent value="messages" className="mt-4"><NotificationPreviews /></TabsContent>
       </Tabs>
     </div>
   );
