@@ -100,6 +100,9 @@ export default function PaymentSettingsTab() {
           <TabsTrigger value="preview">Parent payment preview</TabsTrigger>
           <TabsTrigger value="recon">Reconciliation import</TabsTrigger>
           <TabsTrigger value="history">Change history</TabsTrigger>
+          <TabsTrigger value="receipt">Receipt design</TabsTrigger>
+          <TabsTrigger value="charts">Payment charts</TabsTrigger>
+          <TabsTrigger value="messages">Message previews</TabsTrigger>
         </TabsList>
 
         <TabsContent value="providers" className="mt-4 space-y-4">
