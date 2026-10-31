@@ -14,6 +14,7 @@ import AnnouncementsTab from "@/components/course/AnnouncementsTab";
 import ResourcesTab from "@/components/course/ResourcesTab";
 import CourseProgressCard from "@/components/course/CourseProgressCard";
 import { useRole } from "@/hooks/useRole";
+import { useEngagementTracker } from "@/hooks/useEngagement";
 
 const CoursePage = () => {
   const { courseId } = useParams();
@@ -26,7 +27,8 @@ const CoursePage = () => {
   const { data: discussions } = useDiscussions(courseId);
   const { data: submissions } = useMySubmissions();
   const { data: completions } = useLessonCompletions();
-  const { isCoach, role } = useRole();
+  const { isCoach, role, isStudent, isLoading: loadingRole } = useRole();
+  useEngagementTracker("course", course?.id, course?.id, isStudent && !loadingRole);
   const isTutor = role === "tutor" || role === "ta";
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
 

@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLessonCompletions, useToggleLessonCompletion } from "@/hooks/useLessonCompletions";
 import RichContent, { stripMarkdown } from "@/components/RichContent";
+import { useEngagementTracker } from "@/hooks/useEngagement";
+import { useRole } from "@/hooks/useRole";
 
 const ensureScheme = (url: string) => {
   if (!url) return url;
@@ -15,6 +17,7 @@ const ensureScheme = (url: string) => {
 
 const LessonPage = () => {
   const { lessonId } = useParams();
+  const { isStudent, isLoading: loadingRole } = useRole();
   const { data: completions } = useLessonCompletions();
   const toggleComplete = useToggleLessonCompletion();
 
@@ -24,10 +27,11 @@ const LessonPage = () => {
     queryKey: ["lesson", lessonId],
     enabled: !!lessonId,
     queryFn: async () => {
+      if (!lessonId) return null;
       const { data, error } = await supabase
         .from("lessons")
         .select("*, modules(title, course_id, courses:course_id(code, title))")
-        .eq("id", lessonId!)
+        .eq("id", lessonId)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -38,15 +42,18 @@ const LessonPage = () => {
     queryKey: ["lesson-siblings", lesson?.module_id],
     enabled: !!lesson?.module_id,
     queryFn: async () => {
+      if (!lesson?.module_id) return [];
       const { data, error } = await supabase
         .from("lessons")
         .select("id, title, order, completed")
-        .eq("module_id", lesson!.module_id)
+        .eq("module_id", lesson.module_id)
         .order("order");
       if (error) throw error;
       return data;
     },
   });
+
+  useEngagementTracker("lesson", lesson?.id, lesson?.modules?.course_id, isStudent && !loadingRole);
 
   if (isLoading) {
     return (
@@ -80,8 +87,9 @@ const LessonPage = () => {
   const isExternalUrl = content.startsWith("http") && !youtubeMatch && !isVideoUrl && !isPdfUrl && !isDocUrl && !isHtml;
 
   const handleToggle = () => {
+    if (!lessonId) return;
     toggleComplete.mutate(
-      { lessonId: lessonId!, completed: isCompleted },
+      { lessonId, completed: isCompleted },
       { onSuccess: () => toast.success(isCompleted ? "Unmarked" : "Lesson completed!") }
     );
   };

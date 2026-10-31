@@ -16,6 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import RichTextEditor from "@/components/RichTextEditor";
 import RichContent from "@/components/RichContent";
+import { Button } from "@/components/ui/button";
+import { useProctoring } from "@/hooks/useProctoring";
 
 const QuizzesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -151,37 +153,44 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submissionLock = useRef(false);
   const [results, setResults] = useState<{ score: number; total: number; correct: number; pendingReview: number } | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: quizzes } = useQuizzes();
   const quiz = quizzes?.find((q) => q.id === quizId);
+  const proctor = useProctoring({ attemptId, quizId, enabled: !!attemptId && !submitted });
 
-  useEffect(() => {
-    if (questions?.length && !attemptId && !submitted) {
+  const beginAttempt = async () => {
+    if (starting || attemptId || !questions?.length) return;
+    setStarting(true);
+    await proctor.enterFullscreen();
       startAttempt.mutate(quizId, {
         onSuccess: (data) => {
           setAttemptId(data.id);
           setTimeLeft((quiz?.time_limit || 30) * 60);
+          setStarting(false);
         },
         onError: (e) => {
           toast.error(e.message);
-          onExit();
+          setStarting(false);
+          void proctor.exitFullscreen();
         },
       });
-    }
-  }, [questions, quizId]);
+  };
 
   useEffect(() => {
-    if (timeLeft === null || submitted) return;
+    if (timeLeft === null || submitted || submitting) return;
     if (timeLeft <= 0) {
       handleSubmit();
       return;
     }
     const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft, submitted]);
+  }, [timeLeft, submitted, submitting]);
 
   const handleSAQFileUpload = async (questionId: string, file: File) => {
     if (!user) return;
@@ -204,8 +213,9 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!attemptId || !questions || submitted) return;
-    setSubmitted(true);
+    if (!attemptId || !questions || submitted || submissionLock.current) return;
+    submissionLock.current = true;
+    setSubmitting(true);
 
     // Client only sends the answer text; the server computes is_correct & points.
     const responses = questions.map((q) => {
@@ -227,6 +237,8 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
 
     try {
       const result = await submitResponses.mutateAsync({ attemptId, responses });
+      await proctor.flush();
+      setSubmitted(true);
       setResults({
         score: result?.score ?? 0,
         total,
@@ -235,6 +247,10 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
       });
     } catch (e: any) {
       toast.error(e.message);
+      setTimeLeft(prev => Math.max(prev ?? 0, 30));
+    } finally {
+      submissionLock.current = false;
+      setSubmitting(false);
     }
   }, [attemptId, questions, answers, submitted]);
 
@@ -254,6 +270,15 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
         <button onClick={onExit} className="mt-4 text-primary underline">Go back</button>
       </div>
     );
+  }
+
+  if (!attemptId && !submitted) {
+    return <div className="mx-auto max-w-2xl space-y-5 py-8">
+      <h1 className="font-display text-2xl font-bold">{quiz?.title}</h1>
+      <p className="text-muted-foreground">{quiz?.time_limit || 30} minutes · {questions.length} questions</p>
+      <p className="text-sm">This attempt records window changes and full-screen exits. Copy, paste and right-click are blocked during the attempt. Browser monitoring cannot prevent another device being used.</p>
+      <div className="flex gap-3"><Button variant="outline" onClick={onExit}>Cancel</Button><Button onClick={beginAttempt} disabled={starting}><Play className="mr-2 h-4 w-4" />Begin monitored quiz</Button></div>
+    </div>;
   }
 
   // Results screen
@@ -365,6 +390,11 @@ function QuizEngine({ quizId, onExit }: { quizId: string; onExit: () => void }) 
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm" role="status">
+        <span className="text-muted-foreground">Browser monitoring active{proctor.loggingPending ? " · Incident storage pending" : ""}</span>
+        {!proctor.isFullscreen && <Button variant="outline" size="sm" onClick={proctor.enterFullscreen}>Return to full screen</Button>}
+        {submitting && <span>Submitting answers…</span>}
+      </div>
       {/* Timer Warning Banner */}
       {(timeLeft || 0) <= 120 && (timeLeft || 0) > 0 && (
         <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 flex items-center gap-3 animate-pulse" role="alert">

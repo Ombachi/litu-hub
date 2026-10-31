@@ -9,20 +9,22 @@ type Resource = "lesson" | "assignment" | "quiz" | "discussion" | "course";
  * Tracks active time and interactions on a piece of course material.
  * Time only accrues while the tab is visible; batches flush every 30s and on unmount.
  */
-export function useEngagementTracker(resourceType: Resource, resourceId?: string, courseId?: string) {
+export function useEngagementTracker(resourceType: Resource, resourceId?: string, courseId?: string, enabled = true) {
   const { user } = useAuth();
   const seconds = useRef(0);
   const interactions = useRef(0);
 
   useEffect(() => {
-    if (!user || !resourceId) return;
+    if (!enabled || !user || !resourceId || !courseId) return;
+    seconds.current = 0;
+    interactions.current = 0;
 
     const tick = window.setInterval(() => {
       if (!document.hidden) seconds.current += 1;
     }, 1000);
 
     const bump = () => {
-      interactions.current += 1;
+      if (!document.hidden) interactions.current += 1;
     };
     window.addEventListener("click", bump);
     window.addEventListener("keydown", bump);
@@ -49,6 +51,9 @@ export function useEngagementTracker(resourceType: Resource, resourceId?: string
     };
 
     const flushTimer = window.setInterval(flush, 30000);
+    const onVisibility = () => { if (document.hidden) void flush(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
 
     return () => {
       window.clearInterval(tick);
@@ -56,9 +61,11 @@ export function useEngagementTracker(resourceType: Resource, resourceId?: string
       window.removeEventListener("click", bump);
       window.removeEventListener("keydown", bump);
       window.removeEventListener("scroll", bump);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
       flush();
     };
-  }, [user, resourceType, resourceId, courseId]);
+  }, [user?.id, resourceType, resourceId, courseId, enabled]);
 }
 
 export interface EngagementRow {

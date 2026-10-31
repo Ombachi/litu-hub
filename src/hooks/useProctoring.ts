@@ -43,6 +43,7 @@ export const incidentLabel = (t: IncidentType) => label[t] || t;
 export function useProctoring({ attemptId, quizId, enabled }: Options) {
   const [incidents, setIncidents] = useState<ProctorIncident[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [loggingPending, setLoggingPending] = useState(false);
   const buffer = useRef<ProctorIncident[]>([]);
 
   const log = useCallback(
@@ -60,7 +61,7 @@ export function useProctoring({ attemptId, quizId, enabled }: Options) {
   );
 
   const flush = useCallback(async () => {
-    if (!buffer.current.length) return;
+    if (!attemptId || !buffer.current.length) return;
     const rows = buffer.current.map((i) => ({
       attempt_id: attemptId || null,
       quiz_id: quizId || null,
@@ -70,8 +71,10 @@ export function useProctoring({ attemptId, quizId, enabled }: Options) {
     }));
     buffer.current = [];
     try {
-      await safeInsert("proctoring_incidents", rows);
+      const stored = await safeInsert("proctoring_incidents", rows);
+      setLoggingPending(!stored);
     } catch {
+      setLoggingPending(true);
       /* keep the exam running even if logging fails */
     }
   }, [attemptId, quizId]);
@@ -96,6 +99,9 @@ export function useProctoring({ attemptId, quizId, enabled }: Options) {
 
   useEffect(() => {
     if (!enabled) return;
+    setIncidents([]);
+    buffer.current = [];
+    log("session_start");
 
     const onBlur = () => log("tab_blur");
     const onVisibility = () => document.hidden && log("tab_blur");
@@ -129,9 +135,11 @@ export function useProctoring({ attemptId, quizId, enabled }: Options) {
       document.removeEventListener("paste", onPaste);
       document.removeEventListener("contextmenu", onContext);
       window.clearInterval(timer);
-      flush();
+      log("session_end");
+      void flush();
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     };
   }, [enabled, log, flush]);
 
-  return { incidents, log, flush, isFullscreen, enterFullscreen, exitFullscreen };
+  return { incidents, log, flush, loggingPending, isFullscreen, enterFullscreen, exitFullscreen };
 }
