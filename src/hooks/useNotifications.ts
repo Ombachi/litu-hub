@@ -11,10 +11,11 @@ export function useNotifications() {
     queryKey: ["notifications", user?.id],
     enabled: !!user,
     queryFn: async () => {
+      if (!user) return [];
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -26,7 +27,7 @@ export function useNotifications() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel("notifications-realtime")
+      .channel(`notifications-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
@@ -65,10 +66,11 @@ export function useMarkAllRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
+      if (!user) throw new Error("Sign in required");
       const { error } = await supabase
         .from("notifications")
         .update({ read: true })
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .eq("read", false);
       if (error) throw error;
     },

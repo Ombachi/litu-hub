@@ -133,6 +133,7 @@ const GradingQueuePage = () => {
       {viewingDoc && <InAppDocViewer fileUrl={viewingDoc} onClose={() => setViewingDoc(null)} />}
       {selectedSubmission && (
         <GradingDetailModal
+          key={selectedSubmission.id}
           submission={selectedSubmission}
           onClose={() => setSelectedSubmission(null)}
           onGrade={(p) => gradeMutation.mutate(p)}

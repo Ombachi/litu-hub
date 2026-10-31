@@ -3,6 +3,8 @@ import { FileText, Eye, X, Send, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import RichContent from "@/components/RichContent";
+import RubricGrader from "@/components/rubrics/RubricGrader";
+import { parseRubricCriteria, rubricSelectionComplete, scaledRubricScore } from "@/lib/features/rubricTypes";
 
 const FEEDBACK_TEMPLATES = [
   "Good work! Consider expanding on your analysis.",
@@ -23,6 +25,10 @@ interface GradingDetailModalProps {
 const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc }: GradingDetailModalProps) => {
   const [score, setScore] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [selection, setSelection] = useState<Record<string, string>>({});
+  const criteria = parseRubricCriteria(submission.assignments?.rubric_criteria);
+  const maxScore = submission.assignments?.max_score ?? 100;
+  const complete = criteria.length === 0 || rubricSelectionComplete(criteria, selection);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<{
     suggestedScore: number | null;
@@ -45,7 +51,7 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
       });
       if (error) throw error;
       setAiSuggestion(data);
-      if (data.suggestedScore !== null) setScore(String(data.suggestedScore));
+      if (!criteria.length && data.suggestedScore !== null) setScore(String(data.suggestedScore));
       if (data.feedback) setFeedback(data.feedback);
       toast.success("AI suggestion generated!");
     } catch (e: any) {
@@ -140,7 +146,7 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="grade-score" className="text-sm font-medium">Score</label>
-              <input id="grade-score" type="number" value={score} onChange={(e) => setScore(e.target.value)} placeholder={`0 - ${submission.assignments?.max_score}`} max={submission.assignments?.max_score} min={0} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+              <input id="grade-score" type="number" value={score} readOnly={criteria.length > 0} onChange={(e) => setScore(e.target.value)} placeholder={`0 - ${maxScore}`} max={maxScore} min={0} className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
               <label htmlFor="grade-template" className="text-sm font-medium">Template</label>
@@ -150,6 +156,10 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
               </select>
             </div>
           </div>
+          {criteria.length > 0 && <RubricGrader criteria={criteria} value={selection} onChange={next => {
+            setSelection(next);
+            setScore(String(scaledRubricScore(criteria, next, maxScore)));
+          }} />}
           <div>
             <label htmlFor="grade-feedback" className="text-sm font-medium">Feedback</label>
             <textarea id="grade-feedback" value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Provide feedback to the student..." className="mt-1 w-full rounded-lg border bg-background p-3 text-sm outline-none focus:border-primary resize-none" rows={4} />
@@ -157,8 +167,14 @@ const GradingDetailModal = ({ submission, onClose, onGrade, isPending, onViewDoc
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm hover:bg-secondary">Cancel</button>
             <button
-              onClick={() => onGrade({ id: submission.id, score: Number(score), feedback })}
-              disabled={!score || isPending}
+              onClick={() => {
+                const breakdown = criteria.map(c => {
+                  const level = c.levels.find(l => l.id === selection[c.id]);
+                  return `${c.title}: ${level?.label ?? ""} (${level?.points ?? 0} pts)`;
+                }).join("\n");
+                onGrade({ id: submission.id, score: Number(score), feedback: breakdown ? `${feedback}\n\nRubric assessment:\n${breakdown}`.trim() : feedback });
+              }}
+              disabled={score === "" || !Number.isFinite(Number(score)) || Number(score) < 0 || Number(score) > maxScore || !complete || isPending}
               className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 mr-1 inline" />}

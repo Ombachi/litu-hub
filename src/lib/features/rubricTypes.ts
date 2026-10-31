@@ -55,3 +55,23 @@ export const scoreFromSelection = (
     const level = c.levels.find((l) => l.id === selection[c.id]);
     return sum + (level?.points || 0);
   }, 0);
+
+/** Reject legacy/untrusted JSON rather than crashing a grading session. */
+export function parseRubricCriteria(value: unknown): RubricCriterion[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((c): c is RubricCriterion =>
+    !!c && typeof c.id === "string" && typeof c.title === "string" &&
+    Array.isArray(c.levels) && c.levels.length > 0 && c.levels.every((l: RubricLevel) =>
+      !!l && typeof l.id === "string" && typeof l.label === "string" &&
+      Number.isFinite(l.points) && l.points >= 0),
+  );
+}
+
+export function scaledRubricScore(criteria: RubricCriterion[], selection: Record<string, string>, maxScore: number) {
+  const max = rubricMaxPoints(criteria);
+  return max > 0 ? Math.round(scoreFromSelection(criteria, selection) / max * maxScore * 100) / 100 : 0;
+}
+
+export function rubricSelectionComplete(criteria: RubricCriterion[], selection: Record<string, string>) {
+  return criteria.length > 0 && criteria.every(c => c.levels.some(l => l.id === selection[c.id]));
+}

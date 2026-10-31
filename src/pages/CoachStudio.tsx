@@ -31,6 +31,7 @@ import AIGenerateButton from "@/components/coach/AIGenerateButton";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import CourseRubricsPanel from "@/components/rubrics/CourseRubricsPanel";
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -315,6 +316,7 @@ const CoachStudio = () => {
                 { value: "discussions", icon: MessageSquare, label: `Discussions (${discussions?.length || 0})` },
                 { value: "announcements", icon: Megaphone, label: "Announcements" },
                 { value: "resources", icon: FolderOpen, label: "Resources" },
+                { value: "rubrics", icon: FileText, label: "Rubrics" },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
@@ -328,6 +330,9 @@ const CoachStudio = () => {
             </TabsList>
 
             {/* Modules Tab */}
+            <TabsContent value="rubrics" className="mt-6">
+              {courseId && <CourseRubricsPanel key={courseId} courseId={courseId} assignments={assignments || []} />}
+            </TabsContent>
             <TabsContent value="modules" className="mt-6 space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-display font-semibold">Course Modules</h3>
