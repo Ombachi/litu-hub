@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { RubricCriterion, rubricMaxPoints, scoreFromSelection } from "@/lib/features/rubricTypes";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface RubricGraderProps {
   criteria: RubricCriterion[];
@@ -41,20 +42,20 @@ const RubricGrader = ({ criteria, value, onChange }: RubricGraderProps) => {
             {c.levels.map((l) => {
               const active = selection[c.id] === l.id;
               return (
-                <button
+                <Button variant="outline"
                   key={l.id}
                   type="button"
                   onClick={() => pick(c.id, l.id)}
                   aria-pressed={active}
                   className={cn(
-                    "rounded-lg border p-3 text-left text-xs transition-colors",
+                    "h-auto min-h-20 flex-col items-start whitespace-normal rounded-lg border p-3 text-left text-xs transition-colors",
                     active ? "border-primary bg-primary/10" : "hover:bg-secondary",
                   )}
                 >
                   <span className="block font-semibold">{l.label}</span>
                   <span className="block text-muted-foreground">{l.points} pts</span>
                   {l.description && <span className="mt-1 block text-muted-foreground">{l.description}</span>}
-                </button>
+                </Button>
               );
             })}
           </div>

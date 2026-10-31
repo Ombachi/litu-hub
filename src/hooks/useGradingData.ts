@@ -33,7 +33,7 @@ export function useGradingSubmissions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assignment_submissions")
-        .select("*, assignments(title, max_score, course_id, courses(code, title))")
+        .select("*, assignments(title, max_score, rubric_criteria, course_id, courses(code, title))")
         .is("score", null).eq("status", "submitted").order("submitted_at", { ascending: true });
       if (error) throw error;
 
