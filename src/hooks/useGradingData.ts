@@ -136,7 +136,11 @@ export function useGradeSubmission() {
         .update({ score: params.score, feedback: params.feedback, status: "graded" }).eq("id", params.id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["grading-queue"] }); toast.success("Graded successfully"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["grading-queue"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("Graded successfully");
+    },
     onError: (e) => handleApiError(e, "Grading"),
   });
 }
@@ -152,13 +156,15 @@ export function useGradeSAQ() {
       const { data: allResponses } = await supabase.from("quiz_responses").select("points_earned").eq("attempt_id", params.attemptId);
       if (allResponses) {
         const totalScore = allResponses.reduce((s, r) => s + (r.points_earned || 0), 0);
-        await supabase.from("quiz_attempts").update({ score: totalScore }).eq("id", params.attemptId);
+        const { error: attemptError } = await supabase.from("quiz_attempts").update({ score: totalScore }).eq("id", params.attemptId);
+        if (attemptError) throw attemptError;
       }
 
-      await supabase.rpc("notify_saq_graded" as any, {
+      const { error: notificationError } = await supabase.rpc("notify_saq_graded" as any, {
         _attempt_id: params.attemptId,
         _points_earned: params.pointsEarned,
       });
+      if (notificationError) toast.info("Grade saved; student notification delivery is pending.");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["grading-saq"] }); qc.invalidateQueries({ queryKey: ["grading-quiz-attempts"] }); toast.success("SAQ graded"); },
     onError: (e) => handleApiError(e, "SAQ Grading"),
@@ -175,7 +181,7 @@ export function useBulkGrade() {
         if (error) throw error;
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["grading-queue"] }); toast.success("Bulk grading complete"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["grading-queue"] }); qc.invalidateQueries({ queryKey: ["notifications"] }); toast.success("Bulk grading complete"); },
     onError: (e) => handleApiError(e, "Bulk grading"),
   });
 }

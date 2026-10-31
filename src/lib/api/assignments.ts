@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { dispatchSubmissionNotification } from "./lmsEvents";
 
 export const assignmentsApi = {
   listPaged: async (params: { courseId?: string; page: number; pageSize: number }) => {
@@ -26,12 +27,13 @@ export const assignmentsApi = {
     content?: string;
     fileUrl?: string;
   }) => {
-    const { error } = await supabase.from("assignment_submissions").insert({
+    const { data, error } = await supabase.from("assignment_submissions").insert({
       assignment_id: params.assignmentId,
       student_id: params.studentId,
       content: params.content || null,
       file_url: params.fileUrl || null,
-    });
+    }).select("id").single();
     if (error) throw error;
+    return { notificationDelivered: await dispatchSubmissionNotification(data.id) };
   },
 };
