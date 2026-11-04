@@ -1,6 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BulkImportDialog from "@/components/admin/BulkImportDialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -309,6 +310,9 @@ const AdminPanel = () => {
             ? "Manage institutions, school admins, and platform-wide settings"
             : `Manage ${myInstitution?.name || "your institution"}'s courses, users, and enrollment`}
         </p>
+        {!isPlatformAdmin && (
+          <div className="mt-3"><BulkImportDialog /></div>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full">
