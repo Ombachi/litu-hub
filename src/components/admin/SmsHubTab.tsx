@@ -14,7 +14,7 @@ import { MessageSquare, Wallet, Send, AlertTriangle } from "lucide-react";
 
 type Msg = { id: string; event: string; recipient_phone: string | null; status: string; cost_cents: number; created_at: string; body: string };
 const kes = (c: number) => `KES ${(c / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
-const statusVariant = (s: string) => (s === "sent" ? "default" : s === "failed" ? "destructive" : "secondary") as const;
+const statusVariant = (s: string): "default" | "destructive" | "secondary" => (s === "sent" ? "default" : s === "failed" ? "destructive" : "secondary");
 
 export default function SmsHubTab() {
   const { data: inst } = useMyInstitution();
