@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck, Wallet, CreditCard, GraduationCap,
+  Users, Shield, BookOpen, ClipboardList, Loader2, Search, X, Save, Calendar, UserPlus, Building2, BarChart3, UserCheck, Wallet, CreditCard, GraduationCap, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,7 @@ const BursarTab = lazy(() => import("@/components/admin/BursarTab"));
 const SubscriptionsTab = lazy(() => import("@/components/admin/SubscriptionsTab"));
 const PaymentSettingsTab = lazy(() => import("@/components/admin/PaymentSettingsTab"));
 const GradingSettingsTab = lazy(() => import("@/components/admin/GradingSettingsTab"));
+const SmsHubTab = lazy(() => import("@/components/admin/SmsHubTab"));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -288,6 +289,7 @@ const AdminPanel = () => {
         { value: "users", icon: Users, label: `Users (${visibleProfiles?.length || 0})` },
         { value: "fees", icon: Wallet, label: "Fees" },
         { value: "payment-settings", icon: CreditCard, label: "Payment Settings" },
+        { value: "sms", icon: MessageSquare, label: "SMS Hub" },
         { value: "subscription", icon: CreditCard, label: "Subscription" },
         { value: "parent-approvals", icon: UserCheck, label: "Parent Approvals" },
         { value: "audit", icon: ClipboardList, label: "Audit Logs" },
@@ -353,6 +355,12 @@ const AdminPanel = () => {
         {isSchoolAdmin && (
           <TabsContent value="payment-settings" className="mt-6">
             <Suspense fallback={<TabFallback />}><PaymentSettingsTab /></Suspense>
+          </TabsContent>
+        )}
+
+        {isSchoolAdmin && (
+          <TabsContent value="sms" className="mt-6">
+            <Suspense fallback={<TabFallback />}><SmsHubTab /></Suspense>
           </TabsContent>
         )}
 
