@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { gradeFor, aggregateGrade, aggregateLabel } from "@/lib/grading";
 import { useGradingSystem } from "@/hooks/useGradingSystem";
+import StudentAttendanceSummary from "@/components/attendance/StudentAttendanceSummary";
 
 const ParentPortal = () => {
   const system = useGradingSystem();
@@ -303,6 +304,14 @@ const ParentPortal = () => {
               </div>
             </div>
           </div>
+
+          {/* Attendance */}
+          {childId && (
+            <div className="space-y-3 rounded-lg border bg-card p-4">
+              <h2 className="font-display text-xl font-semibold">{selectedProfile?.first_name}'s Attendance</h2>
+              <StudentAttendanceSummary key={childId} studentId={childId} name={selectedProfile?.first_name} />
+            </div>
+          )}
 
           {/* Course Grades */}
           <div className="space-y-4">

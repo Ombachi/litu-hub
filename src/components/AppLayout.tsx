@@ -24,6 +24,7 @@ const ALL_NAV_ITEMS: RoleScopedNavItem[] = [
   { to: "/assignments", icon: FileText, label: "Assignments", roles: ["student", "ta"] },
   { to: "/quizzes", icon: Brain, label: "Quizzes", roles: ["student", "ta"] },
   { to: "/grades", icon: TrendingUp, label: "Grades", roles: ["student", "ta"] },
+  { to: "/attendance", icon: Calendar, label: "Attendance", roles: ["student"] },
   { to: "/calendar", icon: Calendar, label: "Calendar", roles: ["student", "tutor", "ta"] },
   { to: "/messages", icon: Mail, label: "Messages", roles: ["platform_admin", "school_admin", "tutor", "ta", "student", "parent"] },
   { to: "/discussions", icon: MessageSquare, label: "Discussions", roles: ["student", "ta"] },

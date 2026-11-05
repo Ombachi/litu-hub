@@ -32,6 +32,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import CourseRubricsPanel from "@/components/rubrics/CourseRubricsPanel";
+import AttendanceRegister from "@/components/attendance/AttendanceRegister";
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -317,6 +318,7 @@ const CoachStudio = () => {
                 { value: "announcements", icon: Megaphone, label: "Announcements" },
                 { value: "resources", icon: FolderOpen, label: "Resources" },
                 { value: "rubrics", icon: FileText, label: "Rubrics" },
+                { value: "attendance", icon: Layers, label: "Attendance" },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.value}
@@ -329,6 +331,9 @@ const CoachStudio = () => {
               ))}
             </TabsList>
 
+            <TabsContent value="attendance" className="mt-6">
+              {courseId && <AttendanceRegister key={courseId} courseId={courseId} institutionId={(course as any)?.institution_id} />}
+            </TabsContent>
             {/* Modules Tab */}
             <TabsContent value="rubrics" className="mt-6">
               {courseId && <CourseRubricsPanel key={courseId} courseId={courseId} assignments={assignments || []} />}

@@ -23,6 +23,7 @@ const DiscussionsPage = lazy(() => import("./pages/DiscussionsPage"));
 const DiscussionThreadPage = lazy(() => import("./pages/DiscussionThreadPage"));
 const CoachStudio = lazy(() => import("./pages/CoachStudio"));
 const GradesPage = lazy(() => import("./pages/GradesPage"));
+const AttendancePage = lazy(() => import("./pages/AttendancePage"));
 const CourseGradesPage = lazy(() => import("./pages/CourseGradesPage"));
 const SemesterGradesPage = lazy(() => import("./pages/SemesterGradesPage"));
 const CalendarPage = lazy(() => import("./pages/CalendarPage"));
@@ -80,6 +81,7 @@ const App = () => (
                           <Route path="/quizzes" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><QuizzesPage /></Suspense></ErrorBoundary>} />
                           <Route path="/discussions" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><DiscussionsPage /></Suspense></ErrorBoundary>} />
                           <Route path="/discussion/:discussionId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><DiscussionThreadPage /></Suspense></ErrorBoundary>} />
+                          <Route path="/attendance" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><AttendancePage /></Suspense></ErrorBoundary>} />
                           <Route path="/grades" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><GradesPage /></Suspense></ErrorBoundary>} />
                           <Route path="/grades/semester" element={<ErrorBoundary><Suspense fallback={<ListPageSkeleton />}><SemesterGradesPage /></Suspense></ErrorBoundary>} />
                           <Route path="/grades/course/:courseId" element={<ErrorBoundary><Suspense fallback={<DetailPageSkeleton />}><CourseGradesPage /></Suspense></ErrorBoundary>} />
