@@ -332,7 +332,7 @@ const CoachStudio = () => {
             </TabsList>
 
             <TabsContent value="attendance" className="mt-6">
-              {courseId && <AttendanceRegister key={courseId} courseId={courseId} institutionId={(course as any)?.institution_id} />}
+              {courseId && <AttendanceRegister key={courseId} courseId={courseId} institutionId={(selectedCourse as any)?.institution_id} />}
             </TabsContent>
             {/* Modules Tab */}
             <TabsContent value="rubrics" className="mt-6">
