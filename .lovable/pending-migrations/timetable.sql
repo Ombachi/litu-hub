@@ -44,11 +44,11 @@ CREATE POLICY "admins and course tutors manage entries" ON public.timetable_entr
   USING (
     EXISTS (SELECT 1 FROM public.user_institutions ui WHERE ui.user_id = auth.uid() AND ui.institution_id = timetable_entries.institution_id)
     AND (public.has_role(auth.uid(), 'school_admin')
-         OR EXISTS (SELECT 1 FROM public.courses c WHERE c.id = timetable_entries.course_id AND c.tutor_id = auth.uid()))
+         OR EXISTS (SELECT 1 FROM public.courses c WHERE c.id = timetable_entries.course_id AND c.created_by = auth.uid()))
   )
   WITH CHECK (
     EXISTS (SELECT 1 FROM public.user_institutions ui WHERE ui.user_id = auth.uid() AND ui.institution_id = timetable_entries.institution_id)
     AND EXISTS (SELECT 1 FROM public.timetable_periods p WHERE p.id = period_id AND p.institution_id = timetable_entries.institution_id)
     AND EXISTS (SELECT 1 FROM public.courses c WHERE c.id = course_id AND c.institution_id = timetable_entries.institution_id
-                AND (public.has_role(auth.uid(), 'school_admin') OR c.tutor_id = auth.uid()))
+                AND (public.has_role(auth.uid(), 'school_admin') OR c.created_by = auth.uid()))
   );

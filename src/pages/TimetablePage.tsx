@@ -45,7 +45,7 @@ export default function TimetablePage() {
   const { data: courses } = useQuery({
     queryKey: ["tt-courses", inst?.id],
     enabled: !!inst?.id,
-    queryFn: async () => (await supabase.from("courses").select("id, title, tutor_id").eq("institution_id", inst!.id)).data ?? [],
+    queryFn: async () => (await supabase.from("courses").select("id, title, tutor_id:created_by").eq("institution_id", inst!.id)).data ?? [],
   });
   const { data: cohorts } = useQuery({
     queryKey: ["tt-cohorts", inst?.id],
